@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 32" height="32" aria-label="Atlassian logo" role="img">
+  <g transform="translate(0, 4) scale(0.9)">
+    <path fill="#2684FF" d="M 11.1 1.2 L 1.2 18.2 C 0.9 18.7 1.3 19.4 1.9 19.4 L 8.1 19.4 C 8.6 19.4 9.1 19.1 9.4 18.6 L 14.1 10.4 C 14.4 9.9 15.0 9.9 15.3 10.4 L 20.0 18.6 C 20.3 19.1 20.8 19.4 21.3 19.4 L 27.5 19.4 C 28.1 19.4 28.5 18.7 28.2 18.2 L 18.3 1.2 C 17.1 -0.8 12.3 -0.8 11.1 1.2 Z"/>
+  </g>
+  <text x="32" y="22" font-family="'Charlie Display', Inter, sans-serif" font-weight="600" font-size="20" fill="#2684FF" letter-spacing="-0.2px">Atlassian</text>
+</svg>
