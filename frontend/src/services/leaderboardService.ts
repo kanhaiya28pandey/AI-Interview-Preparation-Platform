@@ -1,0 +1,20 @@
+import { mockLeaderboardData, LeaderboardUser } from "@/mocks/leaderboardData";
+
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
+const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+export const leaderboardService = {
+  async getLeaderboard(filter: "all" | "weekly" | "college" = "all"): Promise<LeaderboardUser[]> {
+    if (USE_MOCKS) {
+      await delay(350);
+      let data = [...mockLeaderboardData];
+      if (filter === "college") {
+        data = data.filter((u) => u.college.includes("SRM"));
+      } else if (filter === "weekly") {
+        data = [...data].sort((a, b) => b.streakDays - a.streakDays);
+      }
+      return data.map((item, index) => ({ ...item, rank: index + 1 }));
+    }
+    throw new Error("Real backend endpoint not implemented");
+  },
+};
