@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
+import { VerdictHeadline } from "@/components/common/VerdictHeadline";
 import { HelpCircle, CheckCircle2, XCircle, ArrowRight, RotateCcw, Award } from "lucide-react";
 
 export const Quiz: React.FC = () => {
@@ -110,7 +111,7 @@ export const Quiz: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <h2 className="font-serif text-3xl font-medium text-text-primary">Quiz Complete!</h2>
+            <VerdictHeadline prefix="Your Score is " score={percent} size="xl" />
             <p className="text-sm text-text-secondary">{activeTopic.title}</p>
           </div>
 

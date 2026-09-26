@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
+import { VerdictHeadline } from "@/components/common/VerdictHeadline";
 import { Video, Mic, Clock, Sparkles, CheckCircle2, ArrowRight, Award, AlertCircle, RefreshCw, Volume2 } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 
@@ -250,8 +251,8 @@ export const MockInterview: React.FC = () => {
           <div className="p-4 bg-cyan-400/15 text-cyan-400 border border-cyan-400/40 rounded-full inline-block">
             <Award className="w-10 h-10" />
           </div>
-          <h2 className="font-serif text-3xl font-medium text-text-primary">Interview Performance Summary</h2>
-          <p className="text-sm text-text-secondary">{feedback.roleTitle} · {feedback.date}</p>
+          <VerdictHeadline prefix="Your Interview was " score={feedback.overallScore} size="xl" />
+          <p className="text-sm text-text-secondary">{feedback.roleTitle} &bull; {feedback.date}</p>
         </div>
 
         {/* Score Breakdown Cards */}

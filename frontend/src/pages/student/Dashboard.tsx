@@ -5,24 +5,38 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { CardSkeleton } from "@/components/common/Skeletons";
-import { Video, Code2, BookOpen, Flame, Award, ArrowRight, Play, Sparkles, CheckCircle2, Calendar } from "lucide-react";
+import { Video, Code2, BookOpen, Flame, Award, ArrowRight, Play, Sparkles, CheckCircle2, Calendar, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { profileService } from "@/services/profileService";
-import { UserProfile } from "@/mocks/profileData";
+import { UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
+import { AvatarCompletionRing, ProfileSummaryCard } from "@/components/common/AvatarCompletionRing";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { verificationService } from "@/services/verificationService";
+import { VerificationStatus, VerificationSubmission } from "@/mocks/verifications";
+import { ShieldAlert, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
 
 export const StudentDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isDemoMode, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dismissReminder, setDismissReminder] = useState(false);
+  const [verifStatus, setVerifStatus] = useState<VerificationStatus>("Verified");
+  const [verifSub, setVerifSub] = useState<VerificationSubmission | undefined>(undefined);
 
   useEffect(() => {
     profileService.getProfile().then((data) => {
       setProfile(data);
       setLoading(false);
     });
-  }, []);
+
+    if (user?.userId && !isDemoMode && !isAdmin()) {
+      verificationService.getVerificationStatus(user.userId, user.email).then((res) => {
+        setVerifStatus(res.status);
+        setVerifSub(res.submission);
+      });
+    }
+  }, [user, isDemoMode, isAdmin]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -48,36 +62,81 @@ export const StudentDashboard: React.FC = () => {
     { subject: "Java/Spring", A: 82 },
     { subject: "DSA/DP", A: 88 },
     { subject: "System Design", A: 75 },
-    { subject: "STAR/Behavioral", A: 95 },
+    { subject: "SQL/DB", A: 85 },
   ];
-
-  // 28-day streak heatmap grid
-  const heatmapDays = Array.from({ length: 28 }, (_, i) => ({
-    day: i + 1,
-    active: i > 8,
-    level: (i % 4) + 1,
-  }));
 
   if (loading || !profile) return <CardSkeleton />;
 
+  const completion = calculateProfileCompletion(profile);
+
   return (
     <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-6 sm:p-8 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
-        <div className="space-y-2 max-w-xl z-10">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-400/15 border border-cyan-400/30 text-cyan-400 text-xs font-mono">
-            <Flame className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400" />
-            {profile.stats.currentStreak} Day Streak (Daily Practice)
+      {/* Verification Status Banner (If not Verified) */}
+      {verifStatus !== "Verified" && (
+        <div
+          className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-soft ${
+            verifStatus === "Pending Verification"
+              ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+              : verifStatus === "Rejected"
+              ? "bg-danger-bg border-danger/40 text-danger"
+              : "bg-cyan-500/10 border-cyan-500/30 text-cyan-300"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {verifStatus === "Pending Verification" ? (
+              <Clock className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
+            ) : verifStatus === "Rejected" ? (
+              <AlertTriangle className="w-5 h-5 text-danger shrink-0" />
+            ) : (
+              <ShieldAlert className="w-5 h-5 text-cyan-400 shrink-0" />
+            )}
+            <div>
+              <span className="font-semibold text-sm block">
+                {verifStatus === "Pending Verification"
+                  ? "Identity Verification Under Review"
+                  : verifStatus === "Rejected"
+                  ? "Identity Verification Action Required"
+                  : "College ID Verification Required"}
+              </span>
+              <p className="text-[11px] opacity-90 leading-relaxed">
+                {verifStatus === "Pending Verification"
+                  ? `Your College ID (Ref: ${verifSub?.verificationId || "VER-2026"}) is under review. Full features will unlock automatically.`
+                  : verifStatus === "Rejected"
+                  ? `Rejection Reason: ${verifSub?.rejectionNotes || "Image was unreadable"}. Please resubmit.`
+                  : "Verify your student status with your College ID to unlock Coding Arena, Mock Interviews, & Leaderboard."}
+              </p>
+            </div>
           </div>
-          <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
-            {getGreeting()}, <span className="text-cyan-400">{user?.name || "Student"}</span>!
-          </h2>
-          <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans">
-            Your overall performance is in the top 5% of your campus. Ready for today's mock interview or dynamic programming challenge?
-          </p>
+
+          <Button
+            variant={verifStatus === "Rejected" ? "danger" : "teal-cyan"}
+            size="sm"
+            onClick={() => navigate("/verify-identity")}
+            className="text-xs shrink-0 font-semibold"
+          >
+            {verifStatus === "Rejected" ? "Resubmit ID Card" : verifStatus === "Pending Verification" ? "Check Status" : "Verify College ID"}
+          </Button>
+        </div>
+      )}
+      {/* Welcome Banner with Avatar Completion Ring */}
+      <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-6 sm:p-8 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
+        <div className="flex items-center gap-5 z-10">
+          <AvatarCompletionRing profile={profile} size="xl" />
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-400/15 border border-cyan-400/30 text-cyan-400 text-xs font-mono">
+              <Flame className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400" />
+              {profile.stats.currentStreak} Day Streak (Daily Practice)
+            </div>
+            <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
+              {getGreeting()}, <span className="text-cyan-400">{user?.name || "Student"}</span>!
+            </h2>
+            <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans">
+              Your overall performance is in the top 5% of your campus. Ready for today's mock interview or coding challenge?
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-3 z-10">
+        <div className="flex gap-3 z-10 shrink-0">
           <Button variant="primary" size="md" onClick={() => navigate("/mock-interview")}>
             <Video className="w-4 h-4" /> Start Mock Interview
           </Button>
@@ -87,138 +146,95 @@ export const StudentDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Profile Completion Verdict Card */}
+      {completion < 100 && !dismissReminder && (
+        <div className="relative">
+          <ProfileSummaryCard profile={profile} compact />
+          <button
+            type="button"
+            onClick={() => setDismissReminder(true)}
+            className="absolute top-3 right-3 text-text-muted hover:text-text-primary text-xs p-1"
+            title="Dismiss reminder"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* KPI Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Mock Interviews"
-          value={profile.stats.mockInterviewsCompleted}
-          subtitle="Completed sessions"
+          title="Overall Readiness"
+          value={`${profile.stats.overallRating}%`}
+          subtitle="Campus Placement Score"
+          icon={Award}
+          trend={{ value: "+4.5%", isPositive: true }}
+        />
+        <StatCard
+          title="Mock Rounds"
+          value={profile.stats.mockInterviewsCompleted.toString()}
+          subtitle="AI Interviews Completed"
           icon={Video}
-          trend={{ value: "15%", isPositive: true }}
+          trend={{ value: "+2 this week", isPositive: true }}
         />
         <StatCard
           title="Problems Solved"
-          value={profile.stats.codingProblemsSolved}
-          subtitle="Accepted algorithm benchmarks"
+          value={profile.stats.codingProblemsSolved.toString()}
+          subtitle="DSA & Algorithm Challenges"
           icon={Code2}
-          trend={{ value: "8 this week", isPositive: true }}
         />
         <StatCard
-          title="Placement Readiness"
-          value={`${profile.stats.overallRating}%`}
-          subtitle="Average score"
-          icon={Award}
-          trend={{ value: "4%", isPositive: true }}
-        />
-        <StatCard
-          title="Day Streak"
+          title="Practice Streak"
           value={`${profile.stats.currentStreak} Days`}
-          subtitle="Daily practice commitment"
+          subtitle="Consistent Daily Momentum"
           icon={Flame}
         />
       </div>
 
-      {/* Main Content Grid */}
+      {/* Charts & Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
-          {/* Performance Line Chart */}
-          <Card className="p-6 space-y-4 bg-surface border-border">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-serif text-lg font-medium text-text-primary">Weekly Performance Progression</h3>
-                <p className="text-xs text-text-muted">Average score trend across past 7 sessions</p>
-              </div>
-              <span className="text-xs font-mono text-live font-semibold">Peak: 94%</span>
+        {/* Performance Line Chart */}
+        <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="font-serif text-lg font-medium text-text-primary">7-Day Score Momentum</h3>
+              <p className="text-xs text-text-muted">Average daily mock interview & coding scores</p>
             </div>
+            <span className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-400/10 px-2.5 py-1 rounded-full border border-cyan-400/20">
+              Top 5% Student
+            </span>
+          </div>
 
-            <div className="h-60 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={performanceTrend}>
-                  <XAxis dataKey="day" stroke="var(--chart-text)" fontSize={11} />
-                  <YAxis stroke="var(--chart-text)" fontSize={11} domain={[50, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
-                  <Line type="monotone" dataKey="score" stroke="#22d3ee" strokeWidth={3} dot={{ fill: "#22d3ee", r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+          <div className="h-64 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={performanceTrend}>
+                <XAxis dataKey="day" stroke="var(--chart-text)" fontSize={11} />
+                <YAxis domain={[50, 100]} stroke="var(--chart-text)" fontSize={11} />
+                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
+                <Line type="monotone" dataKey="score" stroke="#22d3ee" strokeWidth={3} dot={{ fill: "#22d3ee", r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
 
-          {/* GitHub-style Activity Heatmap */}
-          <Card className="p-6 space-y-4 bg-surface border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-cyan-400" />
-                <h3 className="font-serif text-lg font-medium text-text-primary">Practice Activity Heatmap</h3>
-              </div>
-              <span className="text-xs font-mono text-text-muted">Past 28 Days</span>
-            </div>
+        {/* Skill Matrix Radar */}
+        <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border">
+          <div>
+            <h3 className="font-serif text-lg font-medium text-text-primary">Technical Proficiency Radar</h3>
+            <p className="text-xs text-text-muted">Skill distribution across core topics</p>
+          </div>
 
-            <div className="grid grid-cols-14 gap-1.5 pt-2">
-              {heatmapDays.map((d) => (
-                <div
-                  key={d.day}
-                  title={`Day ${d.day}: ${d.active ? `${d.level} sessions` : "No activity"}`}
-                  className={`w-full aspect-square rounded-sm border transition-all ${
-                    !d.active
-                      ? "bg-surface-raised border-border/40"
-                      : d.level === 4
-                      ? "bg-cyan-400 border-cyan-400"
-                      : d.level === 3
-                      ? "bg-cyan-400/70 border-cyan-400/80"
-                      : "bg-cyan-400/40 border-cyan-400/50"
-                  }`}
-                />
-              ))}
-            </div>
-          </Card>
-
-          {/* Daily Challenge Card */}
-          <Card className="p-6 bg-gradient-to-r from-surface to-surface-raised border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <span className="text-[10px] font-mono bg-live/15 text-live border border-live/30 px-2 py-0.5 rounded">
-                ⚡ Daily Challenge
-              </span>
-              <h4 className="font-serif text-base font-semibold text-text-primary">146. LRU Cache Implementation</h4>
-              <p className="text-xs text-text-secondary">O(1) Get & Put operations using Doubly Linked List & Hash Map.</p>
-            </div>
-
-            <Button variant="teal-cyan" size="sm" onClick={() => navigate("/coding")}>
-              Solve Problem <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Card>
-        </div>
-
-        {/* Right Column (4 cols): Skill Radar & Recent */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Skill Radar Chart */}
-          <Card className="p-6 space-y-4 bg-surface border-border">
-            <h3 className="font-serif text-lg font-medium text-text-primary">Skill Proficiency Radar</h3>
-            <div className="h-60 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                  <PolarGrid stroke="var(--chart-grid)" />
-                  <PolarAngleAxis dataKey="subject" stroke="var(--chart-text)" fontSize={10} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="var(--chart-grid)" />
-                  <Radar name="Proficiency" dataKey="A" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
-          {/* Continue Learning */}
-          <Card className="p-6 space-y-3 bg-surface border-border">
-            <h3 className="font-serif text-base font-medium text-text-primary">Continue Practice</h3>
-            <div className="p-3 bg-surface-raised border border-border rounded-lg space-y-1">
-              <span className="text-xs font-semibold text-text-primary block">STAR Behavioral Framework</span>
-              <p className="text-[11px] text-text-muted font-mono">3 of 5 questions remaining</p>
-              <Progress value={60} color="accent" className="h-1.5 mt-2" />
-            </div>
-            <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => navigate("/practice")}>
-              Resume Track
-            </Button>
-          </Card>
-        </div>
+          <div className="h-64 w-full flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                <PolarGrid stroke="#334155" />
+                <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" />
+                <Radar name="Proficiency" dataKey="A" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
       </div>
     </div>
   );

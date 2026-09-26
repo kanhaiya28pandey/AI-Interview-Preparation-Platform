@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
+import { ContextualHelpTooltip } from "@/components/common/ContextualHelpTooltip";
 import { codingService } from "@/services/codingService";
 import { CodingProblem, ExecutionResult } from "@/mocks/codingData";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
+import { VerdictHeadline } from "@/components/common/VerdictHeadline";
 import { CustomSelect, CustomSelectOption } from "@/components/ui/CustomSelect";
 import { highlightLineTokens } from "@/lib/syntaxHighlight";
 import { Code2, Play, Send, CheckCircle2, AlertCircle, FileCode2, Clock, Cpu, Sparkles, RefreshCw } from "lucide-react";
@@ -187,7 +189,14 @@ export const Coding: React.FC = () => {
                   <Badge variant={selectedProblem.difficulty.toLowerCase() as any}>
                     {selectedProblem.difficulty}
                   </Badge>
-                  <span className="text-xs font-mono text-text-muted">Acceptance Rate: {selectedProblem.acceptance}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-text-muted">Acceptance Rate: {selectedProblem.acceptance}</span>
+                    <ContextualHelpTooltip
+                      title="Coding Test Scores"
+                      content="Scores update automatically upon passing all test cases."
+                      faqId="pra-1"
+                    />
+                  </div>
                 </div>
                 <h3 className="font-serif text-2xl font-medium text-text-primary">{selectedProblem.title}</h3>
                 <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed font-sans">{selectedProblem.description}</p>
@@ -307,10 +316,15 @@ export const Coding: React.FC = () => {
           {/* Execution Result Box */}
           {execResult && (
             <Card className="p-4 bg-surface border-border space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border gap-2">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-live animate-bounce" />
-                  <span className="font-mono text-sm font-semibold text-live">{execResult.status}</span>
+                  <CheckCircle2 className="w-5 h-5 text-live animate-bounce shrink-0" />
+                  <VerdictHeadline
+                    prefix="Your Solution is "
+                    score={Math.round((execResult.passedTests / execResult.totalTests) * 100)}
+                    size="sm"
+                    as="div"
+                  />
                 </div>
                 <div className="flex items-center gap-4 text-xs font-mono text-text-muted">
                   <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-cyan-400" /> {execResult.runtimeMs} ms</span>

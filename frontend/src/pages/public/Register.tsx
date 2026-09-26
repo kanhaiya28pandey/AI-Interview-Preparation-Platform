@@ -64,7 +64,7 @@ export const Register: React.FC = () => {
         if (role === "ADMIN" || role === "ROLE_ADMIN") {
           navigate("/admin", { replace: true });
         } else {
-          navigate("/dashboard", { replace: true });
+          navigate("/verify-identity", { replace: true });
         }
       }, 700);
     } catch (err: any) {
