@@ -34,6 +34,8 @@ import { VerifyIdentity } from "@/pages/student/VerifyIdentity";
 // Admin Pages
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { AdminUsers } from "@/pages/admin/AdminUsers";
+import { AdminStudents } from "@/pages/admin/AdminStudents";
+import { AdminStudentDetail } from "@/pages/admin/AdminStudentDetail";
 import { AdminCodingTests } from "@/pages/admin/AdminCodingTests";
 import { AdminMockInterviews } from "@/pages/admin/AdminMockInterviews";
 import { AdminArticles } from "@/pages/admin/AdminArticles";
@@ -124,6 +126,8 @@ export const AppRoutes: React.FC = () => {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="students" element={<AdminStudents />} />
+        <Route path="students/:id" element={<AdminStudentDetail />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="verifications" element={<AdminVerifications />} />
         <Route path="coding-tests" element={<AdminCodingTests />} />

@@ -8,6 +8,7 @@ export interface EducationEntry {
   isCurrentlyStudying: boolean;
   grade: string;
   coursework: string[];
+  yearSemester?: string;
 }
 
 export interface SchoolEducation {

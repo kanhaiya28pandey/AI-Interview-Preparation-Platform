@@ -21,6 +21,8 @@ import { Dialog } from "@/components/ui/Dialog";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
+import { YearSemesterSelect } from "@/components/common/YearSemesterSelect";
+import { COURSE_DURATIONS } from "@/lib/courseDurations";
 import {
   User,
   GraduationCap,
@@ -452,19 +454,48 @@ export const Profile: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Input
-                        label="Degree Name"
-                        value={edu.degree}
-                        onChange={(e) => {
-                          const val = e.target.value;
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-text-secondary">Course / Program</label>
+                        <select
+                          value={
+                            Object.keys(COURSE_DURATIONS).find((c) => edu.degree.startsWith(c)) ||
+                            (edu.degree ? "Other" : "")
+                          }
+                          onChange={(e) => {
+                            const selectedCourse = e.target.value;
+                            educationSection.setDraft({
+                              ...educationSection.draft,
+                              educationEntries: educationSection.draft.educationEntries.map((item) =>
+                                item.id === edu.id ? { ...item, degree: selectedCourse } : item
+                              ),
+                            });
+                          }}
+                          className="w-full bg-surface border border-border rounded-lg px-3.5 py-2 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400"
+                        >
+                          <option value="">-- Select Course --</option>
+                          {Object.values(COURSE_DURATIONS).map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <YearSemesterSelect
+                        course={
+                          Object.keys(COURSE_DURATIONS).find((c) => edu.degree.startsWith(c)) || edu.degree || ""
+                        }
+                        value={edu.yearSemester || ""}
+                        onChange={(val) => {
                           educationSection.setDraft({
                             ...educationSection.draft,
                             educationEntries: educationSection.draft.educationEntries.map((item) =>
-                              item.id === edu.id ? { ...item, degree: val } : item
+                              item.id === edu.id ? { ...item, yearSemester: val } : item
                             ),
                           });
                         }}
                       />
+
                       <Input
                         label="Institution Name"
                         value={edu.institution}
@@ -479,7 +510,7 @@ export const Profile: React.FC = () => {
                         }}
                       />
                       <Input
-                        label="Field of Study"
+                        label="Field of Study / Branch"
                         value={edu.fieldOfStudy}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -569,7 +600,7 @@ export const Profile: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-text-muted font-mono">
-                      Major: {edu.fieldOfStudy} &bull; {edu.startYear} - {edu.isCurrentlyStudying ? "Present" : edu.endYear}
+                      Major: {edu.fieldOfStudy} {edu.yearSemester ? `• ${edu.yearSemester}` : ""} &bull; {edu.startYear} - {edu.isCurrentlyStudying ? "Present" : edu.endYear}
                     </p>
                   </div>
                 ))}

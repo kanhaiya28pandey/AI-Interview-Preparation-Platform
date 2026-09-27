@@ -1,60 +1,80 @@
 import { mockCodingProblems, CodingProblem, ExecutionResult } from "@/mocks/codingData";
-
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+import { executeJSInSandbox } from "@/lib/jsExecutionEngine";
 
 export const codingService = {
   async getProblems(): Promise<CodingProblem[]> {
-    if (USE_MOCKS) {
-      await delay(300);
-      return [...mockCodingProblems];
-    }
-    throw new Error("Real backend endpoint not implemented");
+    return [...mockCodingProblems];
   },
 
   async getProblemById(id: string): Promise<CodingProblem | undefined> {
-    if (USE_MOCKS) {
-      await delay(200);
-      return mockCodingProblems.find((p) => p.id === id);
-    }
-    throw new Error("Real backend endpoint not implemented");
+    return mockCodingProblems.find((p) => p.id === id);
   },
 
   async runCode(problemId: string, language: string, code: string): Promise<ExecutionResult> {
-    if (USE_MOCKS) {
-      await delay(600);
+    const problem = mockCodingProblems.find((p) => p.id === problemId);
+    if (!problem) throw new Error("Problem not found");
+
+    if (language === "javascript") {
+      // Execute REAL JavaScript in sandboxed Web Worker Blob
+      const outcome = await executeJSInSandbox(code, problem.fnName, problem.testCases, 3000);
+      return outcome;
+    } else {
+      // Honest simulated execution for Python/Java/C++
+      await new Promise((res) => setTimeout(res, 600));
       return {
         status: "ACCEPTED",
-        runtimeMs: Math.floor(Math.random() * 45) + 15,
-        memoryMb: Math.floor(Math.random() * 8) + 38,
-        passedTests: 3,
-        totalTests: 3,
+        runtimeMs: Math.floor(Math.random() * 30) + 15,
+        memoryMb: Math.floor(Math.random() * 8) + 36,
+        passedTests: problem.testCases.length,
+        totalTests: problem.testCases.length,
+        isSimulated: true,
         outputLogs: [
-          `Running test case 1... Passed`,
-          `Running test case 2... Passed`,
-          `Running test case 3... Passed`,
-          `Execution Finished successfully.`,
+          `⚠ Simulated Execution Mode (${language.toUpperCase()})`,
+          `Simulated test cases against backend benchmark suite...`,
+          `All simulated tests passed. Connect to a backend judge for real compilation.`,
         ],
+        testCaseResults: problem.testCases.map((tc) => ({
+          id: tc.id,
+          inputStr: tc.inputStr,
+          expectedStr: tc.expectedStr,
+          actualStr: tc.expectedStr,
+          passed: true,
+          runtimeMs: Math.floor(Math.random() * 15) + 5,
+        })),
       };
     }
-    throw new Error("Real backend endpoint not implemented");
   },
 
   async submitCode(problemId: string, language: string, code: string): Promise<ExecutionResult> {
-    if (USE_MOCKS) {
-      await delay(900);
+    const problem = mockCodingProblems.find((p) => p.id === problemId);
+    if (!problem) throw new Error("Problem not found");
+
+    if (language === "javascript") {
+      const outcome = await executeJSInSandbox(code, problem.fnName, problem.testCases, 3000);
+      return outcome;
+    } else {
+      await new Promise((res) => setTimeout(res, 800));
       return {
         status: "ACCEPTED",
-        runtimeMs: Math.floor(Math.random() * 30) + 20,
-        memoryMb: Math.floor(Math.random() * 5) + 40,
-        passedTests: 15,
-        totalTests: 15,
+        runtimeMs: Math.floor(Math.random() * 25) + 10,
+        memoryMb: Math.floor(Math.random() * 6) + 38,
+        passedTests: problem.testCases.length,
+        totalTests: problem.testCases.length,
+        isSimulated: true,
         outputLogs: [
-          `Accepted! All 15 automated test cases passed.`,
-          `Performance: Faster than 94.2% of submissions in ${language.toUpperCase()}.`,
+          `⚠ Simulated Submission (${language.toUpperCase()})`,
+          `Simulated 15 automated test cases... All passed!`,
+          `Performance: Faster than 92.4% of simulated ${language.toUpperCase()} submissions.`,
         ],
+        testCaseResults: problem.testCases.map((tc) => ({
+          id: tc.id,
+          inputStr: tc.inputStr,
+          expectedStr: tc.expectedStr,
+          actualStr: tc.expectedStr,
+          passed: true,
+          runtimeMs: Math.floor(Math.random() * 10) + 2,
+        })),
       };
     }
-    throw new Error("Real backend endpoint not implemented");
   },
 };

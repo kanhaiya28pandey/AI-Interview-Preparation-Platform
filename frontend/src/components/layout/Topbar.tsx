@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
-import { Menu, LogOut, Shield, Sparkles, Bell, Search, Sun, Moon, CheckCheck, HelpCircle, ArrowRight } from "lucide-react";
+import { Menu, LogOut, Shield, Sparkles, Bell, Search, Sun, Moon, CheckCheck, HelpCircle, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
@@ -12,6 +12,8 @@ import { FAQ_CATEGORIES, FAQItem } from "@/mocks/faqs";
 export interface TopbarProps {
   onOpenMobileSidebar?: () => void;
   title?: string;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebarCollapse?: () => void;
 }
 
 export interface NotificationItem {
@@ -54,7 +56,12 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
 ];
 
-export const Topbar: React.FC<TopbarProps> = ({ onOpenMobileSidebar, title }) => {
+export const Topbar: React.FC<TopbarProps> = ({
+  onOpenMobileSidebar,
+  title,
+  isSidebarCollapsed = false,
+  onToggleSidebarCollapse,
+}) => {
   const { user, logout, isDemoMode } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -147,6 +154,22 @@ export const Topbar: React.FC<TopbarProps> = ({ onOpenMobileSidebar, title }) =>
         {onOpenMobileSidebar && (
           <Button variant="ghost" size="sm" onClick={onOpenMobileSidebar} className="lg:hidden p-2 h-auto text-text-secondary shrink-0">
             <Menu className="w-5 h-5" />
+          </Button>
+        )}
+        {onToggleSidebarCollapse && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleSidebarCollapse}
+            className="hidden lg:flex p-2 h-auto text-text-secondary hover:text-cyan-400 shrink-0"
+            title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isSidebarCollapsed ? (
+              <ChevronRight className="w-5 h-5 text-cyan-400" />
+            ) : (
+              <ChevronLeft className="w-5 h-5 text-text-muted" />
+            )}
           </Button>
         )}
         <h1 className="font-serif text-lg sm:text-xl font-medium text-text-primary tracking-tight truncate">
