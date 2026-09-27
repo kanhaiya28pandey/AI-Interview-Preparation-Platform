@@ -44,7 +44,7 @@ export const AdminHelp: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+            <span className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-400">
               <Shield className="w-5 h-5" />
             </span>
             <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
@@ -104,7 +104,7 @@ export const AdminHelp: React.FC = () => {
       <Card className="p-6 bg-surface border-border space-y-4">
         <div className="flex justify-between items-center border-b border-border pb-3">
           <div className="flex items-center gap-2">
-            <Ticket className="w-5 h-5 text-indigo-400" />
+            <Ticket className="w-5 h-5 text-cyan-400" />
             <h2 className="font-serif text-lg font-bold text-text-primary">Student Support Ticket Queue</h2>
           </div>
           <span className="text-xs font-mono text-text-muted">{tickets.length} Submitted Tickets</span>

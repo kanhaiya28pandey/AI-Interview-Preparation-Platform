@@ -112,7 +112,7 @@ export const AdminVerifications: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <span className="font-mono text-xs uppercase tracking-widest text-indigo-400 font-semibold">
+          <span className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-semibold">
             Admin Governance
           </span>
           <h1 className="font-serif text-3xl font-medium text-text-primary">

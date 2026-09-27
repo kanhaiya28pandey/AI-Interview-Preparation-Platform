@@ -1020,7 +1020,7 @@ export const Onboarding: React.FC = () => {
 
                   <div className="p-4 rounded-xl bg-surface-raised border border-border space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="font-mono text-indigo-400 font-semibold uppercase text-[10px]">Skills</span>
+                      <span className="font-mono text-cyan-400 font-semibold uppercase text-[10px]">Skills</span>
                       <Button variant="ghost" size="sm" onClick={() => setCurrentStep(4)} className="h-6 px-2 text-[10px]">
                         Edit
                       </Button>

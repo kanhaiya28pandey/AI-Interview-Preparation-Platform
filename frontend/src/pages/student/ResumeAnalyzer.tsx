@@ -309,7 +309,7 @@ export const ResumeAnalyzer: React.FC = () => {
             className="py-16 text-center"
           >
             <Card className="max-w-xl mx-auto p-8 border-cyan-400/30 bg-surface-raised/80 backdrop-blur shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-teal-400 to-indigo-500 animate-pulse" />
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-teal-400 to-cyan-500 animate-pulse" />
 
               <div className="relative w-24 h-24 mx-auto mb-6 flex items-center justify-center">
                 <motion.div
@@ -622,7 +622,7 @@ export const ResumeAnalyzer: React.FC = () => {
             <Card className="p-6 space-y-6 print-card">
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-indigo-400" />
+                  <Sparkles className="w-5 h-5 text-cyan-400" />
                   <h3 className="font-serif text-lg font-semibold">AI Improvement Action Plan</h3>
                 </div>
                 <span className="text-xs font-mono text-text-muted">{analysisResult.suggestions.length} Action Items</span>
@@ -948,7 +948,7 @@ export const ResumeAnalyzer: React.FC = () => {
                     </div>
 
                     <div className="p-3 rounded-lg bg-surface border border-border/80 flex items-start gap-2.5">
-                      <FileCheck2 className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                      <FileCheck2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                       <div>
                         <h4 className="text-xs font-semibold text-text-primary">AI Suggestions</h4>
                         <p className="text-[11px] text-text-muted">Get bullet-point edits for recruiters.</p>

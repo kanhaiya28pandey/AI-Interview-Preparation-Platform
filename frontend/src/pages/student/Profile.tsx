@@ -1043,7 +1043,7 @@ export const Profile: React.FC = () => {
             </div>
 
             <div className="sm:col-span-2 p-4 rounded-xl bg-surface border border-border space-y-2">
-              <span className="font-mono text-indigo-400 font-semibold text-[10px] uppercase">Key Skills</span>
+              <span className="font-mono text-cyan-400 font-semibold text-[10px] uppercase">Key Skills</span>
               <div className="flex flex-wrap gap-1.5">
                 {profile.skills.map((s) => (
                   <span key={s} className="px-2.5 py-1 rounded-lg bg-surface-raised border border-border text-xs font-mono">

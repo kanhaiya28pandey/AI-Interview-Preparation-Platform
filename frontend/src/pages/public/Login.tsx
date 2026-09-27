@@ -79,7 +79,7 @@ export const Login: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5" /> Demo Student
             </Button>
             <Button variant="outline" size="sm" onClick={handleDemoAdmin} type="button" className="text-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Demo Admin
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Demo Admin
             </Button>
           </div>
         </div>

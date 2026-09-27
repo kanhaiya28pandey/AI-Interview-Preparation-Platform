@@ -222,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   AI Interview Prep
                 </span>
                 {isAdmin && (
-                  <span className="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded font-mono uppercase">
+                  <span className="text-[10px] bg-teal-500/12 text-teal-600 dark:text-cyan-400 border border-teal-500/30 px-2 py-0.5 rounded-full font-mono font-medium uppercase tracking-wider">
                     Admin
                   </span>
                 )}
@@ -296,8 +296,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <>
                       <span className="flex-1 truncate">{link.label}</span>
                       {link.badge && (
-                        <span className="text-[10px] font-mono bg-cyan-400/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                          <Sparkles className="w-2.5 h-2.5" />
+                        <span className="text-[10px] font-mono bg-teal-500/12 text-teal-600 dark:text-cyan-400 border border-teal-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 font-medium">
+                          <Sparkles className="w-2.5 h-2.5 text-teal-600 dark:text-cyan-400" />
                           {link.badge}
                         </span>
                       )}

@@ -131,7 +131,7 @@ export const AdminStudents: React.FC = () => {
   if (loading) return <TableSkeleton rows={8} />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-w-0">
       {/* Compare Dialog */}
       <CompareStudentsDialog
         isOpen={showCompareDialog}
@@ -180,49 +180,49 @@ export const AdminStudents: React.FC = () => {
       </div>
 
       {/* Top Dynamic KPI Cards (recalculated per filter) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 bg-surface border-border flex items-center gap-4">
-          <div className="p-3 bg-cyan-400/15 border border-cyan-400/30 rounded-xl text-cyan-400">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
+        <Card className="p-4 bg-surface border-border flex items-center gap-4 min-w-0">
+          <div className="p-3 bg-cyan-400/15 border border-cyan-400/30 rounded-xl text-cyan-400 shrink-0">
             <Users className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block truncate">
               {courseFilter !== "ALL" || riskFilter !== "ALL" || verificationFilter !== "ALL" ? "Filtered Students" : "Total Students"}
             </span>
             <span className="font-serif font-bold text-2xl text-text-primary">{filteredCount}</span>
             {filteredCount !== students.length && (
-              <span className="text-[10px] font-mono text-text-muted block">out of {students.length} total</span>
+              <span className="text-[10px] font-mono text-text-muted block truncate">out of {students.length} total</span>
             )}
           </div>
         </Card>
 
-        <Card className="p-4 bg-surface border-border flex items-center gap-4">
-          <div className="p-3 bg-emerald-400/15 border border-emerald-400/30 rounded-xl text-emerald-400">
+        <Card className="p-4 bg-surface border-border flex items-center gap-4 min-w-0">
+          <div className="p-3 bg-emerald-400/15 border border-emerald-400/30 rounded-xl text-emerald-400 shrink-0">
             <TrendingUp className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">Avg Activity Score</span>
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block truncate">Avg Activity Score</span>
             <span className="font-serif font-bold text-2xl text-text-primary">{dynamicAvgActivity}/100</span>
           </div>
         </Card>
 
-        <Card className="p-4 bg-surface border-border flex items-center gap-4">
-          <div className="p-3 bg-indigo-400/15 border border-indigo-400/30 rounded-xl text-indigo-400">
+        <Card className="p-4 bg-surface border-border flex items-center gap-4 min-w-0">
+          <div className="p-3 bg-teal-500/15 border border-teal-500/30 rounded-xl text-teal-600 dark:text-cyan-400 shrink-0">
             <ShieldCheck className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">Verified Students</span>
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block truncate">Verified Students</span>
             <span className="font-serif font-bold text-2xl text-text-primary">{dynamicVerifiedPct}%</span>
-            <span className="text-[10px] font-mono text-text-muted block">({dynamicVerifiedCount} verified)</span>
+            <span className="text-[10px] font-mono text-text-muted block truncate">({dynamicVerifiedCount} verified)</span>
           </div>
         </Card>
 
-        <Card className="p-4 bg-surface border-border flex items-center gap-4">
-          <div className="p-3 bg-amber-400/15 border border-amber-400/30 rounded-xl text-amber-400">
+        <Card className="p-4 bg-surface border-border flex items-center gap-4 min-w-0">
+          <div className="p-3 bg-amber-400/15 border border-amber-400/30 rounded-xl text-amber-400 shrink-0">
             <AlertTriangle className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">At Risk / Inactive (7d+)</span>
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block truncate">At Risk / Inactive (7d+)</span>
             <span className="font-serif font-bold text-2xl text-amber-400">{dynamicAtRiskCount}</span>
           </div>
         </Card>
@@ -231,9 +231,9 @@ export const AdminStudents: React.FC = () => {
       {activeTab === "roster" ? (
         <>
           {/* Filters & Bulk Actions Toolbar */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-surface-raised border border-border rounded-xl">
-            <div className="flex flex-wrap items-center gap-3 flex-1">
-              <div className="relative w-full sm:w-64">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-surface-raised border border-border rounded-xl w-full min-w-0">
+            <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
+              <div className="relative w-full sm:w-56 shrink-0">
                 <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
                   type="text"
@@ -303,9 +303,9 @@ export const AdminStudents: React.FC = () => {
           </div>
 
           {/* Student Roster Table */}
-          <Card className="p-0 overflow-hidden bg-surface border-border shadow-lg">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left font-sans text-xs">
+          <Card className="p-0 overflow-hidden bg-surface border-border shadow-lg w-full min-w-0">
+            <div className="overflow-x-auto custom-scrollbar w-full">
+              <table className="w-full text-left font-sans text-xs min-w-[950px]">
                 <thead className="bg-surface-raised border-b border-border text-text-muted font-mono uppercase text-[11px] sticky top-0 z-10 shadow-sm">
                   <tr>
                     <th className="p-4 w-10">

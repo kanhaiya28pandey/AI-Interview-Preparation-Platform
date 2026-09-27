@@ -243,7 +243,7 @@ export const LandingPage: React.FC = () => {
           </Card>
 
           <Card className="bg-surface border-border hover:border-accent/50 hover:shadow-card transition-all duration-300 p-8 space-y-4 group">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-mono font-bold">
+            <div className="w-10 h-10 rounded-xl bg-cyan-400/15 text-cyan-400 border border-cyan-400/30 flex items-center justify-center font-mono font-bold">
               03
             </div>
             <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-accent transition-colors">Interview Summary & Progress</h3>
