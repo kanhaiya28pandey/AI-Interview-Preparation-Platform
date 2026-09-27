@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -16,6 +16,9 @@ import {
   X,
   Sparkles,
   ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -28,6 +31,8 @@ export interface SidebarProps {
   isAdmin?: boolean;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 interface SidebarLink {
@@ -37,10 +42,78 @@ interface SidebarLink {
   badge?: string;
 }
 
+interface SidebarTooltipProps {
+  label: string;
+  badge?: string;
+  sublabel?: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}
+
+const SidebarTooltip: React.FC<SidebarTooltipProps> = ({
+  label,
+  badge,
+  sublabel,
+  disabled = false,
+  children,
+}) => {
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const targetRef = useRef<HTMLDivElement>(null);
+
+  if (disabled) return <>{children}</>;
+
+  const handleMouseEnter = () => {
+    if (targetRef.current) {
+      const rect = targetRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.top + rect.height / 2,
+        left: rect.right + 10,
+      });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setCoords(null);
+  };
+
+  return (
+    <div
+      ref={targetRef}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="relative flex items-center justify-center w-full"
+    >
+      {children}
+      {coords &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <div
+            style={{ top: `${coords.top}px`, left: `${coords.left}px`, transform: "translateY(-50%)" }}
+            className="fixed z-[9999] pointer-events-none bg-surface-raised border border-border shadow-2xl rounded-lg px-3 py-1.5 text-xs text-text-primary flex items-center gap-2 whitespace-nowrap animate-fade-in"
+          >
+            <div className="flex flex-col">
+              <span className="font-semibold text-text-primary">{label}</span>
+              {sublabel && <span className="text-[10px] text-text-muted font-mono">{sublabel}</span>}
+            </div>
+            {badge && (
+              <span className="text-[10px] font-mono bg-cyan-400/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                <Sparkles className="w-2.5 h-2.5" />
+                {badge}
+              </span>
+            )}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   isAdmin = false,
   isOpenMobile = false,
   onCloseMobile,
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const { user } = useAuth();
   const location = useLocation();
@@ -84,6 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const adminLinks: SidebarLink[] = [
     { to: "/admin", label: "Admin Overview", icon: LayoutDashboard },
+    { to: "/admin/students", label: "Student Progress", icon: GraduationCap, badge: "Analytics" },
     { to: "/admin/users", label: "Manage Users", icon: Users },
     { to: "/admin/verifications", label: "ID Verifications", icon: ShieldCheck, badge: "Review" },
     { to: "/admin/coding-tests", label: "Coding Tests", icon: Code2 },
@@ -96,125 +170,203 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const links = isAdmin ? adminLinks : studentLinks;
 
-  const content = (
-    <div className="flex flex-col h-full bg-surface border-r border-border w-64 p-4 text-text-primary">
-      {/* Brand Header */}
-      <div className="flex items-center justify-between px-2 pb-4 border-b border-border sticky top-0 bg-surface z-10 shrink-0">
-        <NavLink to={isAdmin ? "/admin" : "/dashboard"} className="flex items-center gap-2.5 font-serif font-semibold text-lg tracking-tight group">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 32 32"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="shrink-0 transition-transform duration-300 group-hover:scale-105"
-          >
-            <path
-              d="M6 14C6 8.47715 10.4772 4 16 4C21.5228 4 26 8.47715 26 14C26 19.5228 21.5228 24 16 24C14.1 24 12.3 23.47 10.8 22.5L6 24L7.5 19.2C6.53 17.7 6 15.9 6 14Z"
-              fill="url(#sidebarChatAiGlow)"
-              fillOpacity="0.15"
-              stroke="#22d3ee"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M16 9L17.2 12.8L21 14L17.2 15.2L16 19L14.8 15.2L11 14L14.8 12.8L16 9Z"
-              fill="#22d3ee"
-            />
-            <circle cx="21" cy="9" r="1.5" fill="#14b8a6" />
-            <defs>
-              <linearGradient id="sidebarChatAiGlow" x1="6" y1="4" x2="26" y2="24" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#22d3ee" />
-                <stop offset="1" stopColor="#14b8a6" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <span className="text-text-primary group-hover:text-cyan-400 transition-colors">AI Interview Prep</span>
-          {isAdmin && (
-            <span className="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded font-mono uppercase">
-              Admin
-            </span>
+  const renderSidebarContent = (forceExpanded = false) => {
+    const collapsed = forceExpanded ? false : isCollapsed;
+    const widthClass = collapsed ? "w-[68px]" : "w-64";
+
+    return (
+      <div className={cn("flex flex-col h-full bg-surface border-r border-border text-text-primary transition-all duration-200 ease-in-out p-3", widthClass)}>
+        {/* Brand Header */}
+        <div
+          className={cn(
+            "pb-3 border-b border-border sticky top-0 bg-surface z-10 shrink-0",
+            collapsed ? "flex flex-col items-center gap-2" : "flex items-center justify-between px-1"
           )}
-        </NavLink>
-        {onCloseMobile && (
-          <Button variant="ghost" size="sm" onClick={onCloseMobile} className="lg:hidden p-1 h-auto text-text-muted">
-            <X className="w-5 h-5" />
-          </Button>
-        )}
-      </div>
+        >
+          <NavLink
+            to={isAdmin ? "/admin" : "/dashboard"}
+            className="flex items-center gap-2.5 font-serif font-semibold text-lg tracking-tight group"
+            title={collapsed ? (isAdmin ? "Admin Overview" : "Dashboard") : undefined}
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 32 32"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="shrink-0 transition-transform duration-300 group-hover:scale-105"
+            >
+              <path
+                d="M6 14C6 8.47715 10.4772 4 16 4C21.5228 4 26 8.47715 26 14C26 19.5228 21.5228 24 16 24C14.1 24 12.3 23.47 10.8 22.5L6 24L7.5 19.2C6.53 17.7 6 15.9 6 14Z"
+                fill="url(#sidebarChatAiGlow)"
+                fillOpacity="0.15"
+                stroke="#22d3ee"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M16 9L17.2 12.8L21 14L17.2 15.2L16 19L14.8 15.2L11 14L14.8 12.8L16 9Z"
+                fill="#22d3ee"
+              />
+              <circle cx="21" cy="9" r="1.5" fill="#14b8a6" />
+              <defs>
+                <linearGradient id="sidebarChatAiGlow" x1="6" y1="4" x2="26" y2="24" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#22d3ee" />
+                  <stop offset="1" stopColor="#14b8a6" />
+                </linearGradient>
+              </defs>
+            </svg>
+            {!collapsed && (
+              <>
+                <span className="text-text-primary group-hover:text-cyan-400 transition-colors whitespace-nowrap">
+                  AI Interview Prep
+                </span>
+                {isAdmin && (
+                  <span className="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded font-mono uppercase">
+                    Admin
+                  </span>
+                )}
+              </>
+            )}
+          </NavLink>
 
-      {/* Nav Links */}
-      <nav className="flex-1 py-4 space-y-1 overflow-y-auto">
-        <div className="text-[11px] font-mono uppercase tracking-wider text-text-muted px-3 mb-2">
-          {isAdmin ? "Management" : "Main Menu"}
+          {/* Desktop Toggle Button */}
+          {onToggleCollapse && !forceExpanded && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+              className="hidden lg:flex p-1.5 h-auto text-text-muted hover:text-cyan-400 hover:bg-surface-raised shrink-0"
+            >
+              {collapsed ? <ChevronRight className="w-4 h-4 text-cyan-400" /> : <ChevronLeft className="w-4 h-4" />}
+            </Button>
+          )}
+
+          {/* Mobile Close Button */}
+          {onCloseMobile && (
+            <Button variant="ghost" size="sm" onClick={onCloseMobile} className="lg:hidden p-1 h-auto text-text-muted">
+              <X className="w-5 h-5" />
+            </Button>
+          )}
         </div>
-        {links.map((link) => {
-          const Icon = link.icon;
-          const isActive = location.pathname === link.to;
 
-          return (
+        {/* Nav Links */}
+        <nav className="flex-1 py-3 space-y-1 overflow-y-auto">
+          {!collapsed ? (
+            <div className="text-[11px] font-mono uppercase tracking-wider text-text-muted px-2 mb-2">
+              {isAdmin ? "Management" : "Main Menu"}
+            </div>
+          ) : (
+            <div className="w-full border-t border-border/50 my-2" />
+          )}
+
+          {links.map((link) => {
+            const Icon = link.icon;
+            const isActive = location.pathname === link.to;
+
+            return (
+              <SidebarTooltip
+                key={link.to}
+                label={link.label}
+                badge={link.badge}
+                disabled={!collapsed}
+              >
+                <NavLink
+                  to={link.to}
+                  onClick={onCloseMobile}
+                  className={cn(
+                    "flex items-center rounded-lg text-sm font-medium transition-all duration-150 group",
+                    collapsed
+                      ? "justify-center w-10 h-10 mx-auto"
+                      : "gap-3 px-3 py-2.5 w-full",
+                    isActive
+                      ? "bg-cyan-400/15 text-cyan-400 border border-cyan-400/30 shadow-nav"
+                      : "text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "w-4 h-4 shrink-0 transition-colors",
+                      isActive ? "text-cyan-400" : "text-text-muted group-hover:text-text-primary"
+                    )}
+                  />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 truncate">{link.label}</span>
+                      {link.badge && (
+                        <span className="text-[10px] font-mono bg-cyan-400/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <Sparkles className="w-2.5 h-2.5" />
+                          {link.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              </SidebarTooltip>
+            );
+          })}
+        </nav>
+
+        {/* User Info Card Footer */}
+        <div className="pt-3 border-t border-border mt-auto">
+          <SidebarTooltip
+            label={user?.name || profile?.name || "Student User"}
+            sublabel={user?.email || profile?.email || "student@srmist.edu.in"}
+            disabled={!collapsed}
+          >
             <NavLink
-              key={link.to}
-              to={link.to}
+              to="/profile"
               onClick={onCloseMobile}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group",
-                isActive
-                  ? "bg-cyan-400/15 text-cyan-400 border border-cyan-400/30 shadow-nav"
-                  : "text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                "bg-surface-raised border border-border hover:border-cyan-400/40 rounded-lg transition-colors group flex items-center",
+                collapsed ? "justify-center p-2 mx-auto w-11 h-11" : "p-2.5 gap-3 w-full"
               )}
             >
-              <Icon className={cn("w-4 h-4 transition-colors", isActive ? "text-cyan-400" : "text-text-muted group-hover:text-text-primary")} />
-              <span className="flex-1">{link.label}</span>
-              {link.badge && (
-                <span className="text-[10px] font-mono bg-cyan-400/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  {link.badge}
-                </span>
+              <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
+                    {user?.name || profile?.name || "Student User"}
+                  </p>
+                  <p className="text-[11px] text-text-muted font-mono truncate">
+                    {user?.email || profile?.email || "student@srmist.edu.in"}
+                  </p>
+                </div>
               )}
             </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* User Info Card Footer */}
-      <div className="pt-4 border-t border-border mt-auto">
-        <NavLink
-          to="/profile"
-          onClick={onCloseMobile}
-          className="bg-surface-raised border border-border hover:border-cyan-400/40 rounded-lg p-2.5 flex items-center gap-3 transition-colors group"
-        >
-          <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
-              {user?.name || profile?.name || "Student User"}
-            </p>
-            <p className="text-[11px] text-text-muted font-mono truncate">
-              {user?.email || profile?.email || "student@srmist.edu.in"}
-            </p>
-          </div>
-        </NavLink>
+          </SidebarTooltip>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:block h-screen sticky top-0 shrink-0 z-40">
-        {content}
+      <aside
+        className={cn(
+          "hidden lg:block h-screen sticky top-0 shrink-0 z-40 transition-all duration-200 ease-in-out",
+          isCollapsed ? "w-[68px]" : "w-64"
+        )}
+      >
+        {renderSidebarContent(false)}
       </aside>
 
       {/* Mobile Overlay Drawer Portal */}
-      {isOpenMobile && typeof window !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[60] lg:hidden flex">
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onCloseMobile} />
-          <div className="relative z-10 w-64 max-w-xs h-full bg-surface shadow-soft">
-            {content}
-          </div>
-        </div>,
-        document.body
-      )}
+      {isOpenMobile &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] lg:hidden flex">
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onCloseMobile} />
+            <div className="relative z-10 w-64 max-w-xs h-full bg-surface shadow-soft">
+              {renderSidebarContent(true)}
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 };
+
