@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { adminService } from "@/services/adminService";
 import { AdminUser } from "@/mocks/adminData";
 import { Card } from "@/components/ui/Card";
@@ -8,10 +9,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { TableSkeleton } from "@/components/common/Skeletons";
-import { Search, ShieldAlert, Trash2, Ban, CheckCircle2, UserX, Eye, X } from "lucide-react";
+import { Search, ShieldAlert, Trash2, Ban, CheckCircle2, UserX, Eye, X, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 
 export const AdminUsers: React.FC = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -125,6 +127,14 @@ export const AdminUsers: React.FC = () => {
                   <td className="p-4 font-mono text-text-muted">{usr.joinedDate}</td>
                   <td className="p-4 font-mono text-text-secondary">{usr.interviewsCompleted} Mocks</td>
                   <td className="p-4 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/admin/students/${usr.id}`)}
+                      title="View Student Progress Details"
+                    >
+                      <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
