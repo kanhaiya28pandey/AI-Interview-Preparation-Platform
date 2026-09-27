@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -15,10 +15,14 @@ import {
   BarChart3,
   X,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
+import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
+import { profileService } from "@/services/profileService";
+import { UserProfile } from "@/mocks/profileData";
 
 export interface SidebarProps {
   isAdmin?: boolean;
@@ -40,6 +44,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    profileService.getProfile().then((data) => {
+      setProfile(data);
+    });
+  }, [user]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const studentLinks: SidebarLink[] = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/practice", label: "Practice Tracks", icon: BookOpen },
+    { to: "/resume-analyzer", label: "Resume Analyzer", icon: FileText, badge: "AI" },
     { to: "/coding", label: "Coding Arena", icon: Code2 },
     { to: "/mock-interview", label: "Mock Interview", icon: Video, badge: "AI" },
     { to: "/quiz", label: "MCQ Quizzes", icon: HelpCircle },
@@ -67,16 +79,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
     { to: "/profile", label: "My Profile", icon: User },
     { to: "/settings", label: "Settings", icon: Settings },
+    { to: "/help", label: "Help & Support", icon: HelpCircle },
   ];
 
   const adminLinks: SidebarLink[] = [
     { to: "/admin", label: "Admin Overview", icon: LayoutDashboard },
     { to: "/admin/users", label: "Manage Users", icon: Users },
+    { to: "/admin/verifications", label: "ID Verifications", icon: ShieldCheck, badge: "Review" },
     { to: "/admin/coding-tests", label: "Coding Tests", icon: Code2 },
     { to: "/admin/mock-interviews", label: "Mock Interviews", icon: Video },
     { to: "/admin/articles", label: "Articles CMS", icon: FileText },
     { to: "/admin/reports", label: "Analytics & Reports", icon: BarChart3 },
     { to: "/admin/settings", label: "Platform Settings", icon: Settings },
+    { to: "/admin/help", label: "Help & Support", icon: HelpCircle },
   ];
 
   const links = isAdmin ? adminLinks : studentLinks;
@@ -164,15 +179,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* User Info Card Footer */}
       <div className="pt-4 border-t border-border mt-auto">
-        <div className="bg-surface-raised border border-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-cyan-400/20 border border-cyan-400/40 flex items-center justify-center font-serif text-cyan-400 font-semibold text-sm">
-            {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-          </div>
+        <NavLink
+          to="/profile"
+          onClick={onCloseMobile}
+          className="bg-surface-raised border border-border hover:border-cyan-400/40 rounded-lg p-2.5 flex items-center gap-3 transition-colors group"
+        >
+          <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-text-primary truncate">{user?.name || "Student User"}</p>
-            <p className="text-[11px] text-text-muted font-mono truncate">{user?.email || "student@srmist.edu.in"}</p>
+            <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
+              {user?.name || profile?.name || "Student User"}
+            </p>
+            <p className="text-[11px] text-text-muted font-mono truncate">
+              {user?.email || profile?.email || "student@srmist.edu.in"}
+            </p>
           </div>
-        </div>
+        </NavLink>
       </div>
     </div>
   );

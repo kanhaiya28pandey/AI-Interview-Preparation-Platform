@@ -14,10 +14,13 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { RoleRoute } from "./RoleRoute";
 import { StudentLayout } from "@/components/layout/StudentLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { VerificationGate } from "@/components/common/VerificationGate";
 
 // Student Pages
 import { StudentDashboard } from "@/pages/student/Dashboard";
+import { Onboarding } from "@/pages/student/Onboarding";
 import { Practice } from "@/pages/student/Practice";
+import { ResumeAnalyzer } from "@/pages/student/ResumeAnalyzer";
 import { Coding } from "@/pages/student/Coding";
 import { MockInterview } from "@/pages/student/MockInterview";
 import { Quiz } from "@/pages/student/Quiz";
@@ -25,6 +28,8 @@ import { Articles } from "@/pages/student/Articles";
 import { Leaderboard } from "@/pages/student/Leaderboard";
 import { Profile } from "@/pages/student/Profile";
 import { Settings } from "@/pages/student/Settings";
+import { HelpCenter } from "@/pages/student/HelpCenter";
+import { VerifyIdentity } from "@/pages/student/VerifyIdentity";
 
 // Admin Pages
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
@@ -34,6 +39,8 @@ import { AdminMockInterviews } from "@/pages/admin/AdminMockInterviews";
 import { AdminArticles } from "@/pages/admin/AdminArticles";
 import { AdminReports } from "@/pages/admin/AdminReports";
 import { AdminSettings } from "@/pages/admin/AdminSettings";
+import { AdminHelp } from "@/pages/admin/AdminHelp";
+import { AdminVerifications } from "@/pages/admin/AdminVerifications";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -56,14 +63,53 @@ export const AppRoutes: React.FC = () => {
         }
       >
         <Route path="/dashboard" element={<StudentDashboard />} />
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/practice" element={<Practice />} />
-        <Route path="/coding" element={<Coding />} />
-        <Route path="/mock-interview" element={<MockInterview />} />
-        <Route path="/quiz" element={<Quiz />} />
+        <Route
+          path="/resume-analyzer"
+          element={
+            <VerificationGate featureName="Resume Analyzer">
+              <ResumeAnalyzer />
+            </VerificationGate>
+          }
+        />
+        <Route
+          path="/coding"
+          element={
+            <VerificationGate featureName="Coding Arena">
+              <Coding />
+            </VerificationGate>
+          }
+        />
+        <Route
+          path="/mock-interview"
+          element={
+            <VerificationGate featureName="Mock Interview">
+              <MockInterview />
+            </VerificationGate>
+          }
+        />
+        <Route
+          path="/quiz"
+          element={
+            <VerificationGate featureName="MCQ Quizzes">
+              <Quiz />
+            </VerificationGate>
+          }
+        />
         <Route path="/articles" element={<Articles />} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route
+          path="/leaderboard"
+          element={
+            <VerificationGate featureName="Leaderboard">
+              <Leaderboard />
+            </VerificationGate>
+          }
+        />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/help" element={<HelpCenter />} />
+        <Route path="/verify-identity" element={<VerifyIdentity />} />
       </Route>
 
       {/* Protected Admin Routes */}
@@ -79,11 +125,13 @@ export const AppRoutes: React.FC = () => {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="verifications" element={<AdminVerifications />} />
         <Route path="coding-tests" element={<AdminCodingTests />} />
         <Route path="mock-interviews" element={<AdminMockInterviews />} />
         <Route path="articles" element={<AdminArticles />} />
         <Route path="reports" element={<AdminReports />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="help" element={<AdminHelp />} />
       </Route>
 
       {/* 404 Route */}

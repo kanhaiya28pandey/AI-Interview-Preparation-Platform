@@ -22,6 +22,7 @@ export const CommandPalette: React.FC = () => {
   const routes = [
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, category: "Student" },
     { label: "Practice Tracks", path: "/practice", icon: BookOpen, category: "Student" },
+    { label: "Resume Analyzer (AI ATS)", path: "/resume-analyzer", icon: FileText, category: "Student" },
     { label: "Coding Arena", path: "/coding", icon: Code2, category: "Student" },
     { label: "Mock Interview", path: "/mock-interview", icon: Video, category: "Student" },
     { label: "MCQ Quizzes", path: "/quiz", icon: HelpCircle, category: "Student" },
@@ -29,7 +30,10 @@ export const CommandPalette: React.FC = () => {
     { label: "Campus Leaderboard", path: "/leaderboard", icon: Trophy, category: "Student" },
     { label: "My Profile", path: "/profile", icon: User, category: "Student" },
     { label: "Settings", path: "/settings", icon: Settings, category: "Student" },
+    { label: "Help & Support Center", path: "/help", icon: HelpCircle, category: "Student" },
+    { label: "Submit Support Ticket", path: "/help?tab=contact", icon: HelpCircle, category: "Student" },
     { label: "Admin Overview", path: "/admin", icon: Shield, category: "Admin" },
+    { label: "Admin Help Center", path: "/admin/help", icon: Shield, category: "Admin" },
     { label: "Admin User Management", path: "/admin/users", icon: User, category: "Admin" },
   ];
 
