@@ -40,6 +40,20 @@ public class ResumeController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/resume/analyze-text")
+    public ResponseEntity<ResumeAnalysis> analyzeResumeText(
+            Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestBody java.util.Map<String, String> body
+    ) {
+        String authEmail = authentication.getName();
+        String role = body.getOrDefault("role", "Frontend Developer");
+        String field = body.getOrDefault("field", "IT Services");
+        String jobDescription = body.getOrDefault("jobDescription", "");
+        String resumeText = body.getOrDefault("resumeText", "");
+        ResumeAnalysis result = resumeService.analyzeResumeText(authEmail, resumeText, role, field, jobDescription);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/resume/history")
     public ResponseEntity<List<ResumeAnalysis>> getResumeHistory(Authentication authentication) {
         String authEmail = authentication.getName();
@@ -47,7 +61,7 @@ public class ResumeController {
         return ResponseEntity.ok(history);
     }
 
-    @GetMapping("/admin/resume-analytics")
+    @GetMapping({"/admin/resume-analytics", "/resume/admin/stats"})
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AdminResumeAnalytics> getAdminResumeAnalytics() {
         AdminResumeAnalytics analytics = resumeService.getAdminAnalytics();

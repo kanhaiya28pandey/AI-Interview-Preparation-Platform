@@ -110,6 +110,55 @@ public class ResumeService {
         return saved;
     }
 
+    public ResumeAnalysis analyzeResumeText(
+            String authEmail,
+            String text,
+            String role,
+            String field,
+            String jobDescription
+    ) {
+        User user = userRepository.findByEmail(authEmail.trim().toLowerCase())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("Resume text cannot be blank.");
+        }
+
+        String targetRole = (role != null && !role.isBlank()) ? role : "Frontend Developer";
+        String targetField = (field != null && !field.isBlank()) ? field : "IT Services";
+        String fileName = "resume_text_submission.txt";
+
+        ResumeAnalysis result = geminiAiService.analyzeResumeWithAi(
+                text,
+                targetRole,
+                targetField,
+                jobDescription,
+                fileName
+        );
+
+        result.setUserId(user.getId());
+        result.setEmail(user.getEmail());
+        result.setAnalyzedAt(LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy, hh:mm a")));
+
+        List<ResumeAnalysis> pastAnalyses = resumeAnalysisRepository.findByUserIdOrderByAnalyzedAtDesc(user.getId());
+        List<AnalysisHistoryItem> history = new ArrayList<>();
+        history.add(new AnalysisHistoryItem("curr", "Today", targetRole, result.getAtsScore(), fileName));
+
+        for (int i = 0; i < Math.min(pastAnalyses.size(), 4); i++) {
+            ResumeAnalysis past = pastAnalyses.get(i);
+            history.add(new AnalysisHistoryItem(
+                    past.getId(),
+                    past.getAnalyzedAt() != null ? past.getAnalyzedAt() : "Past",
+                    past.getRole(),
+                    past.getAtsScore(),
+                    past.getFileName()
+            ));
+        }
+        result.setHistory(history);
+
+        return resumeAnalysisRepository.save(result);
+    }
+
     public List<ResumeAnalysis> getUserHistory(String authEmail) {
         User user = userRepository.findByEmail(authEmail.trim().toLowerCase())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));

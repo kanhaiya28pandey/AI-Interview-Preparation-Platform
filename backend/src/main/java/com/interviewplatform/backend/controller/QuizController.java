@@ -20,7 +20,7 @@ import com.interviewplatform.backend.service.QuizService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/v1/quiz")
+@RequestMapping({"/api/v1/quiz", "/api/v1/quizzes"})
 public class QuizController {
 
     private final QuizService quizService;

@@ -70,6 +70,26 @@ public class InterviewController {
         return ResponseEntity.ok(evaluation);
     }
 
+    @PostMapping("/{sessionId}/answer")
+    public ResponseEntity<AnswerEvaluationResponse> submitSessionAnswer(
+            @PathVariable String sessionId,
+            Authentication authentication,
+            @RequestBody SubmitAnswerRequest request
+    ) {
+        if (request.getSessionId() == null || request.getSessionId().isBlank()) {
+            request.setSessionId(sessionId);
+        }
+        String authEmail = authentication.getName();
+        AnswerEvaluationResponse evaluation = interviewService.submitAnswer(authEmail, request);
+        return ResponseEntity.ok(evaluation);
+    }
+
+    @PostMapping("/{sessionId}/submit")
+    public ResponseEntity<InterviewFeedback> submitInterviewSession(@PathVariable String sessionId) {
+        InterviewFeedback feedback = interviewService.getFeedback(sessionId);
+        return ResponseEntity.ok(feedback);
+    }
+
     @GetMapping("/feedback/{sessionId}")
     public ResponseEntity<InterviewFeedback> getFeedback(@PathVariable String sessionId) {
         InterviewFeedback feedback = interviewService.getFeedback(sessionId);

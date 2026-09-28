@@ -73,8 +73,13 @@ public class VerificationService {
         Verification verification = new Verification();
         verification.setVerificationId(verificationId);
         verification.setUserId(user.getId());
-        verification.setStudentName(request.getStudentName().trim());
-        verification.setEmail(request.getEmail().trim().toLowerCase());
+        String studentName = (request.getStudentName() != null && !request.getStudentName().isBlank())
+                ? request.getStudentName().trim() : (user.getName() != null ? user.getName() : "Student Candidate");
+        String email = (request.getEmail() != null && !request.getEmail().isBlank())
+                ? request.getEmail().trim().toLowerCase() : user.getEmail();
+
+        verification.setStudentName(studentName);
+        verification.setEmail(email);
         verification.setCollegeName(request.getCollegeName().trim());
         verification.setRollNumber(request.getRollNumber().trim());
         verification.setCourseBranch(request.getCourseBranch().trim());

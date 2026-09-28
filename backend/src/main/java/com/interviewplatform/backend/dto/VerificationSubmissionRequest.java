@@ -6,10 +6,7 @@ public class VerificationSubmissionRequest {
 
     private String userId;
 
-    @NotBlank(message = "Student name is required")
     private String studentName;
-
-    @NotBlank(message = "College email is required")
     private String email;
 
     @NotBlank(message = "College name is required")
