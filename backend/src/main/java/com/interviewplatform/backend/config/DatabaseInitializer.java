@@ -11,10 +11,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.interviewplatform.backend.model.InterviewQuestion;
+import com.interviewplatform.backend.model.InterviewRole;
 import com.interviewplatform.backend.model.SkillItem;
 import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.model.Verification;
+import com.interviewplatform.backend.repository.InterviewQuestionRepository;
+import com.interviewplatform.backend.repository.InterviewRoleRepository;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
 import com.interviewplatform.backend.repository.VerificationRepository;
@@ -30,6 +34,8 @@ public class DatabaseInitializer {
             UserRepository userRepository,
             UserProfileRepository userProfileRepository,
             VerificationRepository verificationRepository,
+            InterviewRoleRepository interviewRoleRepository,
+            InterviewQuestionRepository interviewQuestionRepository,
             PasswordEncoder passwordEncoder
     ) {
         return args -> {
@@ -127,8 +133,47 @@ public class DatabaseInitializer {
                     log.info("Default Verification submissions seeded for admin queue testing");
                 }
 
+                // 5. Seed Interview Roles if empty
+                if (interviewRoleRepository.count() == 0) {
+                    List<InterviewRole> roles = List.of(
+                            new InterviewRole("behavioral-star", "HR & STAR Behavioral Round", "Behavioral", "Junior", 20,
+                                    "Evaluates soft skills, conflict resolution, project failures, and leadership scenarios using the STAR method.", "Users", 3),
+                            new InterviewRole("frontend-react", "Senior Frontend Engineer (React/TypeScript)", "Frontend", "Senior", 25,
+                                    "Evaluates modern React 19 concurrent features, virtual DOM reconciliation, state management patterns & performance profiling.", "Layout", 4),
+                            new InterviewRole("backend-java", "Java & Spring Microservices Engineer", "Backend", "Mid-Level", 30,
+                                    "Focuses on Spring Boot security, multithreading concurrency, REST API design, database transactions and JPA/Hibernate.", "Server", 4),
+                            new InterviewRole("fullstack-mern", "Full Stack MERN Developer", "Full Stack", "Mid-Level", 30,
+                                    "Covers end-to-end web architecture, Node.js event loop, Express middleware, JWT auth & MongoDB aggregation pipelines.", "Code2", 4),
+                            new InterviewRole("system-design", "Distributed Systems & System Architecture", "System Design", "Lead", 35,
+                                    "High availability design for TinyURL, Rate Limiters, Distributed Caching (Redis), Kafka messaging and database sharding.", "Layers", 3)
+                    );
+                    interviewRoleRepository.saveAll(roles);
+
+                    // Seed Sample Questions for Frontend Role
+                    List<InterviewQuestion> reactQuestions = List.of(
+                            new InterviewQuestion("fe-q1", "frontend-react", 1,
+                                    "How does the React Fiber reconciliation engine work, and how does it prevent blocking the browser's main thread during heavy re-renders?",
+                                    "React Internals",
+                                    List.of("Fiber node tree data structure", "Incremental rendering & work units", "Time slicing via requestIdleCallback/MessageChannel"),
+                                    "What is the difference between synchronous rendering and concurrent interrupts?"),
+                            new InterviewQuestion("fe-q2", "frontend-react", 2,
+                                    "Explain the mental model of React Server Components (RSC) versus Client Components in Next.js/React 19.",
+                                    "Next.js & RSC",
+                                    List.of("Zero bundle size for server components", "Direct database access without REST boilerplate", "Serialization boundary across props"),
+                                    "How do client and server components interleave in the component tree?"),
+                            new InterviewQuestion("fe-q3", "frontend-react", 3,
+                                    "How do you profile, identify, and eliminate unnecessary re-renders in a complex React dashboard with high-frequency live data updates?",
+                                    "Performance Optimization",
+                                    List.of("React DevTools Profiler flamegraphs", "Proper memoization with useMemo/useCallback", "Context splitting and state colocation"),
+                                    "When does memoization actually hurt performance?")
+                    );
+                    interviewQuestionRepository.saveAll(reactQuestions);
+
+                    log.info("Default Interview Roles and Question banks seeded");
+                }
+
             } catch (Exception e) {
-                log.warn("Database initialization check encountered an issue (MongoDB may be connecting lazily): {}", e.getMessage());
+                log.warn("Database initialization check encountered an issue: {}", e.getMessage());
             }
         };
     }
