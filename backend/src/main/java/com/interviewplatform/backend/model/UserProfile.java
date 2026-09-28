@@ -62,6 +62,16 @@ public class UserProfile {
     private String verificationReason = "";
     private String verificationId = "";
 
+    private String branch = "";
+    private String rollNumber = "";
+    private int streakDays = 0;
+    private int activityScore = 0;
+    private String lastActive = "Just now";
+    private int quizzesTaken = 0;
+    private int articlesRead = 0;
+    private int bestAtsScore = 0;
+    private List<TeacherNote> teacherNotes = new ArrayList<>();
+
     private String updatedAt;
     private UserStats stats = new UserStats();
 
@@ -196,4 +206,31 @@ public class UserProfile {
 
     public UserStats getStats() { return stats; }
     public void setStats(UserStats stats) { this.stats = stats; }
+
+    public String getBranch() { return branch; }
+    public void setBranch(String branch) { this.branch = branch; }
+
+    public String getRollNumber() { return rollNumber; }
+    public void setRollNumber(String rollNumber) { this.rollNumber = rollNumber; }
+
+    public int getStreakDays() { return streakDays; }
+    public void setStreakDays(int streakDays) { this.streakDays = streakDays; }
+
+    public int getActivityScore() { return activityScore; }
+    public void setActivityScore(int activityScore) { this.activityScore = activityScore; }
+
+    public String getLastActive() { return lastActive; }
+    public void setLastActive(String lastActive) { this.lastActive = lastActive; }
+
+    public int getQuizzesTaken() { return quizzesTaken; }
+    public void setQuizzesTaken(int quizzesTaken) { this.quizzesTaken = quizzesTaken; }
+
+    public int getArticlesRead() { return articlesRead; }
+    public void setArticlesRead(int articlesRead) { this.articlesRead = articlesRead; }
+
+    public int getBestAtsScore() { return bestAtsScore; }
+    public void setBestAtsScore(int bestAtsScore) { this.bestAtsScore = bestAtsScore; }
+
+    public List<TeacherNote> getTeacherNotes() { return teacherNotes; }
+    public void setTeacherNotes(List<TeacherNote> teacherNotes) { this.teacherNotes = teacherNotes; }
 }

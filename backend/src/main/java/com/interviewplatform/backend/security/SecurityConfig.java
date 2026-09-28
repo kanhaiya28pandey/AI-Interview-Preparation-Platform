@@ -56,6 +56,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/v1/auth/**",
                                 "/api/public/**",
                                 "/error",
                                 "/favicon.ico"

@@ -69,4 +69,8 @@ public class InterviewSession {
 
     public InterviewFeedback getFeedback() { return feedback; }
     public void setFeedback(InterviewFeedback feedback) { this.feedback = feedback; }
+
+    public int getOverallScore() {
+        return feedback != null ? feedback.getOverallScore() : 0;
+    }
 }

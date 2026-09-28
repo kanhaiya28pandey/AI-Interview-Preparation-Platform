@@ -10,6 +10,8 @@ import com.interviewplatform.backend.model.InterviewSession;
 @Repository
 public interface InterviewSessionRepository extends MongoRepository<InterviewSession, String> {
 
+    List<InterviewSession> findByUserId(String userId);
+
     List<InterviewSession> findByUserIdOrderByStartedAtDesc(String userId);
 
     List<InterviewSession> findByEmailOrderByStartedAtDesc(String email);

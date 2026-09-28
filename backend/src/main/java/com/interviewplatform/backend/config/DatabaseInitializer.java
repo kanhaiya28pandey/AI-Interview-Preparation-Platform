@@ -59,6 +59,7 @@ public class DatabaseInitializer {
             PracticeTopicRepository practiceTopicRepository,
             PracticeQuestionRepository practiceQuestionRepository,
             ArticleRepository articleRepository,
+            com.interviewplatform.backend.repository.SupportTicketRepository supportTicketRepository,
             PasswordEncoder passwordEncoder
     ) {
         return args -> {
@@ -299,6 +300,79 @@ public class DatabaseInitializer {
 
                     articleRepository.save(art1);
                     log.info("Default technical articles seeded");
+                }
+
+                // 8. Seed Initial Support Tickets
+                if (supportTicketRepository.count() == 0) {
+                    com.interviewplatform.backend.model.SupportTicket t1 = new com.interviewplatform.backend.model.SupportTicket(
+                            "TCK-2026-0091",
+                            student != null ? student.getId() : "student-1",
+                            "Feature Request",
+                            "Add dark mode preview for code editor syntax highlighting",
+                            "The dark theme works cleanly on pages. Would love an option to customize editor font sizes and line numbers too.",
+                            null,
+                            null,
+                            "Resolved",
+                            "2026-09-24T14:30:00.000Z",
+                            "Kanhaiya Pandey",
+                            "kanhaiya.student@srmist.edu.in"
+                    );
+
+                    com.interviewplatform.backend.model.SupportTicket t2 = new com.interviewplatform.backend.model.SupportTicket(
+                            "TCK-2026-0084",
+                            student != null ? student.getId() : "student-1",
+                            "Bug Report",
+                            "Profile completion percentage display sync across components",
+                            "Verified that profile completion ring in the topbar and sidebar updates immediately upon saving new personal details.",
+                            null,
+                            null,
+                            "Resolved",
+                            "2026-09-22T09:15:00.000Z",
+                            "Kanhaiya Pandey",
+                            "kanhaiya.student@srmist.edu.in"
+                    );
+
+                    supportTicketRepository.saveAll(List.of(t1, t2));
+                    log.info("Default support tickets seeded");
+                }
+
+                // 9. Seed Additional Cohort Students for Rich Analytics
+                String student2Email = "rahul.verma@vit.ac.in";
+                if (!userRepository.existsByEmail(student2Email)) {
+                    User s2 = new User("Rahul Verma", student2Email, passwordEncoder.encode("student123"), "STUDENT");
+                    s2.setVerificationStatus("Verified");
+                    s2 = userRepository.save(s2);
+
+                    UserProfile p2 = new UserProfile(s2.getId(), s2.getName(), s2.getEmail());
+                    p2.setCollege("Vellore Institute of Technology");
+                    p2.setDegree("B.Tech");
+                    p2.setBranch("Information Technology");
+                    p2.setGraduationYear("2026");
+                    p2.setRollNumber("21BIT0182");
+                    p2.setActivityScore(68);
+                    p2.setStreakDays(3);
+                    p2.setVerificationStatus("Verified");
+                    p2.setLastActive("3 days ago");
+                    userProfileRepository.save(p2);
+                }
+
+                String student3Email = "sneha.kapur@bits.edu";
+                if (!userRepository.existsByEmail(student3Email)) {
+                    User s3 = new User("Sneha Kapur", student3Email, passwordEncoder.encode("student123"), "STUDENT");
+                    s3.setVerificationStatus("Verified");
+                    s3 = userRepository.save(s3);
+
+                    UserProfile p3 = new UserProfile(s3.getId(), s3.getName(), s3.getEmail());
+                    p3.setCollege("BITS Pilani");
+                    p3.setDegree("B.E.");
+                    p3.setBranch("Computer Science & Engineering");
+                    p3.setGraduationYear("2025");
+                    p3.setRollNumber("2021A7PS0042P");
+                    p3.setActivityScore(94);
+                    p3.setStreakDays(14);
+                    p3.setVerificationStatus("Verified");
+                    p3.setLastActive("1 hour ago");
+                    userProfileRepository.save(p3);
                 }
 
             } catch (Exception e) {
