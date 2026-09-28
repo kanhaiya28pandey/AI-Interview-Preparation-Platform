@@ -2,6 +2,7 @@ package com.interviewplatform.backend.config;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,14 +12,30 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.interviewplatform.backend.model.Article;
+import com.interviewplatform.backend.model.ArticleAuthor;
+import com.interviewplatform.backend.model.CodingProblem;
 import com.interviewplatform.backend.model.InterviewQuestion;
 import com.interviewplatform.backend.model.InterviewRole;
+import com.interviewplatform.backend.model.PracticeQuestion;
+import com.interviewplatform.backend.model.PracticeTopic;
+import com.interviewplatform.backend.model.ProblemExample;
+import com.interviewplatform.backend.model.ProblemSolution;
+import com.interviewplatform.backend.model.QuizQuestion;
+import com.interviewplatform.backend.model.QuizTopic;
 import com.interviewplatform.backend.model.SkillItem;
+import com.interviewplatform.backend.model.TestCase;
 import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.model.Verification;
+import com.interviewplatform.backend.repository.ArticleRepository;
+import com.interviewplatform.backend.repository.CodingProblemRepository;
 import com.interviewplatform.backend.repository.InterviewQuestionRepository;
 import com.interviewplatform.backend.repository.InterviewRoleRepository;
+import com.interviewplatform.backend.repository.PracticeQuestionRepository;
+import com.interviewplatform.backend.repository.PracticeTopicRepository;
+import com.interviewplatform.backend.repository.QuizQuestionRepository;
+import com.interviewplatform.backend.repository.QuizTopicRepository;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
 import com.interviewplatform.backend.repository.VerificationRepository;
@@ -36,6 +53,12 @@ public class DatabaseInitializer {
             VerificationRepository verificationRepository,
             InterviewRoleRepository interviewRoleRepository,
             InterviewQuestionRepository interviewQuestionRepository,
+            CodingProblemRepository codingProblemRepository,
+            QuizTopicRepository quizTopicRepository,
+            QuizQuestionRepository quizQuestionRepository,
+            PracticeTopicRepository practiceTopicRepository,
+            PracticeQuestionRepository practiceQuestionRepository,
+            ArticleRepository articleRepository,
             PasswordEncoder passwordEncoder
     ) {
         return args -> {
@@ -130,7 +153,6 @@ public class DatabaseInitializer {
                     v2.setStatus("Pending Verification");
 
                     verificationRepository.saveAll(List.of(v1, v2));
-                    log.info("Default Verification submissions seeded for admin queue testing");
                 }
 
                 // 5. Seed Interview Roles if empty
@@ -149,7 +171,6 @@ public class DatabaseInitializer {
                     );
                     interviewRoleRepository.saveAll(roles);
 
-                    // Seed Sample Questions for Frontend Role
                     List<InterviewQuestion> reactQuestions = List.of(
                             new InterviewQuestion("fe-q1", "frontend-react", 1,
                                     "How does the React Fiber reconciliation engine work, and how does it prevent blocking the browser's main thread during heavy re-renders?",
@@ -168,8 +189,116 @@ public class DatabaseInitializer {
                                     "When does memoization actually hurt performance?")
                     );
                     interviewQuestionRepository.saveAll(reactQuestions);
+                }
 
-                    log.info("Default Interview Roles and Question banks seeded");
+                // 6. Seed Coding Problems if empty
+                if (codingProblemRepository.count() == 0) {
+                    CodingProblem twoSum = new CodingProblem();
+                    twoSum.setId("two-sum");
+                    twoSum.setTitle("1. Two Sum");
+                    twoSum.setDifficulty("Easy");
+                    twoSum.setCategory("Arrays & Hashing");
+                    twoSum.setAcceptance("49.2%");
+                    twoSum.setDescription("Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.");
+                    twoSum.setInputFormat("nums = [2,7,11,15], target = 9");
+                    twoSum.setOutputFormat("[0,1]");
+                    twoSum.setConstraints(List.of("2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9", "-10^9 <= target <= 10^9"));
+                    twoSum.setExamples(List.of(
+                            new ProblemExample("[2,7,11,15], target = 9", "[0,1]", "Because nums[0] + nums[1] == 9, we return [0, 1].")
+                    ));
+                    twoSum.setStarterCode(Map.of(
+                            "javascript", "function twoSum(nums, target) {\n  // Write your solution here\n}",
+                            "python", "def two_sum(nums: list[int], target: int) -> list[int]:\n    pass",
+                            "java", "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        return new int[]{};\n    }\n}",
+                            "cpp", "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        return {};\n    }\n};"
+                    ));
+                    twoSum.setFnName("twoSum");
+                    twoSum.setXpReward(50);
+                    twoSum.setTestCases(List.of(
+                            new TestCase(1, "nums = [2,7,11,15], target = 9", "[0,1]", List.of(List.of(2, 7, 11, 15), 9), List.of(0, 1)),
+                            new TestCase(2, "nums = [3,2,4], target = 6", "[1,2]", List.of(List.of(3, 2, 4), 6), List.of(1, 2)),
+                            new TestCase(3, "nums = [3,3], target = 6", "[0,1]", List.of(List.of(3, 3), 6), List.of(0, 1))
+                    ));
+                    twoSum.setHints(List.of("A brute force approach checks every pair in O(n^2). Can we use a hash map to do it in O(n)?"));
+                    twoSum.setSolution(new ProblemSolution(
+                            Map.of("javascript", "function twoSum(nums, target) {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const comp = target - nums[i];\n    if (map.has(comp)) return [map.get(comp), i];\n    map.set(nums[i], i);\n  }\n  return [];\n}"),
+                            "Use a hash map to store seen elements and look up complements in O(1).",
+                            "O(n)", "O(n)"
+                    ));
+
+                    codingProblemRepository.save(twoSum);
+                    log.info("Default coding problems seeded");
+                }
+
+                // 7. Seed Quiz Topics & Questions if empty
+                if (quizTopicRepository.count() == 0) {
+                    QuizTopic jsQuiz = new QuizTopic("quiz-js", "JavaScript & ES6+ Fundamentals",
+                            "Test your knowledge of closures, prototypes, event loops, async/await, and modern ECMAScript features.",
+                            "Language", 3, 10, "FileCode");
+                    quizTopicRepository.save(jsQuiz);
+
+                    List<QuizQuestion> qList = List.of(
+                            new QuizQuestion("q-1", "quiz-js", "What will `console.log(typeof typeof 1)` output?",
+                                    List.of("'number'", "'string'", "'undefined'", "'object'"), 1,
+                                    "`typeof 1` returns `'number'`. `typeof 'number'` returns `'string'`."),
+                            new QuizQuestion("q-2", "quiz-js", "Which of the following creates a block-scoped variable in modern JS?",
+                                    List.of("var", "let and const", "function declaration", "global window object"), 1,
+                                    "`let` and `const` provide block scope bound to the nearest curly braces."),
+                            new QuizQuestion("q-3", "quiz-js", "What is the primary role of the JavaScript microtask queue?",
+                                    List.of("Handling setTimeout/setInterval", "Handling Promise callbacks and MutationObserver callbacks with higher priority", "Handling DOM click events", "Garbage collection"), 1,
+                                    "The microtask queue executes right after current script execution before the macrotask queue.")
+                    );
+                    quizQuestionRepository.saveAll(qList);
+                    log.info("Default quiz topics & questions seeded");
+                }
+
+                // 8. Seed Practice Topics if empty
+                if (practiceTopicRepository.count() == 0) {
+                    PracticeTopic mernTopic = new PracticeTopic("mern-1", "MERN Architecture & Microservices",
+                            "Full Stack", "Medium",
+                            "Deep dive into Express middleware, React render optimization, Node event loop & MongoDB indexing.",
+                            15, 9, "Layers", List.of("React", "Node.js", "Express", "MongoDB"));
+                    practiceTopicRepository.save(mernTopic);
+
+                    List<PracticeQuestion> pList = List.of(
+                            new PracticeQuestion("pq-1", "mern-1", "Explain the difference between SQL and MongoDB indexing strategies",
+                                    "Medium", "Compare B-Tree indexing in PostgreSQL/MySQL vs WiredTiger B-Trees in MongoDB for nested document queries.",
+                                    List.of("Single vs compound keys", "Multikey indexes for array fields", "TTL and geospatial indexes"),
+                                    "MongoDB uses WiredTiger engine B-trees. A critical advantage is multikey indexes which index each item in an array automatically.")
+                    );
+                    practiceQuestionRepository.saveAll(pList);
+                    log.info("Default practice topics & questions seeded");
+                }
+
+                // 9. Seed Tech Articles if empty
+                if (articleRepository.count() == 0) {
+                    Article art1 = new Article();
+                    art1.setId("art-1");
+                    art1.setTitle("How to Answer 'Tell Me About a Time You Failed' Using the STAR Method");
+                    art1.setSlug("star-method-behavioral-failure-question");
+                    art1.setSummary("Master the classic behavioral trap. Learn how top candidates frame mistakes as high-impact growth opportunities with concrete metrics.");
+                    art1.setCategory("Interview Prep");
+                    art1.setAuthor(new ArticleAuthor("Ananya Sharma", "Ex-Google Staff Recruiter", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150"));
+                    art1.setReadTimeMinutes(6);
+                    art1.setPublishedDate("2026-09-18");
+                    art1.setTags(List.of("Behavioral", "HR", "STAR Method", "Interview Skills"));
+                    art1.setViewsCount(1420);
+                    art1.setLikesCount(382);
+                    art1.setFeatured(true);
+                    art1.setContent("""
+                            # Mastering Behavioral Questions: The STAR Framework
+                            
+                            Behavioral interview questions are designed to uncover how you react under pressure, resolve conflict, and learn from past project setbacks.
+                            
+                            ## The STAR Blueprint
+                            - **Situation**: Set the scene and give necessary context.
+                            - **Task**: Describe your responsibility in the scenario.
+                            - **Action**: Explain exactly what steps you took to address the issue.
+                            - **Result**: Share the outcomes, quantified with data where possible.
+                            """);
+
+                    articleRepository.save(art1);
+                    log.info("Default technical articles seeded");
                 }
 
             } catch (Exception e) {
