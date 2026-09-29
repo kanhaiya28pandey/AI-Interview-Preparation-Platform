@@ -8,56 +8,70 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
+    @Value("${jwt.secret:InterviewPlatformSuperSecretKeyForJWTAuthentication2026SecureKeyWithAtLeast256BitsLongForHmacSha256Security}")
     private String secret;
 
-    // Token validity: 24 hours
-    private final long expiration = 1000 * 60 * 60 * 24;
+    @Value("${jwt.expiration-ms:86400000}")
+    private long expirationMs; // default: 24 hours
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(
-                secret.getBytes(StandardCharsets.UTF_8)
-        );
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(String email, String role) {
+    public String generateToken(String userId, String email, String role) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(email)
-                .claim("role", role)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .claim("userId", userId)
+                .claim("role", role != null ? role.toUpperCase() : "STUDENT")
+                .issuedAt(now)
+                .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    public String extractEmail(String token) {
+    public String generateToken(String email, String role) {
+        return generateToken(null, email, role);
+    }
 
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+                .getPayload();
+    }
+
+    public String extractEmail(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    public String extractRole(String token) {
+        Object role = extractAllClaims(token).get("role");
+        return role != null ? role.toString() : "STUDENT";
+    }
+
+    public String extractUserId(String token) {
+        Object userId = extractAllClaims(token).get("userId");
+        return userId != null ? userId.toString() : null;
     }
 
     public boolean isTokenValid(String token) {
-
         try {
-            Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token);
-
-            return true;
-
-        } catch (Exception e) {
+            Claims claims = extractAllClaims(token);
+            return !claims.getExpiration().before(new Date());
+        } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
