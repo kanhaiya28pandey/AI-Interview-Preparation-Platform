@@ -61,6 +61,14 @@ public class SecurityConfig {
                                 "/error",
                                 "/favicon.ico"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/coding/problems/**",
+                                "/api/v1/articles/**",
+                                "/api/v1/practice/**",
+                                "/api/v1/leaderboard/**",
+                                "/api/v1/quiz/topics/**",
+                                "/api/v1/quizzes/topics/**"
+                        ).permitAll()
                         .requestMatchers("/api/admin/**", "/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

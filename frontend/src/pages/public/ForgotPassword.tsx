@@ -13,46 +13,51 @@ import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import { AlertCircle, CheckCircle2, KeyRound, ArrowLeft } from "lucide-react";
+import { AlertCircle, CheckCircle2, KeyRound, ArrowLeft, Mail, RefreshCw } from "lucide-react";
 
 export const ForgotPassword: React.FC = () => {
   const { forgotPassword, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<"request" | "reset">("request");
-  const [issuedToken, setIssuedToken] = useState<string>("");
+  const [submittedEmail, setSubmittedEmail] = useState<string>("");
   const [banner, setBanner] = useState<{ type: "ok" | "bad"; text: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Request Form
   const requestForm = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
   });
 
-  // Reset Form
   const resetForm = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      otp: "",
+      newPassword: "",
+      confirmNewPassword: "",
+    },
   });
 
   const onRequestSubmit = async (data: ForgotPasswordFormData) => {
     setBanner(null);
     setIsSubmitting(true);
     try {
-      const tokenResult = await forgotPassword(data.email.trim());
-      setIssuedToken(tokenResult);
+      const email = data.email.trim();
+      const message = await forgotPassword(email);
+      setSubmittedEmail(email);
       setBanner({
         type: "ok",
-        text: `Reset token issued: ${tokenResult}. Switch to reset step below.`,
+        text: `${message || "OTP has been sent to your email."} Please check your inbox and enter the 6-digit code below.`,
       });
-      // Pre-fill reset form token
-      resetForm.setValue("token", tokenResult);
       setTimeout(() => {
         setStep("reset");
-      }, 800);
+      }, 1000);
     } catch (err: any) {
       setBanner({
         type: "bad",
-        text: err.message || "Couldn't find an account associated with that email.",
+        text: err.message || "Couldn't find an account associated with that email. Please check your spelling.",
       });
     } finally {
       setIsSubmitting(false);
@@ -63,18 +68,18 @@ export const ForgotPassword: React.FC = () => {
     setBanner(null);
     setIsSubmitting(true);
     try {
-      const msg = await resetPassword(data.token.trim(), data.newPassword);
+      const msg = await resetPassword(data.otp.trim(), data.newPassword, submittedEmail);
       setBanner({
         type: "ok",
-        text: `${msg || "Password updated successfully!"} You can sign in now.`,
+        text: `${msg || "Password updated successfully!"} Redirecting to login...`,
       });
       setTimeout(() => {
         navigate("/login");
-      }, 1200);
+      }, 1400);
     } catch (err: any) {
       setBanner({
         type: "bad",
-        text: err.message || "That reset token is invalid or expired.",
+        text: err.message || "The OTP code entered is invalid or expired. Please check and try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -87,12 +92,12 @@ export const ForgotPassword: React.FC = () => {
         <div className="text-left space-y-2">
           <span className="font-mono text-xs uppercase tracking-widest text-accent">Account Recovery</span>
           <h1 className="font-serif text-3xl font-medium text-text-primary">
-            {step === "request" ? "Reset your password" : "Choose a new password"}
+            {step === "request" ? "Reset your password" : "Enter OTP & Choose New Password"}
           </h1>
           <p className="text-xs text-text-muted">
             {step === "request"
-              ? "Enter the email associated with your student account."
-              : "Paste your reset token and enter your new password."}
+              ? "Enter your registered email address to receive a secure 6-digit OTP code."
+              : `Enter the 6-digit OTP sent to ${submittedEmail || "your email"} and choose your new password.`}
           </p>
         </div>
 
@@ -116,7 +121,7 @@ export const ForgotPassword: React.FC = () => {
         {step === "request" ? (
           <form onSubmit={requestForm.handleSubmit(onRequestSubmit)} className="space-y-4" noValidate>
             <Input
-              label="Email address"
+              label="Registered Email Address"
               type="email"
               placeholder="student@srmist.edu.in"
               error={requestForm.formState.errors.email?.message}
@@ -124,17 +129,18 @@ export const ForgotPassword: React.FC = () => {
             />
 
             <Button type="submit" variant="primary" className="w-full" isLoading={isSubmitting}>
-              <span>Send reset token</span>
+              <span>Send 6-Digit OTP</span>
             </Button>
           </form>
         ) : (
           <form onSubmit={resetForm.handleSubmit(onResetSubmit)} className="space-y-4" noValidate>
             <Input
-              label="Reset Token"
+              label="6-Digit OTP Code"
               type="text"
-              placeholder="8ab1b782-44a8-4146-8237-..."
-              error={resetForm.formState.errors.token?.message}
-              {...resetForm.register("token")}
+              maxLength={6}
+              placeholder="e.g. 123456"
+              error={resetForm.formState.errors.otp?.message}
+              {...resetForm.register("otp")}
             />
 
             <Input
@@ -163,13 +169,24 @@ export const ForgotPassword: React.FC = () => {
           <Link to="/login" className="flex items-center gap-1 hover:text-text-primary">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to sign in
           </Link>
-          {step === "request" && (
+          {step === "request" ? (
             <button
               type="button"
               onClick={() => setStep("reset")}
               className="text-accent hover:underline font-mono"
             >
-              Have a token already?
+              Have an OTP already?
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setBanner(null);
+                setStep("request");
+              }}
+              className="text-accent hover:underline font-mono flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" /> Resend or change email
             </button>
           )}
         </div>

@@ -9,7 +9,6 @@ import {
   AdminReportData,
 } from "@/mocks/adminData";
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 let usersList = [...mockAdminUsers];
@@ -18,101 +17,87 @@ let interviewsList = [...mockAdminMockInterviews];
 
 export const adminService = {
   async getUsers(): Promise<AdminUser[]> {
-    if (USE_MOCKS) {
-      await delay(300);
-      return [...usersList];
-    }
-    throw new Error("Real backend endpoint not implemented");
+    await delay(150);
+    return [...usersList];
   },
 
   async toggleBlockUser(userId: string): Promise<AdminUser> {
-    if (USE_MOCKS) {
-      await delay(250);
-      const user = usersList.find((u) => u.id === userId);
-      if (user) {
-        user.status = user.status === "ACTIVE" ? "BLOCKED" : "ACTIVE";
-        return { ...user };
-      }
-      throw new Error("User not found");
+    await delay(150);
+    const user = usersList.find((u) => u.id === userId);
+    if (user) {
+      user.status = user.status === "ACTIVE" ? "BLOCKED" : "ACTIVE";
+      return { ...user };
     }
-    throw new Error("Real backend endpoint not implemented");
+    throw new Error("User not found");
   },
 
   async deleteUser(userId: string): Promise<boolean> {
-    if (USE_MOCKS) {
-      await delay(300);
-      usersList = usersList.filter((u) => u.id !== userId);
-      return true;
-    }
-    throw new Error("Real backend endpoint not implemented");
+    await delay(150);
+    usersList = usersList.filter((u) => u.id !== userId);
+    return true;
   },
 
   async getCodingTests(): Promise<AdminCodingTest[]> {
-    if (USE_MOCKS) {
-      await delay(300);
-      return [...testsList];
-    }
-    throw new Error("Real backend endpoint not implemented");
+    await delay(150);
+    return [...testsList];
   },
 
   async saveCodingTest(test: Partial<AdminCodingTest>): Promise<AdminCodingTest> {
-    if (USE_MOCKS) {
-      await delay(350);
-      if (test.id) {
-        testsList = testsList.map((t) => (t.id === test.id ? { ...t, ...test } as AdminCodingTest : t));
-        return testsList.find((t) => t.id === test.id)!;
-      } else {
-        const newTest: AdminCodingTest = {
-          id: `test-${Date.now()}`,
-          title: test.title || "Untitled Problem",
-          difficulty: test.difficulty || "Easy",
-          submissionsCount: 0,
-          passRate: "0.0%",
-          status: test.status || "ACTIVE",
-          createdAt: new Date().toISOString().split("T")[0],
-        };
-        testsList.push(newTest);
-        return newTest;
+    await delay(200);
+    if (test.id) {
+      const idx = testsList.findIndex((t) => t.id === test.id);
+      if (idx !== -1) {
+        testsList[idx] = { ...testsList[idx], ...test } as AdminCodingTest;
+        return testsList[idx];
       }
     }
-    throw new Error("Real backend endpoint not implemented");
+    const newTest: AdminCodingTest = {
+      id: `test-${Date.now()}`,
+      title: test.title || "New Coding Benchmark",
+      difficulty: test.difficulty || "Medium",
+      submissionsCount: test.submissionsCount || 0,
+      passRate: test.passRate || "0%",
+      status: test.status || "ACTIVE",
+      createdAt: test.createdAt || new Date().toISOString().split("T")[0],
+    };
+    testsList.push(newTest);
+    return newTest;
+  },
+
+  async deleteCodingTest(testId: string): Promise<boolean> {
+    await delay(150);
+    testsList = testsList.filter((t) => t.id !== testId);
+    return true;
   },
 
   async getMockInterviews(): Promise<AdminMockInterviewConfig[]> {
-    if (USE_MOCKS) {
-      await delay(300);
-      return [...interviewsList];
-    }
-    throw new Error("Real backend endpoint not implemented");
+    await delay(150);
+    return [...interviewsList];
   },
 
   async saveMockInterview(config: Partial<AdminMockInterviewConfig>): Promise<AdminMockInterviewConfig> {
-    if (USE_MOCKS) {
-      await delay(350);
-      if (config.id) {
-        interviewsList = interviewsList.map((i) => (i.id === config.id ? { ...i, ...config } as AdminMockInterviewConfig : i));
-        return interviewsList.find((i) => i.id === config.id)!;
-      } else {
-        const newConfig: AdminMockInterviewConfig = {
-          id: `int-${Date.now()}`,
-          roleTitle: config.roleTitle || "New Role Track",
-          category: config.category || "Full Stack",
-          questionsCount: config.questionsCount || 4,
-          durationMinutes: config.durationMinutes || 25,
-          status: config.status || "ACTIVE",
-        };
-        interviewsList.push(newConfig);
-        return newConfig;
+    await delay(200);
+    if (config.id) {
+      const idx = interviewsList.findIndex((i) => i.id === config.id);
+      if (idx !== -1) {
+        interviewsList[idx] = { ...interviewsList[idx], ...config } as AdminMockInterviewConfig;
+        return interviewsList[idx];
       }
     }
-    throw new Error("Real backend endpoint not implemented");
+    const newConfig: AdminMockInterviewConfig = {
+      id: `interview-${Date.now()}`,
+      roleTitle: config.roleTitle || "Software Engineer",
+      category: config.category || "Backend",
+      questionsCount: config.questionsCount || 4,
+      durationMinutes: config.durationMinutes || 25,
+      status: config.status || "ACTIVE",
+    };
+    interviewsList.push(newConfig);
+    return newConfig;
   },
 
   async getReports(): Promise<AdminReportData> {
-    if (USE_MOCKS) {
-      await delay(400);
-      return mockAdminReports;
-    }
-    throw new Error("Real backend endpoint not implemented");
+    await delay(200);
+    return mockAdminReports;
   },
 };

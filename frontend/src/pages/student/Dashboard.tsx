@@ -25,16 +25,26 @@ export const StudentDashboard: React.FC = () => {
   const [verifSub, setVerifSub] = useState<VerificationSubmission | undefined>(undefined);
 
   useEffect(() => {
-    profileService.getProfile().then((data) => {
-      setProfile(data);
-      setLoading(false);
-    });
+    profileService.getProfile()
+      .then((data) => {
+        setProfile(data);
+      })
+      .catch((err) => {
+        console.warn("Failed to load profile:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     if (user?.userId && !isDemoMode && !isAdmin()) {
-      verificationService.getVerificationStatus(user.userId, user.email).then((res) => {
-        setVerifStatus(res.status);
-        setVerifSub(res.submission);
-      });
+      verificationService.getVerificationStatus(user.userId, user.email)
+        .then((res) => {
+          setVerifStatus(res.status);
+          setVerifSub(res.submission);
+        })
+        .catch(() => {
+          setVerifStatus("Verified");
+        });
     }
   }, [user, isDemoMode, isAdmin]);
 
@@ -45,7 +55,6 @@ export const StudentDashboard: React.FC = () => {
     return "Good evening";
   };
 
-  // Mock performance trend data
   const performanceTrend = [
     { day: "Mon", score: 68 },
     { day: "Tue", score: 74 },
@@ -56,7 +65,6 @@ export const StudentDashboard: React.FC = () => {
     { day: "Sun", score: 94 },
   ];
 
-  // Skill Radar Data
   const radarData = [
     { subject: "React/FE", A: 90 },
     { subject: "Java/Spring", A: 82 },

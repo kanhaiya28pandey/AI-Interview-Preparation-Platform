@@ -37,13 +37,14 @@ import {
   Building2,
   Lock,
 } from "lucide-react";
+import { authService } from "@/services/authService";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 const DRAFT_STORAGE_KEY = "ai_interview_prep_register_draft";
 
 export const Register: React.FC = () => {
-  const { register: registerAuth, loginDemoStudent } = useAuth();
+  const { register: registerAuth, loginDemoStudent, isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -137,31 +138,58 @@ export const Register: React.FC = () => {
     }
   }, [emailVal]);
 
-  // Duplicate Check for Email & Roll Number
+  // Duplicate Check for Email (Mock + Real Backend) & Roll Number
   useEffect(() => {
-    if (emailVal.trim().length > 3) {
-      const existingEmail = INITIAL_MOCK_VERIFICATIONS.find(
-        (v) => v.email.toLowerCase() === emailVal.trim().toLowerCase()
-      );
-      if (existingEmail || emailVal.toLowerCase() === "student@srmist.edu.in") {
-        setDuplicateWarning(
-          `An account with email "${emailVal}" already exists in the system. Did you mean to log in?`
+    let isCancelled = false;
+
+    const checkDuplicates = async () => {
+      const trimmedEmail = emailVal.trim().toLowerCase();
+      if (trimmedEmail.length > 3 && trimmedEmail.includes("@")) {
+        const existingEmail = INITIAL_MOCK_VERIFICATIONS.find(
+          (v) => v.email.toLowerCase() === trimmedEmail
         );
-        return;
+        if (existingEmail || trimmedEmail === "student@srmist.edu.in") {
+          setDuplicateWarning(
+            `An account with email "${emailVal}" already exists in the system. Did you mean to log in?`
+          );
+          return;
+        }
+
+        try {
+          const exists = await authService.checkEmail(trimmedEmail);
+          if (!isCancelled && exists) {
+            setDuplicateWarning(
+              `An account with email "${emailVal}" is already registered. Please sign in instead.`
+            );
+            return;
+          }
+        } catch {
+          // ignore background check errors
+        }
       }
-    }
-    if (rollNumberVal.trim().length > 3) {
-      const existingRoll = INITIAL_MOCK_VERIFICATIONS.find(
-        (v) => v.rollNumber.toLowerCase() === rollNumberVal.trim().toLowerCase()
-      );
-      if (existingRoll) {
-        setDuplicateWarning(
-          `Roll number "${rollNumberVal}" is already registered under ${existingRoll.collegeName}.`
+
+      if (rollNumberVal.trim().length > 3) {
+        const existingRoll = INITIAL_MOCK_VERIFICATIONS.find(
+          (v) => v.rollNumber.toLowerCase() === rollNumberVal.trim().toLowerCase()
         );
-        return;
+        if (existingRoll) {
+          setDuplicateWarning(
+            `Roll number "${rollNumberVal}" is already registered under ${existingRoll.collegeName}.`
+          );
+          return;
+        }
       }
-    }
-    setDuplicateWarning(null);
+
+      if (!isCancelled) {
+        setDuplicateWarning(null);
+      }
+    };
+
+    const timer = setTimeout(checkDuplicates, 400);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
   }, [emailVal, rollNumberVal]);
 
   // Restore Draft on Mount
@@ -275,8 +303,23 @@ export const Register: React.FC = () => {
   const appStrength = calculateApplicationStrength();
 
   // Step 1 -> Step 2 Handler
-  const onStep1Success = (data: RegisterStep1FormData) => {
+  const onStep1Success = async (data: RegisterStep1FormData) => {
     setServerError(null);
+    setIsSubmitting(true);
+
+    try {
+      const emailExists = await authService.checkEmail(data.email);
+      if (emailExists) {
+        setServerError(`An account with email "${data.email}" already exists. Please log in instead.`);
+        setIsSubmitting(false);
+        return;
+      }
+    } catch {
+      // Allow fallback if offline
+    } finally {
+      setIsSubmitting(false);
+    }
+
     const next = 2;
     setCurrentStep(next);
     setMaxVisitedStep((prev) => Math.max(prev, next));
@@ -562,11 +605,59 @@ export const Register: React.FC = () => {
           </div>
         )}
 
+        {/* Active Authenticated Session Notice */}
+        {isAuthenticated && (
+          <div className="p-3.5 rounded-xl bg-cyan-400/10 border border-cyan-400/30 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <span className="font-semibold text-text-primary block">
+                You are currently signed in as <span className="text-cyan-400">{user?.name}</span> ({user?.email})
+              </span>
+              <span className="text-text-muted text-[11px] block">
+                To register a different account, please sign out first. Or return to your dashboard.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" variant="ghost" onClick={logout} className="text-xs">
+                Sign Out
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => navigate(user?.role === "ADMIN" ? "/admin" : "/dashboard")}
+                className="text-xs"
+              >
+                Go to Dashboard
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Server Error Alert */}
         {serverError && (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-danger-bg border border-danger/40 text-danger text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">{serverError}</span>
+          <div className="p-3 rounded-lg bg-danger-bg border border-danger/40 text-danger text-xs space-y-2">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{serverError}</span>
+            </div>
+            {serverError.toLowerCase().includes("already exists") && (
+              <div className="flex items-center gap-3 pt-2 border-t border-danger/20 font-mono text-[11px]">
+                <Link to="/login" className="text-cyan-400 hover:underline font-semibold">
+                  Sign in with this email →
+                </Link>
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServerError(null);
+                      setCurrentStep(1);
+                    }}
+                    className="text-accent hover:underline ml-auto"
+                  >
+                    Change email in Step 1
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 

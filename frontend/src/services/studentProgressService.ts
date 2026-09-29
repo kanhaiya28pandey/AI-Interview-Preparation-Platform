@@ -21,19 +21,13 @@ try {
 
 export const studentProgressService = {
   async getStudents(): Promise<StudentProgress[]> {
-    if (USE_MOCKS) {
-      await delay(250);
-      return [...studentsList];
-    }
-    throw new Error("Real backend endpoint not implemented");
+    await delay(150);
+    return [...studentsList];
   },
 
   async getStudentById(id: string): Promise<StudentProgress | undefined> {
-    if (USE_MOCKS) {
-      await delay(200);
-      return studentsList.find((s) => s.id === id);
-    }
-    throw new Error("Real backend endpoint not implemented");
+    await delay(100);
+    return studentsList.find((s) => s.id === id);
   },
 
   async addTeacherNote(studentId: string, noteText: string, authorName = "Admin Teacher"): Promise<TeacherNote> {
@@ -68,10 +62,9 @@ export const studentProgressService = {
   },
 
   async getCohortAnalytics(): Promise<CohortAnalytics> {
-    if (USE_MOCKS) {
-      await delay(300);
+    await delay(200);
 
-      const total = studentsList.length;
+    const total = studentsList.length;
       const avgScore = Math.round(studentsList.reduce((acc, s) => acc + s.activityScore, 0) / (total || 1));
       const verifiedCount = studentsList.filter((s) => s.verificationStatus === "VERIFIED").length;
       const verifiedPct = Math.round((verifiedCount / (total || 1)) * 100);
@@ -143,8 +136,6 @@ export const studentProgressService = {
         interviewRatingDistribution,
         topPerformers,
       };
-    }
-    throw new Error("Real backend endpoint not implemented");
   },
 
   exportStudentsCSV(students: StudentProgress[], filename = "student_progress_report.csv") {

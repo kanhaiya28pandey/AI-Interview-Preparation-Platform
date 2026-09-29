@@ -31,13 +31,17 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([adminService.getReports(), resumeService.getAdminAnalytics()]).then(
-      ([reportsData, resumeData]) => {
+    Promise.all([adminService.getReports(), resumeService.getAdminAnalytics()])
+      .then(([reportsData, resumeData]) => {
         setReports(reportsData);
         setResumeAnalytics(resumeData);
+      })
+      .catch((err) => {
+        console.warn("Failed to load admin dashboard reports:", err);
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    );
+      });
   }, []);
 
   if (loading || !reports || !resumeAnalytics) return <CardSkeleton />;
@@ -49,7 +53,6 @@ export const AdminDashboard: React.FC = () => {
         <p className="text-xs text-text-secondary">Overview of student registrations, interview completions, and AI ATS resume benchmark analytics.</p>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard title="Total Registered Users" value="950" subtitle="Across 12 campuses" icon={Users} trend={{ value: "+28%", isPositive: true }} />
         <StatCard title="Interviews Conducted" value="2,150" subtitle="AI rounds completed" icon={Video} trend={{ value: "+18%", isPositive: true }} />
@@ -58,9 +61,7 @@ export const AdminDashboard: React.FC = () => {
         <StatCard title="Platform Health" value="99.98%" subtitle="Spring Boot + MongoDB" icon={ShieldAlert} />
       </div>
 
-      {/* Recharts Analytics Grid 1: Growth & Interview Domains */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* User Growth Area Chart */}
         <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
           <div className="flex justify-between items-center">
             <div>
@@ -88,7 +89,6 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </Card>
 
-        {/* Category Distribution Bar Chart */}
         <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border">
           <div>
             <h3 className="font-serif text-lg font-medium text-text-primary">Interviews by Domain</h3>
@@ -109,7 +109,6 @@ export const AdminDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* PHASE 3: RESUME ANALYTICS WIDGET & INTELLIGENCE */}
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
@@ -136,7 +135,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Top Missing Skills Platform-Wide (Top 5) */}
           <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
             <div className="flex items-center justify-between">
               <div>
@@ -178,7 +176,6 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </Card>
 
-          {/* Role Distribution Donut Chart */}
           <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border">
             <div>
               <h4 className="font-serif text-base font-semibold text-text-primary">
@@ -220,7 +217,6 @@ export const AdminDashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
 
-            {/* Role Color Legend */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-border/60 text-[11px] font-mono">
               {resumeAnalytics.roleDistribution.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-1.5">
