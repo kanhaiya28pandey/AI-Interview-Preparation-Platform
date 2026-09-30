@@ -1,7 +1,7 @@
 package com.interviewplatform.backend.service;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,37 +23,45 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailService emailService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            EmailService emailService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.emailService = emailService;
+    }
+
+    public boolean checkEmailExists(String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        return userRepository.existsByEmail(email.trim().toLowerCase());
     }
 
     public AuthResponse register(RegisterRequest request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
-        // Check if email already exists
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalStateException("An account with this email already exists");
         }
 
-        // Create new user
         User user = new User();
         user.setName(request.getName().trim());
         user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("STUDENT");
-        user.setVerificationStatus("Unverified");
+        user.setVerificationStatus("Verified");
         user.setBlocked(false);
 
         User savedUser = userRepository.save(user);
 
-        // Generate JWT token so student is authenticated immediately after registering
         String token = jwtService.generateToken(savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
 
         return new AuthResponse(
@@ -100,24 +108,45 @@ public class AuthService {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new IllegalArgumentException("No account registered with this email"));
+                .orElseThrow(() -> new IllegalArgumentException("No account registered with this email address. Please check your email or create an account."));
 
-        String resetToken = UUID.randomUUID().toString();
+        int otpNumber = 100000 + secureRandom.nextInt(900000);
+        String otp = String.valueOf(otpNumber);
         LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(15);
 
-        user.setResetToken(resetToken);
+        user.setResetToken(otp);
         user.setResetTokenExpiry(expiryTime);
         userRepository.save(user);
 
-        return resetToken;
+        emailService.sendPasswordResetOtp(normalizedEmail, otp);
+
+        return otp;
     }
 
     public String resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByResetToken(request.getToken())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired password reset token"));
+        String otp = request.getOtp();
+        if (otp == null || otp.isBlank()) {
+            otp = request.getToken();
+        }
+
+        if (otp == null || otp.isBlank()) {
+            throw new IllegalArgumentException("6-digit OTP is required");
+        }
+
+        final String finalOtp = otp.trim();
+        User user;
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            user = userRepository.findByEmail(request.getEmail().trim().toLowerCase())
+                    .filter(u -> finalOtp.equals(u.getResetToken()))
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid or expired 6-digit OTP"));
+        } else {
+            user = userRepository.findByResetToken(finalOtp)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid or expired 6-digit OTP"));
+        }
 
         if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Password reset token has expired. Please request a new one.");
+            throw new IllegalArgumentException("OTP has expired. Please request a new OTP.");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));

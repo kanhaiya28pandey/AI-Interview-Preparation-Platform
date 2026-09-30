@@ -41,26 +41,40 @@ export const authService = {
     }
   },
 
+  async checkEmail(email: string): Promise<boolean> {
+    try {
+      const response = await api.get<{ exists: boolean }>(`/api/auth/check-email?email=${encodeURIComponent(email.trim())}`);
+      return Boolean(response.data?.exists);
+    } catch {
+      return false;
+    }
+  },
+
   async forgotPassword(email: string): Promise<string> {
     try {
-      const response = await api.post("/api/auth/forgot-password", { email });
+      const response = await api.post("/api/auth/forgot-password", { email: email.trim() });
       const data = response.data;
       if (typeof data === "string") return data;
-      return data.token || data.message || "Reset token generated successfully";
+      return data.message || "A 6-digit OTP has been sent to your email address.";
     } catch (error: any) {
-      const msg = error.response?.data?.message || error.response?.data || "Could not process password reset.";
+      const msg = error.response?.data?.message || error.response?.data || "Could not process password reset. Please verify your email.";
       throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
     }
   },
 
-  async resetPassword(token: string, newPassword: string): Promise<string> {
+  async resetPassword(otp: string, newPassword: string, email?: string): Promise<string> {
     try {
-      const response = await api.post("/api/auth/reset-password", { token, newPassword });
+      const response = await api.post("/api/auth/reset-password", {
+        token: otp.trim(),
+        otp: otp.trim(),
+        newPassword,
+        email: email ? email.trim() : undefined,
+      });
       const data = response.data;
       if (typeof data === "string") return data;
       return data.message || "Password reset successful";
     } catch (error: any) {
-      const msg = error.response?.data?.message || error.response?.data || "Failed to reset password.";
+      const msg = error.response?.data?.message || error.response?.data || "Failed to reset password. Please check your OTP.";
       throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
     }
   },

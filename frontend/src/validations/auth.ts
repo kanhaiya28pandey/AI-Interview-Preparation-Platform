@@ -76,7 +76,7 @@ export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z
   .object({
-    token: z.string().min(1, "Reset token is required"),
+    otp: z.string().trim().length(6, "OTP must be exactly 6 digits").regex(/^\d{6}$/, "OTP must be 6 numeric digits"),
     newPassword: z.string().min(6, "New password must be at least 6 characters long"),
     confirmNewPassword: z.string().min(1, "Please confirm your new password"),
   })

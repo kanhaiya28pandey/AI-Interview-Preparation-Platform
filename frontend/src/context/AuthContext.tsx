@@ -17,7 +17,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<AuthResponse>;
   register: (credentials: RegisterCredentials) => Promise<AuthResponse>;
   forgotPassword: (email: string) => Promise<string>;
-  resetPassword: (token: string, newPassword: string) => Promise<string>;
+  resetPassword: (otp: string, newPassword: string, email?: string) => Promise<string>;
   loginDemoStudent: () => void;
   loginDemoAdmin: () => void;
   logout: () => void;
@@ -107,8 +107,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return await authService.forgotPassword(email);
   };
 
-  const resetPassword = async (resetToken: string, newPassword: string): Promise<string> => {
-    return await authService.resetPassword(resetToken, newPassword);
+  const resetPassword = async (otp: string, newPassword: string, email?: string): Promise<string> => {
+    return await authService.resetPassword(otp, newPassword, email);
   };
 
   const logout = () => {

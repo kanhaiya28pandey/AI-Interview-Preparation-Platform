@@ -1,6 +1,6 @@
+import api from "@/lib/api";
 import { mockUserProfile, UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
 const STORAGE_KEY = "ai_interview_prep_profile";
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -31,7 +31,6 @@ const getStoredProfile = (): UserProfile => {
     console.error("Failed to parse stored profile:", e);
   }
 
-  // Create profile tied to active user
   const initialProfile: UserProfile = {
     ...mockUserProfile,
     userId: userId,
@@ -47,52 +46,65 @@ const getStoredProfile = (): UserProfile => {
 
 export const profileService = {
   async getProfile(): Promise<UserProfile> {
-    if (USE_MOCKS) {
-      await delay(200);
-      return getStoredProfile();
+    try {
+      const token = localStorage.getItem("ai_interview_prep_token");
+      if (token && !token.includes("demo-")) {
+        const response = await api.get<UserProfile>("/api/v1/profile");
+        if (response.data && response.data.name) {
+          return response.data;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not load backend profile, falling back to local dataset:", err);
     }
-    throw new Error("Real backend endpoint /api/v1/profile not implemented");
+    await delay(100);
+    return getStoredProfile();
   },
 
   async updateProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
-    if (USE_MOCKS) {
-      await delay(300);
-      const current = getStoredProfile();
-      const updatedProfile: UserProfile = {
-        ...current,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
+    const current = getStoredProfile();
+    const updatedProfile: UserProfile = {
+      ...current,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
 
-      // Ensure flat skills list is synced if skillsList updated
-      if (updates.skillsList) {
-        updatedProfile.skills = updates.skillsList.map((s) => s.name);
-      }
-
-      const activeUserRaw = localStorage.getItem("ai_interview_prep_user");
-      let userId = current.userId;
-      if (activeUserRaw) {
-        try {
-          const activeUser = JSON.parse(activeUserRaw);
-          if (activeUser?.userId) userId = activeUser.userId;
-          if (updates.name || updates.email) {
-            const updatedAuth = {
-              ...activeUser,
-              ...(updates.name ? { name: updates.name } : {}),
-              ...(updates.email ? { email: updates.email } : {}),
-            };
-            localStorage.setItem("ai_interview_prep_user", JSON.stringify(updatedAuth));
-          }
-        } catch (e) {
-          console.error("Failed to parse active user during updateProfile:", e);
-        }
-      }
-
-      localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(updatedProfile));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfile));
-      return updatedProfile;
+    if (updates.skillsList) {
+      updatedProfile.skills = updates.skillsList.map((s) => s.name);
     }
-    throw new Error("Real backend endpoint not implemented");
+
+    const activeUserRaw = localStorage.getItem("ai_interview_prep_user");
+    let userId = current.userId;
+    if (activeUserRaw) {
+      try {
+        const activeUser = JSON.parse(activeUserRaw);
+        if (activeUser?.userId) userId = activeUser.userId;
+        if (updates.name || updates.email) {
+          const updatedAuth = {
+            ...activeUser,
+            ...(updates.name ? { name: updates.name } : {}),
+            ...(updates.email ? { email: updates.email } : {}),
+          };
+          localStorage.setItem("ai_interview_prep_user", JSON.stringify(updatedAuth));
+        }
+      } catch (e) {
+        console.error("Failed to parse active user during updateProfile:", e);
+      }
+    }
+
+    localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(updatedProfile));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfile));
+
+    try {
+      const token = localStorage.getItem("ai_interview_prep_token");
+      if (token && !token.includes("demo-")) {
+        await api.put("/api/v1/profile", updatedProfile);
+      }
+    } catch (err) {
+      console.warn("Could not sync profile update with backend:", err);
+    }
+
+    return updatedProfile;
   },
 
   getCompletionPercentage(profile: Partial<UserProfile>): number {
