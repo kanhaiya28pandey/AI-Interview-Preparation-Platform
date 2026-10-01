@@ -1,0 +1,537 @@
+import { InterviewRole, InterviewQuestion } from "./interviewData";
+
+export interface SeedInterviewRole extends InterviewRole {
+  domainSlug: string;
+  source: "local-seed";
+}
+
+export interface SeedInterviewQuestion extends InterviewQuestion {
+  source: "local-seed";
+}
+
+export const SEED_INTERVIEW_ROLES: SeedInterviewRole[] = [
+  {
+    id: "role-frontend",
+    title: "Frontend Engineer (React & TypeScript)",
+    category: "Technical",
+    domainSlug: "frontend-development",
+    difficulty: "Senior",
+    durationMinutes: 45,
+    description: "Deep evaluation of browser rendering, DOM reconciliation, state architecture, and micro-frontend design.",
+    icon: "Layout",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-backend",
+    title: "Backend Engineer (Distributed Services)",
+    category: "Technical",
+    domainSlug: "backend-development",
+    difficulty: "Senior",
+    durationMinutes: 45,
+    description: "Focus on microservices, event loops, database isolation levels, caching strategies, and resilience patterns.",
+    icon: "Server",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-fullstack",
+    title: "Full Stack Engineer (Web & Cloud)",
+    category: "Technical",
+    domainSlug: "full-stack",
+    difficulty: "Senior",
+    durationMinutes: 45,
+    description: "End-to-end web engineering, API contracts, SSR hydration, database schemas, and cloud deployment pipelines.",
+    icon: "Layers",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-mern",
+    title: "MERN Stack Specialist",
+    category: "Technical",
+    domainSlug: "full-stack",
+    difficulty: "Mid-Level",
+    durationMinutes: 40,
+    description: "MongoDB aggregation, Express middleware, React 19 hooks, and Node.js stream performance.",
+    icon: "Layers",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-java",
+    title: "Java & Spring Enterprise Architect",
+    category: "Technical",
+    domainSlug: "programming-languages",
+    difficulty: "Lead",
+    durationMinutes: 45,
+    description: "JVM internal memory tuning, Virtual Threads, Spring Boot autoconfiguration, and transactional boundaries.",
+    icon: "Coffee",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-python",
+    title: "Python Software Engineer",
+    category: "Technical",
+    domainSlug: "programming-languages",
+    difficulty: "Mid-Level",
+    durationMinutes: 40,
+    description: "GIL mechanics, asyncio coroutines, context managers, memory profiling, and FastAPI microservices.",
+    icon: "Code",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-sde",
+    title: "Software Development Engineer (DSA-Heavy)",
+    category: "Technical",
+    domainSlug: "dsa",
+    difficulty: "Senior",
+    durationMinutes: 50,
+    description: "Rigorous testing on optimal asymptotic complexity, tree/graph algorithms, dynamic programming, and systems thinking.",
+    icon: "Binary",
+    totalQuestions: 16,
+    source: "local-seed",
+  },
+  {
+    id: "role-data-analyst",
+    title: "Data Analyst (SQL & BI Insights)",
+    category: "Technical",
+    domainSlug: "data-analytics",
+    difficulty: "Mid-Level",
+    durationMinutes: 40,
+    description: "Advanced SQL window queries, cohort funnel retention, executive dashboards, and metric anomaly detection.",
+    icon: "BarChart3",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-data-scientist",
+    title: "Data Scientist (Statistical Modeling)",
+    category: "Technical",
+    domainSlug: "data-analytics",
+    difficulty: "Senior",
+    durationMinutes: 45,
+    description: "Hypothesis testing, exploratory data analysis, feature engineering, regression/classification, and model diagnostics.",
+    icon: "BarChart3",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-ml-engineer",
+    title: "Machine Learning Engineer (MLOps)",
+    category: "Technical",
+    domainSlug: "ai-machine-learning",
+    difficulty: "Senior",
+    durationMinutes: 45,
+    description: "Model deployment pipelines, feature stores, data drift monitoring, quantization, and tensor graph optimization.",
+    icon: "BrainCircuit",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-genai-engineer",
+    title: "Generative AI & LLM Engineer",
+    category: "Technical",
+    domainSlug: "ai-machine-learning",
+    difficulty: "Lead",
+    durationMinutes: 45,
+    description: "Retrieval-Augmented Generation (RAG), vector databases, autonomous multi-agent systems, and model alignment.",
+    icon: "Sparkles",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-devops",
+    title: "DevOps & SRE Engineer",
+    category: "Technical",
+    domainSlug: "devops-cloud",
+    difficulty: "Senior",
+    durationMinutes: 45,
+    description: "SLO/SLI budgets, Kubernetes container scheduling, Infrastructure as Code, observability, and chaos engineering.",
+    icon: "Cloud",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-cloud",
+    title: "Cloud Solutions Architect (AWS / GCP / Azure)",
+    category: "Technical",
+    domainSlug: "devops-cloud",
+    difficulty: "Lead",
+    durationMinutes: 45,
+    description: "Multi-region failover, VPC peering, cloud-native storage tiers, serverless design, and cost optimization.",
+    icon: "Cloud",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-qa-sdet",
+    title: "Quality Assurance / SDET",
+    category: "Technical",
+    domainSlug: "testing-qa",
+    difficulty: "Mid-Level",
+    durationMinutes: 40,
+    description: "E2E automation frameworks (Playwright), API performance testing, CI integration, and flaky test debugging.",
+    icon: "CheckCircle",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-mobile",
+    title: "Mobile Application Developer (iOS & Android)",
+    category: "Technical",
+    domainSlug: "mobile-development",
+    difficulty: "Senior",
+    durationMinutes: 40,
+    description: "Jetpack Compose & SwiftUI lifecycle, offline SQLite sync, background jobs, memory leak profiling, and app store release.",
+    icon: "Smartphone",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-cybersecurity",
+    title: "Cybersecurity & AppSec Engineer",
+    category: "Technical",
+    domainSlug: "cybersecurity",
+    difficulty: "Senior",
+    durationMinutes: 45,
+    description: "Threat modeling, OWASP Top 10 mitigation, cryptographic key lifecycle, penetration testing, and zero trust architecture.",
+    icon: "ShieldAlert",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-product-analyst",
+    title: "Product / Business Analyst",
+    category: "Product",
+    domainSlug: "product-business",
+    difficulty: "Mid-Level",
+    durationMinutes: 40,
+    description: "Feature prioritization, North Star metrics, user story mapping, estimation, and stakeholder communication.",
+    icon: "Briefcase",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-hr-round",
+    title: "HR Behavioral & Cultural Fit Round",
+    category: "Behavioral",
+    domainSlug: "hr-behavioral",
+    difficulty: "Junior",
+    durationMinutes: 30,
+    description: "STAR framework evaluations on career motivation, conflict management, teamwork, and ethics.",
+    icon: "Users",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+  {
+    id: "role-managerial-round",
+    title: "Engineering Managerial & Leadership Round",
+    category: "Behavioral",
+    domainSlug: "hr-behavioral",
+    difficulty: "Lead",
+    durationMinutes: 45,
+    description: "Technical roadmapping, handling low performers, cross-functional prioritization, and incident post-mortems.",
+    icon: "Users",
+    totalQuestions: 15,
+    source: "local-seed",
+  },
+];
+
+// Helper to generate 15-20 structured questions for any role
+export const generateQuestionsForRole = (
+  roleId: string,
+  baseTitle: string,
+  questionsData: Array<{ q: string; keyPoints: string[]; followUp: string }>
+): SeedInterviewQuestion[] => {
+  return questionsData.map((item, idx) => ({
+    id: `${roleId}-q-${idx + 1}`,
+    roleId,
+    questionNumber: idx + 1,
+    question: item.q,
+    category: "Technical",
+    idealKeyPoints: item.keyPoints,
+    followUpPrompt: item.followUp,
+    source: "local-seed",
+  }));
+};
+
+export const SEED_INTERVIEW_QUESTIONS: Record<string, SeedInterviewQuestion[]> = {
+  "role-frontend": generateQuestionsForRole("role-frontend", "Frontend Engineer", [
+    {
+      q: "Explain how React's Fiber architecture enables time-slicing and concurrent rendering.",
+      keyPoints: [
+        "Fiber transforms reconciliation into an interruptible linked list of units of work.",
+        "Work is prioritized via lanes (User Blocking vs Transition vs Background).",
+        "React yields control back to the browser main thread via requestIdleCallback/MessageChannel to avoid frame drops.",
+      ],
+      followUp: "How does `useTransition` prevent input lag during heavy component re-renders?",
+    },
+    {
+      q: "What causes unnecessary re-renders in React and how do you profile them using React DevTools?",
+      keyPoints: [
+        "Passing unstable object/array references or inline anonymous functions as props.",
+        "Parent component re-renders propagating down the subtree.",
+        "Using React DevTools Profiler 'Record why each component rendered' and flamegraphs.",
+      ],
+      followUp: "When is `useMemo` a net performance penalty rather than an optimization?",
+    },
+    {
+      q: "Describe the browser Critical Rendering Path from raw HTML byte stream to pixels on screen.",
+      keyPoints: [
+        "HTML parsing generates DOM tree; CSS parsing generates CSSOM.",
+        "Combining DOM and CSSOM produces the Render Tree (excluding display: none).",
+        "Layout (Reflow) calculates geometry; Paint fills pixels; Compositing layers them on GPU.",
+      ],
+      followUp: "Why do CSS transforms trigger GPU compositing while modifying top/left triggers Layout reflow?",
+    },
+    {
+      q: "How does the browser event loop coordinate Microtasks, Macrotasks, and requestAnimationFrame?",
+      keyPoints: [
+        "Macrotask queue contains I/O, timers (setTimeout), user input.",
+        "Microtask queue (Promise.then, MutationObserver) is completely drained after every single macrotask.",
+        "requestAnimationFrame callbacks execute immediately prior to the browser paint cycle.",
+      ],
+      followUp: "What happens if a microtask continuously schedules another microtask?",
+    },
+    {
+      q: "How do you implement an accessible (WAI-ARIA compliant) modal dialog component from scratch?",
+      keyPoints: [
+        "Role 'dialog', aria-modal='true', and aria-labelledby pointing to dialog title.",
+        "Focus trap trapping Tab/Shift+Tab inside modal focusable elements.",
+        "Restoring focus to the trigger button upon closing via Escape key or backdrop click.",
+      ],
+      followUp: "How do you ensure screen readers announce dynamic errors inside form inputs?",
+    },
+    {
+      q: "Explain how Server-Side Rendering (SSR) hydration works and how to resolve hydration mismatch errors.",
+      keyPoints: [
+        "Server generates static HTML string; client React re-attaches virtual DOM event listeners to existing markup.",
+        "Hydration fails when server HTML and client initial render differ (e.g. browser timezone, window.innerWidth).",
+        "Remedy by moving client-dependent logic into useEffect or using dynamic imports with ssr: false.",
+      ],
+      followUp: "How does React 18 Selective Hydration use Suspense boundaries to prioritize interactive components?",
+    },
+    {
+      q: "What are the core differences between CSS Grid and Flexbox for modern responsive layouts?",
+      keyPoints: [
+        "Flexbox is one-dimensional (row OR column), ideal for content-driven component alignment.",
+        "CSS Grid is two-dimensional (rows AND columns simultaneously), ideal for macro page structure.",
+        "Grid subgrid allows nested components to inherit parent track tracks.",
+      ],
+      followUp: "How does CSS `clamp(min, preferred, max)` replace multiple breakpoint media queries for fluid typography?",
+    },
+    {
+      q: "How do you optimize Core Web Vitals, specifically Largest Contentful Paint (LCP) and Interaction to Next Paint (INP)?",
+      keyPoints: [
+        "LCP: Preload hero image using <link rel='preload'>, use modern formats (AVIF/WebP), optimize server TTFB.",
+        "INP: Break up long JavaScript tasks (>50ms) using scheduler.yield() or setTimeout(0).",
+        "CLS: Set explicit width/height attributes on images and reserve space for dynamic ads/banners.",
+      ],
+      followUp: "How does INP replace First Input Delay (FID) as the primary responsiveness metric?",
+    },
+    {
+      q: "What security measures must a frontend engineer implement to protect against Cross-Site Scripting (XSS)?",
+      keyPoints: [
+        "Sanitize untrusted HTML strings using DOMPurify before inserting via dangerouslySetInnerHTML.",
+        "Enforce strict Content Security Policy (CSP) headers disallowing unsafe-inline scripts.",
+        "Store sensitive auth tokens in httpOnly secure cookies rather than localStorage.",
+      ],
+      followUp: "How does Content Security Policy (CSP) report-uri help monitor production injection attempts?",
+    },
+    {
+      q: "How do you architect a global state management solution without causing global re-renders?",
+      keyPoints: [
+        "Use selector-based stores (Zustand/Redux Toolkit) where components only subscribe to specific state slices.",
+        "Avoid placing rapidly changing state (e.g. scroll position, mouse coords) in React Context.",
+        "Separate server cache state (React Query / TanStack Query) from local UI client state.",
+      ],
+      followUp: "Why does React Context re-render all consuming components when any part of the context value changes?",
+    },
+    {
+      q: "Explain how Service Workers work and how to implement an offline-first caching strategy with Workbox.",
+      keyPoints: [
+        "Service workers run on a separate background thread acting as a programmable network proxy.",
+        "CacheFirst strategy for immutable static assets (hashed JS/CSS/fonts).",
+        "StaleWhileRevalidate for semi-dynamic data, returning cached version while background fetching fresh data.",
+      ],
+      followUp: "How do you handle service worker lifecycle updates without breaking active user sessions?",
+    },
+    {
+      q: "What are micro-frontends and what are the trade-offs of using Webpack Module Federation?",
+      keyPoints: [
+        "Decomposes large frontend apps into independently deployable sub-applications.",
+        "Module Federation dynamically imports shared remote modules at runtime without npm rebuilds.",
+        "Trade-offs: complex dependency version alignment, duplicated library payloads, and styling collisions.",
+      ],
+      followUp: "How do you prevent CSS collisions between multiple micro-frontends loaded on the same DOM?",
+    },
+    {
+      q: "How does TypeScript enforce type safety with Generic constraints and Conditional types?",
+      keyPoints: [
+        "Generic constraints using `T extends SomeType` restrict permissible type arguments.",
+        "Conditional types `T extends U ? X : Y` compute types dynamically based on subtyping relationships.",
+        "The `infer` keyword enables pattern matching inside conditional type expressions.",
+      ],
+      followUp: "How does distributive conditional typing behave when applied to union types?",
+    },
+    {
+      q: "How do you profile and eliminate memory leaks in a single-page React application?",
+      keyPoints: [
+        "Capture Chrome DevTools Memory heap snapshots before and after performing repetitive UI actions.",
+        "Identify detached DOM tree nodes kept alive by lingering event listeners, intervals, or closures.",
+        "Ensure every useEffect cleans up window listeners, AbortControllers, and WebSocket subscriptions.",
+      ],
+      followUp: "What is the danger of referencing parent component state inside an un-cancelled async Promise closure?",
+    },
+    {
+      q: "Design a high-performance Infinite Scroll virtualized list rendering 100,000 items.",
+      keyPoints: [
+        "Only render items visible within the viewport plus an overscan buffer (e.g. 15-20 items).",
+        "Use absolute positioning and translateY based on item height and scroll offset.",
+        "Use IntersectionObserver or scroll throttling to trigger paginated data fetching near the bottom.",
+      ],
+      followUp: "How do you handle dynamic variable-height items in a virtualized list without jumping scroll positions?",
+    },
+  ]),
+
+  "role-backend": generateQuestionsForRole("role-backend", "Backend Engineer", [
+    {
+      q: "Explain the four ACID properties and describe the difference between Read Committed and Serializable isolation levels.",
+      keyPoints: [
+        "Atomicity, Consistency, Isolation, Durability.",
+        "Read Committed prevents Dirty Reads by only reading committed data.",
+        "Serializable eliminates Dirty Reads, Non-Repeatable Reads, and Phantom Reads using 2-Phase Locking or SSI.",
+      ],
+      followUp: "What is Write Skew anomaly and how does Serializable isolation prevent it?",
+    },
+    {
+      q: "How do you design an idempotent REST API for credit card payment processing?",
+      keyPoints: [
+        "Client generates a unique Idempotency-Key UUID sent in the HTTP header.",
+        "Server atomically checks and stores the key in Redis/DB before processing payment.",
+        "If a duplicate request arrives, return the cached original response without reprocessing.",
+      ],
+      followUp: "What happens if a network timeout occurs while the payment processor was charging the card?",
+    },
+    {
+      q: "Compare Message Queues (RabbitMQ) vs Distributed Log Streams (Apache Kafka).",
+      keyPoints: [
+        "RabbitMQ: smart broker, dumb consumer; messages acknowledged and deleted from queue upon processing.",
+        "Kafka: append-only immutable commit log; dumb broker, smart consumer tracking its own offset.",
+        "Kafka supports high throughput replayability and event sourcing; RabbitMQ supports complex routing (topic/direct exchange).",
+      ],
+      followUp: "How does consumer group rebalancing work in Kafka when a consumer crashes?",
+    },
+    {
+      q: "How do you implement distributed rate limiting across a cluster of API gateways?",
+      keyPoints: [
+        "Token Bucket or Sliding Window Log algorithm implemented in Redis via Lua scripts for atomicity.",
+        "Tracks key `{ip}:{endpoint}:{window}` with TTL.",
+        "Return HTTP 429 Too Many Requests with Retry-After header upon quota breach.",
+      ],
+      followUp: "Why is a Redis Lua script necessary instead of consecutive GET and INCR commands?",
+    },
+    {
+      q: "What is the N+1 query problem in relational ORMs and GraphQL, and how do you resolve it?",
+      keyPoints: [
+        "Fetching 1 parent record followed by N separate SQL queries for each child relationship.",
+        "In SQL/ORM: use JOIN FETCH or eager batch loading (IN clause).",
+        "In GraphQL: use DataLoader pattern to batch and cache IDs within a single execution tick.",
+      ],
+      followUp: "How does DataLoader batch multiple discrete resolver calls into a single database query?",
+    },
+    {
+      q: "Explain database sharding strategies and how consistent hashing mitigates resharding storms.",
+      keyPoints: [
+        "Range-based vs Hash-based sharding.",
+        "Hash-based sharding modulo N causes massive data migration when adding shards.",
+        "Consistent hashing places nodes on a ring; adding a shard only migrates keys from its immediate neighbor.",
+      ],
+      followUp: "What are cross-shard queries and why are distributed joins expensive?",
+    },
+    {
+      q: "How do you handle cache invalidation and prevent Cache Stampede (Thundering Herd)?",
+      keyPoints: [
+        "Cache-Aside pattern: read cache, if miss read DB, write back to cache.",
+        "Thundering herd: hundreds of concurrent requests simultaneously query DB when a hot key expires.",
+        "Mitigate with distributed mutex locks, probabilistic early expiration (XFetch), or background refreshes.",
+      ],
+      followUp: "What is the difference between Cache-Aside, Write-Through, and Write-Back caching?",
+    },
+    {
+      q: "How does the Node.js / Java backend handle millions of concurrent WebSocket connections?",
+      keyPoints: [
+        "Use non-blocking asynchronous event-driven I/O (epoll / kqueue / Virtual Threads).",
+        "Tune OS file descriptor limits (nofile) and TCP buffer sizes.",
+        "Use a Redis Pub/Sub or Kafka backbone to broadcast messages across multiple server nodes.",
+      ],
+      followUp: "How do you detect and clean up dead WebSocket connections when network drops silently?",
+    },
+    {
+      q: "What is the Outbox Pattern in microservices and why is it essential for distributed transactions?",
+      keyPoints: [
+        "Atomic local DB transaction saves business entity AND an outbox message table record.",
+        "A separate background CDC/Debezium worker reads outbox entries and publishes to message broker.",
+        "Eliminates dual-write inconsistency where DB write succeeds but message broker publish fails.",
+      ],
+      followUp: "How does the Saga pattern manage distributed rollbacks across independent microservices?",
+    },
+    {
+      q: "How do you secure inter-service communication in a microservices mesh?",
+      keyPoints: [
+        "Mutual TLS (mTLS) with short-lived X.509 certificates managed by Istio / Linkerd.",
+        "Service-to-service JWT authentication with audience and scope verification.",
+        "Network policies restricting egress/ingress between Kubernetes namespaces.",
+      ],
+      followUp: "What is the role of an SPIFFE ID in zero-trust workload identity?",
+    },
+    {
+      q: "Explain the difference between Optimistic Locking and Pessimistic Locking with concrete SQL examples.",
+      keyPoints: [
+        "Pessimistic: `SELECT ... FOR UPDATE` acquires row lock, blocking concurrent transactions.",
+        "Optimistic: adds a `version` integer column; updates execute `WHERE id = ? AND version = ?`.",
+        "Optimistic is better for high-read/low-write contention; Pessimistic prevents repeat retries in high-conflict writes.",
+      ],
+      followUp: "What retry strategy should you employ when an optimistic locking collision occurs?",
+    },
+    {
+      q: "How do you design a database schema for audit logging with immutable historical versions?",
+      keyPoints: [
+        "Append-only audit table with timestamps, user ID, operation type (INSERT/UPDATE/DELETE), and JSON diff.",
+        "Database triggers or application-level interceptors writing to the audit log in the same transaction.",
+        "Partitioning historical logs by month/year and archiving cold data to object storage (S3).",
+      ],
+      followUp: "Why is an append-only architecture inherently tamper-resistant for SOC 2 compliance?",
+    },
+    {
+      q: "Explain how gRPC improves upon REST/JSON for internal microservice communication.",
+      keyPoints: [
+        "Binary Protocol Buffers serialization is significantly faster and smaller than JSON strings.",
+        "Multiplexed HTTP/2 streams over a single TCP connection.",
+        "Strong compile-time contract generation and native bidirectional streaming support.",
+      ],
+      followUp: "Why is gRPC difficult to consume directly from standard web browser clients?",
+    },
+    {
+      q: "How do you design a circuit breaker pattern in backend services using Resilience4j / Polly?",
+      keyPoints: [
+        "States: CLOSED (normal), OPEN (tripped due to error threshold), HALF-OPEN (testing limited traffic).",
+        "Tracks rolling window failure rate and slow call percentage.",
+        "Fails fast with fallback response when OPEN, shielding struggling downstream services from overload.",
+      ],
+      followUp: "How do you configure the circuit breaker to avoid false positives during brief network blips?",
+    },
+    {
+      q: "How do you implement zero-downtime database schema migrations for tables with hundreds of millions of rows?",
+      keyPoints: [
+        "Expand and Contract pattern: add nullable column or new table, double-write in application.",
+        "Backfill legacy rows in small batches using primary key chunking.",
+        "Switch read traffic to new column, then deprecate and drop old column in subsequent release.",
+      ],
+      followUp: "Why does adding a column with a default value lock large PostgreSQL/MySQL tables in older versions?",
+    },
+  ]),
+};

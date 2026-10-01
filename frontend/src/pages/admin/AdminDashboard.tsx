@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { adminService } from "@/services/adminService";
 import { resumeService } from "@/services/resumeService";
@@ -9,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { Users, Video, Code2, ShieldAlert, FileText, ExternalLink, Sparkles } from "lucide-react";
+import { Reveal } from "@/components/fx";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -23,8 +25,6 @@ import {
   Pie,
   Cell,
 } from "recharts";
-
-import { AtRiskStudents } from "@/components/admin/AtRiskStudents";
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -48,29 +48,36 @@ export const AdminDashboard: React.FC = () => {
 
   if (loading || !reports || !resumeAnalytics) return <CardSkeleton />;
 
+  const stagger = {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.1 } },
+  };
+
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="font-serif text-2xl font-medium text-text-primary">Platform Admin Dashboard</h2>
-        <p className="text-xs text-text-secondary">Overview of student registrations, interview completions, and AI ATS resume benchmark analytics.</p>
-      </div>
+      <Reveal direction="up" duration={0.5}>
+        <div>
+          <h2 className="font-serif text-2xl font-medium text-text-primary">Platform Admin Dashboard</h2>
+          <p className="text-xs text-text-secondary">Overview of student registrations, interview completions, and AI ATS resume benchmark analytics.</p>
+        </div>
+      </Reveal>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard title="Total Registered Users" value="950" subtitle="Across 12 campuses" icon={Users} trend={{ value: "+28%", isPositive: true }} />
-        <StatCard title="Interviews Conducted" value="2,150" subtitle="AI rounds completed" icon={Video} trend={{ value: "+18%", isPositive: true }} />
-        <StatCard title="Active Coding Tests" value="14" subtitle="Algorithm challenges" icon={Code2} />
-        <StatCard title="Avg Resume ATS Score" value={`${resumeAnalytics.avgAtsScore} / 100`} subtitle={`${resumeAnalytics.totalResumesAnalyzed} resumes scanned`} icon={FileText} trend={{ value: "+4.2%", isPositive: true }} />
-        <StatCard title="Platform Health" value="99.98%" subtitle="Spring Boot + MongoDB" icon={ShieldAlert} />
-      </div>
+      <motion.div
+        variants={stagger}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true }}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
+      >
+        <StatCard title="Total Registered Users" value={950} suffix=" users" subtitle="Across 12 campuses" icon={Users} accentColor="cyan" trend={{ value: "+28%", isPositive: true }} />
+        <StatCard title="Interviews Conducted" value={2150} subtitle="AI rounds completed" icon={Video} accentColor="green" trend={{ value: "+18%", isPositive: true }} />
+        <StatCard title="Active Coding Tests" value={14} subtitle="Algorithm challenges" icon={Code2} accentColor="purple" />
+        <StatCard title="Avg Resume ATS Score" value={resumeAnalytics.avgAtsScore} suffix=" / 100" subtitle={`${resumeAnalytics.totalResumesAnalyzed} resumes scanned`} icon={FileText} accentColor="amber" trend={{ value: "+4.2%", isPositive: true }} />
+        <StatCard title="Platform Health" value={99.98} suffix="%" subtitle="Spring Boot + MongoDB" icon={ShieldAlert} accentColor="rose" />
+      </motion.div>
 
-<<<<<<< ours
-=======
-      {/* At Risk Students Alert */}
-      <AtRiskStudents />
-
-      {/* Recharts Analytics Grid 1: Growth & Interview Domains */}
->>>>>>> theirs
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <Reveal direction="up" delay={0.15} duration={0.55}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
           <div className="flex justify-between items-center">
             <div>
@@ -116,9 +123,12 @@ export const AdminDashboard: React.FC = () => {
             </ResponsiveContainer>
           </div>
         </Card>
-      </div>
 
-      <div className="space-y-4">
+      </div>
+      </Reveal>
+
+      <Reveal direction="up" delay={0.1} duration={0.5}>
+        <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <div className="flex items-center gap-2">
@@ -237,7 +247,8 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </Card>
         </div>
-      </div>
+        </div>
+      </Reveal>
     </div>
   );
 };

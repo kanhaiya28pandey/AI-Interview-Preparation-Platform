@@ -16,6 +16,16 @@
   --color-live: var(--live);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-pink-400: #f472b6;
+  --color-pink-500: #ec4899;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
 }
 
 .bg-surface {
@@ -121,14 +131,22 @@
     scroll-behavior: smooth;
     background-color: var(--ink);
     color: var(--text-primary);
+    /* Height prop lets the app-shell fill the viewport exactly */
+    height: 100%;
   }
 
   body {
     margin: 0;
+    height: 100%;
     background-color: var(--ink);
     color: var(--text-primary);
     font-family: "Inter", sans-serif;
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* React mount point must also be 100% tall so the app-shell can use h-dvh */
+  #root {
+    height: 100%;
   }
 
   ::selection {
@@ -165,6 +183,62 @@
   border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   App Shell Layout Utilities
+   .app-shell  — the fixed viewport-filling wrapper for all logged-in layouts.
+                 overflow-hidden prevents the browser from ever adding a
+                 document scrollbar; public pages are NOT wrapped in this.
+   .app-scroll — the ONE scrolling region inside the shell (main content area).
+                 overscroll-contain stops scroll chaining to the document.
+   ──────────────────────────────────────────────────────────────────────────── */
+.app-shell {
+  overflow: hidden;            /* document never scrolls */
+}
+
+.app-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* WebKit thin scrollbar for .app-scroll */
+.app-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.app-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+.app-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Sidebar inner nav thin scrollbar (same token set) */
+.sidebar-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
 }
 
@@ -234,4 +308,252 @@
   .animate-marquee {
     animation: none;
   }
+}
+
+/* ========================================================
+   CREATIVE UI UTILITIES & DESIGN EFFECTS
+   ======================================================== */
+
+/* Frosted Glass Card */
+.glass {
+  background: rgba(20, 27, 44, 0.68) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+html.light .glass {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Gradient Animated Headline Text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent-bright) 0%, #a78bfa 50%, #f472b6 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Soft Colored Shadow On Hover */
+.glow-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glow-hover:hover {
+  box-shadow: 0 0 25px var(--accent-glow);
+  border-color: var(--accent-bright) !important;
+}
+
+/* Shimmer Loading Sweep */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.08) 20%,
+    rgba(255, 255, 255, 0.16) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: shimmer-swipe 2s infinite;
+}
+
+html.light .shimmer::after {
+  background-image: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0.04) 20%,
+    rgba(0, 0, 0, 0.08) 60%,
+    rgba(0, 0, 0, 0)
+  );
+}
+
+@keyframes shimmer-swipe {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Border Beam Effect */
+.border-beam-card {
+  position: relative;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.border-beam-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from 0deg, transparent 0deg 300deg, var(--accent-bright) 340deg, #a78bfa 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: beam-spin 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes beam-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Gradient Presets */
+.bg-gradient-aurora {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.18) 0%, rgba(34, 211, 238, 0.18) 50%, rgba(139, 92, 246, 0.18) 100%);
+}
+
+.bg-gradient-sunset {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(236, 72, 153, 0.18) 50%, rgba(139, 92, 246, 0.18) 100%);
+}
+
+.bg-gradient-ocean {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(34, 211, 238, 0.18) 50%, rgba(16, 185, 129, 0.18) 100%);
+}
+
+.bg-gradient-candy {
+  background: linear-gradient(135deg, rgba(244, 114, 182, 0.22) 0%, rgba(167, 139, 250, 0.22) 50%, rgba(34, 211, 238, 0.22) 100%);
+}
+
+/* ── Domain gradient backgrounds (used on domain cards everywhere) ─────── */
+.bg-domain-frontend  { background: linear-gradient(135deg, rgba(244,114,182,0.18) 0%, rgba(139,92,246,0.18) 100%); }
+.bg-domain-backend   { background: linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(34,211,238,0.18)  100%); }
+.bg-domain-aiml      { background: linear-gradient(135deg, rgba(139,92,246,0.18) 0%, rgba(59,130,246,0.18)  100%); }
+.bg-domain-devops    { background: linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(249,115,22,0.18)  100%); }
+.bg-domain-data      { background: linear-gradient(135deg, rgba(56,189,248,0.18) 0%, rgba(20,184,166,0.18)  100%); }
+.bg-domain-security  { background: linear-gradient(135deg, rgba(251,113,133,0.18) 0%, rgba(220,38,38,0.18)  100%); }
+.bg-domain-hr        { background: linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(244,114,182,0.18) 100%); }
+.bg-domain-aptitude  { background: linear-gradient(135deg, rgba(163,230,53,0.18) 0%, rgba(52,211,153,0.18)  100%); }
+
+/* ── Noise overlay (very subtle grain texture over cards) ─────────────── */
+.noise-overlay {
+  position: relative;
+}
+.noise-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.3;
+  mix-blend-mode: overlay;
+}
+
+/* ── Spotlight Card (pointer glow follows mouse via CSS vars) ─────────── */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+  --mx: 50%;
+  --my: 50%;
+}
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    300px circle at var(--mx) var(--my),
+    var(--accent-glow),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* ── Shimmer-shine sweep on hover (for badges and chips) ─────────────── */
+.shine-hover {
+  position: relative;
+  overflow: hidden;
+}
+.shine-hover::after {
+  content: "";
+  position: absolute;
+  top: 0; left: -75%;
+  width: 50%; height: 100%;
+  background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+  transform: skewX(-20deg);
+  opacity: 0;
+  transition: opacity 0.1s;
+  pointer-events: none;
+}
+.shine-hover:hover::after {
+  opacity: 1;
+  animation: shine-swipe 0.6s ease forwards;
+}
+@keyframes shine-swipe {
+  0%   { left: -75%; opacity: 1; }
+  100% { left: 125%; opacity: 0; }
+}
+
+/* ── Pulsing hotspot ring (for new feature callouts) ─────────────────── */
+@keyframes hotspot-ring {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.hotspot-ring {
+  animation: hotspot-ring 2s ease-out infinite;
+}
+
+/* ── Scroll progress bar ─────────────────────────────────────────────── */
+.scroll-progress-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2.5px;
+  background: linear-gradient(to right, var(--accent), var(--accent-bright));
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: width 0.1s linear;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* Reduced Effects Mode Overrides (respects both OS & user setting) */
+@media (prefers-reduced-motion: reduce) {
+  .gradient-text,
+  .animate-spin-slow,
+  .animate-pulse-live,
+  .cursor-blink,
+  .border-beam-card::before,
+  .hotspot-ring,
+  .shine-hover::after {
+    animation: none !important;
+  }
+}
+
+html[data-reduced-effects="true"] .gradient-text,
+html[data-reduced-effects="true"] .animate-spin-slow,
+html[data-reduced-effects="true"] .animate-pulse-live,
+html[data-reduced-effects="true"] .cursor-blink,
+html[data-reduced-effects="true"] .border-beam-card::before,
+html[data-reduced-effects="true"] .hotspot-ring,
+html[data-reduced-effects="true"] .shine-hover::after {
+  animation: none !important;
 }

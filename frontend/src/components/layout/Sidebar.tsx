@@ -19,16 +19,18 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  Radio,
   Layers,
+  Compass,
+  FolderTree,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
+import { RoleBadge } from "@/components/common/RoleBadge";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
-import { RoleBadge } from "@/components/common/RoleBadge";
-import { getRoleMeta } from "@/lib/roles";
 
 export interface SidebarProps {
   isAdmin?: boolean;
@@ -121,7 +123,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { user } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const userRoleMeta = getRoleMeta(user?.role);
 
   useEffect(() => {
     profileService.getProfile().then((data) => {
@@ -140,13 +141,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       window.addEventListener("keydown", handleKeyDown);
     }
     return () => {
-      document.body.style.overflow = "unset";
+      // Restore to empty string so CSS (not 'unset') controls overflow again
+      document.body.style.overflow = "";
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpenMobile, onCloseMobile]);
 
   const studentLinks: SidebarLink[] = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/preparation", label: "Prep Roadmaps", icon: Compass, badge: "Track" },
     { to: "/practice", label: "Practice Tracks", icon: BookOpen },
     { to: "/resume-analyzer", label: "Resume Analyzer", icon: FileText, badge: "AI" },
     { to: "/coding", label: "Coding Arena", icon: Code2 },
@@ -166,6 +169,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: "/admin/users", label: "Manage Users", icon: Users },
     { to: "/admin/verifications", label: "ID Verifications", icon: ShieldCheck, badge: "Review" },
     { to: "/admin/coding-tests", label: "Coding Tests", icon: Code2 },
+    { to: "/admin/taxonomy", label: "Domains & Topics", icon: FolderTree },
+    { to: "/admin/live-tests", label: "Live Tests", icon: Radio, badge: "Live" },
     { to: "/admin/mock-interviews", label: "Mock Interviews", icon: Video },
     { to: "/admin/articles", label: "Articles CMS", icon: FileText },
     { to: "/admin/reports", label: "Analytics & Reports", icon: BarChart3 },
@@ -257,8 +262,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Nav Links */}
-        <nav className="flex-1 py-3 space-y-1 overflow-y-auto">
+        {/* Nav Links — sidebar-scroll gives a thin 4px scrollbar when menu > viewport */}
+        <nav className="flex-1 py-3 space-y-1 sidebar-scroll">
           {!collapsed ? (
             <div className="text-[11px] font-mono uppercase tracking-wider text-text-muted px-2 mb-2">
               {isAdmin ? "Management" : "Main Menu"}
@@ -317,8 +322,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* User Info Card Footer */}
         <div className="pt-3 border-t border-border mt-auto">
           <SidebarTooltip
-            label={user?.name || profile?.name || "Account"}
-            sublabel={`Role: ${userRoleMeta.label}${user?.email || profile?.email ? ` • ${user?.email || profile?.email}` : ""}`}
+            label={user?.name || profile?.name || "Student User"}
+            sublabel={user?.email || profile?.email || "student@srmist.edu.in"}
             disabled={!collapsed}
           >
             <NavLink
@@ -329,25 +334,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 collapsed ? "justify-center p-2 mx-auto w-11 h-11" : "p-2.5 gap-3 w-full"
               )}
             >
-              <div className="relative shrink-0">
-                <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
-                {collapsed && (
-                  <span
-                    className={cn("absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface", userRoleMeta.dotColor)}
-                    title={`Role: ${userRoleMeta.label}`}
-                  />
-                )}
-              </div>
+              <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
               {!collapsed && (
-                <div className="flex-1 min-w-0 space-y-1">
-                  <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
-                    {user?.name || profile?.name || "Account"}
-                  </p>
-                  <div>
-                    <RoleBadge role={user?.role} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 justify-between">
+                    <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
+                      {user?.name || profile?.name || "Student User"}
+                    </p>
+                    <RoleBadge role={user?.role || (isAdmin ? "ADMIN" : "STUDENT")} size="xs" />
                   </div>
                   <p className="text-[11px] text-text-muted font-mono truncate">
-                    {user?.email || profile?.email || ""}
+                    {user?.email || profile?.email || "student@srmist.edu.in"}
                   </p>
                 </div>
               )}
@@ -363,7 +360,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Desktop Persistent Sidebar */}
       <aside
         className={cn(
-          "hidden lg:block h-screen sticky top-0 shrink-0 z-40 transition-all duration-200 ease-in-out",
+          "hidden lg:block h-full shrink-0 z-40 transition-all duration-200 ease-in-out",
           isCollapsed ? "w-[68px]" : "w-64"
         )}
       >

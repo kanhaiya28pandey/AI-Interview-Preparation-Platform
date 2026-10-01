@@ -268,7 +268,7 @@ export const CollegeIdUploader: React.FC<CollegeIdUploaderProps> = ({
       </Card>
 
       {/* Front ID Card Photo Upload */}
-      <Card className="p-6 bg-surface border border-border shadow-soft space-y-4 rounded-2xl">
+      <Card className="p-6 bg-surface border border-border shadow-soft space-y-4 rounded-2xl overflow-hidden max-w-full">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <UploadCloud className="w-5 h-5 text-cyan-400" />
@@ -324,10 +324,10 @@ export const CollegeIdUploader: React.FC<CollegeIdUploaderProps> = ({
             )}
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="relative border border-border bg-surface-raised rounded-xl p-4 flex flex-col md:flex-row items-center gap-6">
+          <div className="space-y-4 min-w-0 max-w-full">
+            <div className="relative border border-border bg-surface-raised rounded-xl p-4 flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6 min-w-0 overflow-hidden max-w-full">
               {/* Image Preview with rotation */}
-              <div className="relative overflow-hidden rounded-lg border border-border w-64 h-40 bg-black flex items-center justify-center shrink-0">
+              <div className="relative overflow-hidden rounded-lg border border-border w-full sm:w-64 h-44 bg-black flex items-center justify-center shrink-0 min-w-0">
                 <img
                   src={idFrontPreview}
                   alt="College ID Front"
@@ -348,43 +348,58 @@ export const CollegeIdUploader: React.FC<CollegeIdUploaderProps> = ({
                 </button>
               </div>
 
-              {/* Quality details */}
-              <div className="flex-1 space-y-2 text-xs w-full">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-text-primary text-sm truncate max-w-[200px]">
+              {/* Quality & File Details */}
+              <div className="flex-1 space-y-3 text-xs w-full min-w-0 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                  <span
+                    className="font-semibold text-text-primary text-sm truncate min-w-0 flex-1 break-all"
+                    title={idFrontFile?.name || "Uploaded_ID_Photo.jpg"}
+                  >
                     {idFrontFile?.name || "Uploaded_ID_Photo.jpg"}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIdFrontFile(null);
-                      setIdFrontPreview(null);
-                      setIdQuality(null);
-                      notifyChange({ idFrontFile: null, idFrontPreview: null, idQuality: null });
-                    }}
-                    className="text-danger hover:bg-danger-bg text-xs h-7"
-                  >
-                    <X className="w-3.5 h-3.5" /> Remove
-                  </Button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs h-7 px-2.5 text-cyan-400 border-cyan-400/40 hover:bg-cyan-400/10"
+                    >
+                      <RotateCw className="w-3 h-3" /> Replace
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIdFrontFile(null);
+                        setIdFrontPreview(null);
+                        setIdQuality(null);
+                        notifyChange({ idFrontFile: null, idFrontPreview: null, idQuality: null });
+                      }}
+                      className="text-danger hover:bg-danger-bg text-xs h-7 px-2.5"
+                    >
+                      <X className="w-3.5 h-3.5" /> Remove
+                    </Button>
+                  </div>
                 </div>
 
                 {idQuality && (
-                  <div className="p-3 bg-surface border border-border rounded-lg space-y-1.5 font-mono text-[11px]">
-                    <div className="flex justify-between">
+                  <div className="p-3 bg-surface border border-border rounded-lg space-y-1.5 font-mono text-[11px] min-w-0 break-words">
+                    <div className="flex justify-between items-center gap-2">
                       <span className="text-text-muted">Dimensions:</span>
-                      <span className="text-text-primary">
-                        {idQuality.width} x {idQuality.height} px
+                      <span className="text-text-primary font-semibold">
+                        {idQuality.width} × {idQuality.height} px
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center gap-2">
                       <span className="text-text-muted">Canvas Clarity Score:</span>
                       <span className="text-live font-semibold">
-                        {idQuality.blurScore}/100 (Pass)
+                        {idQuality.blurScore}% (Pass)
                       </span>
                     </div>
-                    <p className="text-live text-[10px] flex items-center gap-1 pt-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Text & face verified as sharp and readable.
+                    <p className="text-live text-[10px] flex items-center gap-1 pt-1 break-words">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Text & face verified as sharp and readable.
                     </p>
                   </div>
                 )}

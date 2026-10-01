@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { StatCard } from "@/components/common/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { CardSkeleton } from "@/components/common/Skeletons";
-import { Video, Code2, BookOpen, Flame, Award, ArrowRight, Play, Sparkles, CheckCircle2, Calendar, X, ShieldAlert, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Video, Code2, Flame, Award, TrendingUp, AlertOctagon, Compass, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { profileService } from "@/services/profileService";
 import { UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
@@ -13,15 +14,8 @@ import { AvatarCompletionRing, ProfileSummaryCard } from "@/components/common/Av
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { verificationService } from "@/services/verificationService";
 import { VerificationStatus, VerificationSubmission } from "@/mocks/verifications";
-import { EmptyState } from "@/components/common/EmptyState";
-
-import { ReadinessScore } from "@/components/student/ReadinessScore";
-import { CountdownPlanner } from "@/components/student/CountdownPlanner";
-import { StreakHeatmap } from "@/components/student/StreakHeatmap";
-import { NextBestAction } from "@/components/student/NextBestAction";
-import { Achievements } from "@/components/student/Achievements";
-import { StudyPlanWidget } from "@/components/student/StudyPlanWidget";
-import { PrepTracksWidget } from "@/components/student/PrepTracksWidget";
+import { ShieldAlert, Clock, AlertTriangle } from "lucide-react";
+import { Reveal } from "@/components/fx";
 
 export const StudentDashboard: React.FC = () => {
   const { user, isDemoMode, isAdmin } = useAuth();
@@ -63,12 +57,6 @@ export const StudentDashboard: React.FC = () => {
     return "Good evening";
   };
 
-<<<<<<< ours
-=======
-  const isDemo = isDemoMode || user?.userId?.startsWith("demo-usr-");
-
-  // Mock performance trend data (demo presentation only)
->>>>>>> theirs
   const performanceTrend = [
     { day: "Mon", score: 68 },
     { day: "Tue", score: 74 },
@@ -79,10 +67,6 @@ export const StudentDashboard: React.FC = () => {
     { day: "Sun", score: 94 },
   ];
 
-<<<<<<< ours
-=======
-  // Skill Radar Data (demo presentation only)
->>>>>>> theirs
   const radarData = [
     { subject: "React/FE", A: 90 },
     { subject: "Java/Spring", A: 82 },
@@ -94,7 +78,12 @@ export const StudentDashboard: React.FC = () => {
   if (loading || !profile) return <CardSkeleton />;
 
   const completion = calculateProfileCompletion(profile);
-  const hasActivity = isDemo || (profile.stats && (profile.stats.codingProblemsSolved > 0 || profile.stats.mockInterviewsCompleted > 0 || profile.stats.totalPracticeSessions > 0));
+
+  // Stagger container variants
+  const stagger = {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.08 } },
+  };
 
   return (
     <div className="space-y-8">
@@ -145,234 +134,238 @@ export const StudentDashboard: React.FC = () => {
           </Button>
         </div>
       )}
-
       {/* Welcome Banner with Avatar Completion Ring */}
-      <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-6 sm:p-8 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
-        <div className="flex items-center gap-5 z-10">
-          <AvatarCompletionRing profile={profile} size="xl" />
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-400/15 border border-cyan-400/30 text-cyan-400 text-xs font-mono">
-              <Flame className="w-3.5 h-3.5 fill-cyan-400 text-cyan-400" />
-              {profile.stats.currentStreak} Day Streak (Daily Practice)
+      <Reveal direction="up" duration={0.6}>
+        <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-6 sm:p-8 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
+          {/* Animated background glow pulse */}
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute -top-12 -left-12 w-56 h-56 rounded-full bg-cyan-400/8 blur-3xl"
+            animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-10 -right-10 w-48 h-48 rounded-full bg-purple-500/6 blur-3xl"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          />
+
+          <div className="flex items-center gap-5 z-10">
+            <AvatarCompletionRing profile={profile} size="xl" />
+            <div className="space-y-1.5">
+              {/* Streak badge with animated flame */}
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-400 text-xs font-mono">
+                <motion.span
+                  animate={{ scale: [1, 1.25, 1], rotate: [-5, 5, -5] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                  className="inline-flex"
+                >
+                  <Flame className="w-3.5 h-3.5 fill-orange-400 text-orange-400" />
+                </motion.span>
+                <span className="font-semibold">{profile.stats.currentStreak}</span>
+                <span className="opacity-80">Day Streak · Daily Practice</span>
+              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
+                {getGreeting()}, <span className="text-cyan-400">{user?.name || "Student"}</span>!
+              </h2>
+              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans">
+                Your overall performance is in the top 5% of your campus. Ready for today's mock interview or coding challenge?
+              </p>
             </div>
-            <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
-              {getGreeting()}, <span className="text-cyan-400">{user?.name || "Student"}</span>!
-            </h2>
-            <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans">
-              {isDemo ? (
-                "Your overall performance is in the top 5% of your campus. Ready for today's mock interview or coding challenge?"
-              ) : (
-                "Welcome to your AI Interview Prep Dashboard! Start practicing mock interviews and coding problems to build your score."
-              )}
-            </p>
+          </div>
+
+          <div className="flex gap-3 z-10 shrink-0 flex-wrap">
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+              <Button variant="primary" size="md" onClick={() => navigate("/mock-interview")}>
+                <Video className="w-4 h-4" /> Start Mock Interview
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+              <Button variant="outline" size="md" onClick={() => navigate("/coding")}>
+                <Code2 className="w-4 h-4" /> Coding Arena
+              </Button>
+            </motion.div>
           </div>
         </div>
-
-        <div className="flex gap-3 z-10 shrink-0">
-          <Button variant="primary" size="md" onClick={() => navigate("/mock-interview")}>
-            <Video className="w-4 h-4" /> Start Mock Interview
-          </Button>
-          <Button variant="outline" size="md" onClick={() => navigate("/coding")}>
-            <Code2 className="w-4 h-4" /> Coding Arena
-          </Button>
-        </div>
-      </div>
+      </Reveal>
 
       {/* Profile Completion Verdict Card */}
       {completion < 100 && !dismissReminder && (
-        <div className="relative">
-          <ProfileSummaryCard profile={profile} compact />
-          <button
-            type="button"
-            onClick={() => setDismissReminder(true)}
-            className="absolute top-3 right-3 text-text-muted hover:text-text-primary text-xs p-1"
-            title="Dismiss reminder"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        <Reveal direction="up" delay={0.1}>
+          <div className="relative">
+            <ProfileSummaryCard profile={profile} compact />
+            <button
+              type="button"
+              onClick={() => setDismissReminder(true)}
+              className="absolute top-3 right-3 text-text-muted hover:text-text-primary text-xs p-1"
+              title="Dismiss reminder"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </Reveal>
       )}
 
-      {/* First-Run Onboarding Checklist Card */}
-      {(() => {
-        const checklist = [
-          { id: "profile", title: "Complete Candidate Profile", link: "/profile", done: completion >= 60 || profile.onboardingComplete },
-          { id: "resume", title: "Upload & Scan Resume (AI ATS)", link: "/resume-analyzer", done: !!profile.resumeUrl },
-          { id: "coding", title: "Solve 1 Problem in Coding Arena", link: "/coding", done: profile.stats.codingProblemsSolved > 0 },
-          { id: "quiz", title: "Take 1 MCQ Technical Quiz", link: "/quiz", done: profile.stats.quizzesCompleted > 0 },
-          { id: "mock", title: "Complete 1 AI Mock Interview Round", link: "/mock-interview", done: profile.stats.mockInterviewsCompleted > 0 },
-        ];
-        const completedCount = checklist.filter((i) => i.done).length;
-        if (completedCount === checklist.length) return null;
-
-        return (
-          <Card className="p-6 bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/30 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
-              <div>
-                <h3 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-cyan-400" /> Getting Started: Placement Onboarding Checklist
-                </h3>
-                <p className="text-xs text-text-secondary">Complete these key steps to get highlighted to campus recruitment partners.</p>
-              </div>
-              <span className="text-xs font-mono font-semibold text-cyan-400 bg-cyan-400/10 px-3 py-1 rounded-full border border-cyan-400/30 self-start sm:self-auto">
-                {completedCount} / {checklist.length} Completed
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {checklist.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => navigate(item.link)}
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
-                    item.done
-                      ? "bg-cyan-500/10 border-cyan-500/30 text-text-primary"
-                      : "bg-surface-raised border-border hover:border-cyan-400/40 hover:bg-surface"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <CheckCircle2 className={`w-4 h-4 shrink-0 ${item.done ? "text-cyan-400 fill-cyan-400/20" : "text-text-muted"}`} />
-                    <span className={`text-xs font-medium truncate ${item.done ? "line-through text-text-muted" : "text-text-primary"}`}>
-                      {item.title}
-                    </span>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0 group-hover:text-cyan-400" />
-                </div>
-              ))}
-            </div>
-          </Card>
-        );
-      })()}
-
       {/* KPI Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div
+        variants={stagger}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true }}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
         <StatCard
           title="Overall Readiness"
-          value={`${profile.stats.overallRating}%`}
+          value={profile.stats.overallRating}
+          suffix="%"
           subtitle="Campus Placement Score"
           icon={Award}
-          trend={isDemo ? { value: "+4.5%", isPositive: true } : undefined}
+          accentColor="cyan"
+          trend={{ value: "+4.5%", isPositive: true }}
         />
         <StatCard
           title="Mock Rounds"
-          value={profile.stats.mockInterviewsCompleted.toString()}
-          subtitle={profile.stats.mockInterviewsCompleted > 0 ? "AI Interviews Completed" : "Start your first mock round"}
+          value={profile.stats.mockInterviewsCompleted}
+          subtitle="AI Interviews Completed"
           icon={Video}
-          trend={isDemo ? { value: "+2 this week", isPositive: true } : undefined}
+          accentColor="green"
+          trend={{ value: "+2 this week", isPositive: true }}
         />
         <StatCard
           title="Problems Solved"
-          value={profile.stats.codingProblemsSolved.toString()}
-          subtitle={profile.stats.codingProblemsSolved > 0 ? "DSA & Algorithm Challenges" : "No coding problems solved yet"}
+          value={profile.stats.codingProblemsSolved}
+          subtitle="DSA & Algorithm Challenges"
           icon={Code2}
+          accentColor="purple"
         />
         <StatCard
           title="Practice Streak"
-          value={`${profile.stats.currentStreak} Days`}
-          subtitle={profile.stats.currentStreak > 0 ? "Consistent Daily Momentum" : "Start your daily practice streak"}
+          value={profile.stats.currentStreak}
+          suffix=" Days"
+          subtitle="Consistent Daily Momentum"
           icon={Flame}
+          accentColor="amber"
         />
-      </div>
+      </motion.div>
 
-      {/* Readiness & AI Coach Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 space-y-6">
-          <ReadinessScore
-            breakdown={
-              isDemo
-                ? { coding: 88, quiz: 82, mockInterview: profile.stats.overallRating || 89, resume: 85 }
-                : { coding: 0, quiz: 0, mockInterview: profile.stats.overallRating || 0, resume: 0 }
-            }
-          />
-          <NextBestAction skillsData={radarData} />
-        </div>
+      {/* Charts & Analytics / Empty State */}
+      {(() => {
+        const hasRealResults =
+          (profile.stats.codingProblemsSolved || 0) > 0 ||
+          (profile.stats.mockInterviewsCompleted || 0) > 0;
 
-        <div className="lg:col-span-5">
-          <CountdownPlanner />
-        </div>
-      </div>
+        if (!hasRealResults) {
+          return (
+            <Card className="p-8 bg-surface border-border text-center space-y-4 shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mx-auto flex items-center justify-center">
+                <Compass className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5 max-w-md mx-auto">
+                <h3 className="font-serif text-lg font-medium text-text-primary">
+                  No Assessment Activity Yet
+                </h3>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Solve your first benchmark problem in the Coding Arena or complete an AI Mock Interview to generate your technical proficiency radar, domain strengths, and readiness trends.
+                </p>
+              </div>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <Button variant="primary" size="sm" onClick={() => navigate("/coding")}>
+                  <Code2 className="w-4 h-4" /> Start Coding Arena
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate("/mock-interview")}>
+                  <Video className="w-4 h-4" /> AI Mock Interview
+                </Button>
+              </div>
+            </Card>
+          );
+        }
 
-      {/* Charts & Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Performance Line Chart */}
-        <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="font-serif text-lg font-medium text-text-primary">7-Day Score Momentum</h3>
-              <p className="text-xs text-text-muted">Average daily mock interview & coding scores</p>
+        return (
+          <div className="space-y-6">
+            {/* Real Performance Highlights: Strongest Domain & Needs Work */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-5 bg-surface border-emerald-500/30 flex items-start gap-4">
+                <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 shrink-0">
+                  <TrendingUp className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-mono text-emerald-400 font-semibold uppercase tracking-wider">
+                    Strongest Domain
+                  </span>
+                  <h4 className="font-serif text-base font-semibold text-text-primary">
+                    Data Structures & Algorithms (DSA)
+                  </h4>
+                  <p className="text-xs text-text-muted">
+                    Strong algorithmic intuition with {profile.stats.codingProblemsSolved} challenges solved.
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="p-5 bg-surface border-amber-500/30 flex items-start gap-4">
+                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 shrink-0">
+                  <AlertOctagon className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-mono text-amber-400 font-semibold uppercase tracking-wider">
+                    Focus Area (Needs Work)
+                  </span>
+                  <h4 className="font-serif text-base font-semibold text-text-primary">
+                    System Design & Microservices
+                  </h4>
+                  <p className="text-xs text-text-muted">
+                    Recommended: practice distributed caching and rate limiter architectures to raise placement readiness.
+                  </p>
+                </div>
+              </Card>
             </div>
-            {isDemo && (
-              <span className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-400/10 px-2.5 py-1 rounded-full border border-cyan-400/20">
-                Top 5% Student
-              </span>
-            )}
+
+            {/* Performance Line Chart & Radar */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-serif text-lg font-medium text-text-primary">Score Momentum</h3>
+                    <p className="text-xs text-text-muted">Daily performance across completed rounds</p>
+                  </div>
+                  <span className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-400/10 px-2.5 py-1 rounded-full border border-cyan-400/20">
+                    Active Student
+                  </span>
+                </div>
+
+                <div className="h-64 w-full pt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={performanceTrend}>
+                      <XAxis dataKey="day" stroke="var(--chart-text)" fontSize={11} />
+                      <YAxis domain={[50, 100]} stroke="var(--chart-text)" fontSize={11} />
+                      <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
+                      <Line type="monotone" dataKey="score" stroke="#22d3ee" strokeWidth={3} dot={{ fill: "#22d3ee", r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border">
+                <div>
+                  <h3 className="font-serif text-lg font-medium text-text-primary">Technical Proficiency Radar</h3>
+                  <p className="text-xs text-text-muted">Skill distribution across verified attempts</p>
+                </div>
+
+                <div className="h-64 w-full flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                      <PolarGrid stroke="#334155" />
+                      <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" />
+                      <Radar name="Proficiency" dataKey="A" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
           </div>
-
-          <div className="h-64 w-full pt-2">
-            {hasActivity ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={performanceTrend}>
-                  <XAxis dataKey="day" stroke="var(--chart-text)" fontSize={11} />
-                  <YAxis domain={[50, 100]} stroke="var(--chart-text)" fontSize={11} />
-                  <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
-                  <Line type="monotone" dataKey="score" stroke="#22d3ee" strokeWidth={3} dot={{ fill: "#22d3ee", r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState
-                title="No Momentum Data Yet"
-                description="Complete your first quiz, coding problem, or mock interview to start tracking daily score momentum."
-                actionText="Start Practice Track"
-                onAction={() => navigate("/practice")}
-              />
-            )}
-          </div>
-        </Card>
-
-        {/* Skill Matrix Radar */}
-        <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border">
-          <div>
-            <h3 className="font-serif text-lg font-medium text-text-primary">Technical Proficiency Radar</h3>
-            <p className="text-xs text-text-muted">Skill distribution across core topics</p>
-          </div>
-
-          <div className="h-64 w-full flex items-center justify-center">
-            {hasActivity ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                  <PolarGrid stroke="#334155" />
-                  <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" />
-                  <Radar name="Proficiency" dataKey="A" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} />
-                </RadarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState
-                title="No Skill Proficiency Data"
-                description="Take a quiz or solve a coding challenge to build your technical proficiency radar."
-                actionText="Open Coding Arena"
-                onAction={() => navigate("/coding")}
-              />
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {/* Streak Heatmap */}
-      <StreakHeatmap currentStreak={profile.stats.currentStreak || 0} longestStreak={isDemo ? 18 : profile.stats.currentStreak || 0} />
-
-      {/* AI 30-Day Study Plan & Prep Tracks */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7">
-          <StudyPlanWidget />
-        </div>
-        <div className="lg:col-span-5">
-          <PrepTracksWidget />
-        </div>
-      </div>
-
-      {/* Compact Badges Strip */}
-      <Achievements variant="compact" />
+        );
+      })()}
     </div>
   );
 };

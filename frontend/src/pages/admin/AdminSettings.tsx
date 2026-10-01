@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Shield, Settings as SettingsIcon, Server, Database } from "lucide-react";
 import { toast } from "sonner";
+import { AppearanceSettingsCard } from "@/components/common/AppearanceSettingsCard";
 
 export const AdminSettings: React.FC = () => {
   const [apiBaseUrl, setApiBaseUrl] = useState(import.meta.env.VITE_API_BASE_URL || "http://localhost:8080");
@@ -21,6 +22,9 @@ export const AdminSettings: React.FC = () => {
         <h2 className="font-serif text-2xl font-medium text-text-primary">System Settings</h2>
         <p className="text-xs text-text-secondary">Configure backend API base URL, mock fallback flags, and CORS parameters.</p>
       </div>
+
+      {/* Appearance Settings */}
+      <AppearanceSettingsCard />
 
       <Card className="p-6 space-y-4 bg-surface border-border">
         <h3 className="font-serif text-lg font-medium text-text-primary flex items-center gap-2">

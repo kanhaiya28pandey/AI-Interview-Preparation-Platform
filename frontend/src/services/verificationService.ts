@@ -4,6 +4,7 @@ import {
   INITIAL_MOCK_VERIFICATIONS,
 } from "@/mocks/verifications";
 import { profileService } from "@/services/profileService";
+import api, { isDemoSession } from "@/lib/api";
 
 const STORAGE_KEY = "ai_interview_prep_verifications";
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
@@ -117,15 +118,17 @@ export const verificationService = {
 
       return newSubmission;
     }
-    throw new Error("Real backend verification submission endpoint not implemented");
+    const res = await api.post("/api/v1/verifications/submit", data);
+    return res.data;
   },
 
   async getAllSubmissions(): Promise<VerificationSubmission[]> {
-    if (USE_MOCKS) {
+    if (isDemoSession() || USE_MOCKS) {
       await delay(200);
       return getStoredSubmissions();
     }
-    throw new Error("Real backend verifications list endpoint not implemented");
+    const res = await api.get("/api/v1/admin/verifications");
+    return res.data;
   },
 
   async reviewVerification(
@@ -134,7 +137,7 @@ export const verificationService = {
     rejectionCategory?: string,
     rejectionNotes?: string
   ): Promise<VerificationSubmission> {
-    if (USE_MOCKS) {
+    if (isDemoSession() || USE_MOCKS) {
       await delay(350);
       const submissions = getStoredSubmissions();
       const targetIndex = submissions.findIndex((s) => s.verificationId === verificationId);
@@ -176,60 +179,11 @@ export const verificationService = {
 
       return updatedItem;
     }
-    throw new Error("Real backend verification review endpoint not implemented");
-  },
-
-  async deleteRejectedVerification(verificationId: string): Promise<void> {
-    if (USE_MOCKS) {
-      await delay(250);
-      const submissions = getStoredSubmissions();
-      const target = submissions.find(
-        (s) => s.verificationId === verificationId || s.userId === verificationId
-      );
-
-      if (!target) {
-        throw new Error(`Verification record ${verificationId} not found`);
-      }
-
-      if (target.status !== "Rejected") {
-        throw new Error(`Cannot delete verification with status '${target.status}'. Only REJECTED profiles can be deleted.`);
-      }
-
-      const filtered = submissions.filter(
-        (s) => s.verificationId !== verificationId && s.userId !== verificationId
-      );
-      saveSubmissions(filtered);
-      return;
-    }
-    const response = await fetch(`/api/v1/admin/verifications/${verificationId}`, {
-      method: "DELETE",
+    const res = await api.post(`/api/v1/admin/verifications/${verificationId}/review`, {
+      action,
+      rejectionCategory,
+      rejectionNotes,
     });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: "Failed to delete rejected verification" }));
-      throw new Error(err.message || "Failed to delete rejected verification");
-    }
-  },
-
-  async deleteBulkRejectedVerifications(verificationIds: string[]): Promise<number> {
-    if (USE_MOCKS) {
-      await delay(350);
-      let deleted = 0;
-      for (const id of verificationIds) {
-        await this.deleteRejectedVerification(id);
-        deleted++;
-      }
-      return deleted;
-    }
-    const response = await fetch(`/api/v1/admin/verifications/rejected`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(verificationIds),
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: "Failed to bulk delete rejected verifications" }));
-      throw new Error(err.message || "Failed to bulk delete rejected verifications");
-    }
-    const resData = await response.json();
-    return resData.count || verificationIds.length;
+    return res.data;
   },
 };
