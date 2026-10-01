@@ -1,13 +1,20 @@
+<<<<<<< ours
 import api from "@/lib/api";
 import { mockUserProfile, UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
+=======
+import { mockUserProfile, createEmptyProfile, UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
+>>>>>>> theirs
 
 const STORAGE_KEY = "ai_interview_prep_profile";
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 const getStoredProfile = (): UserProfile => {
   let activeUser: { userId?: string; name?: string; email?: string; role?: string } | null = null;
+  let isDemoSession = false;
+
   try {
     const storedUserRaw = localStorage.getItem("ai_interview_prep_user");
+    isDemoSession = localStorage.getItem("ai_interview_prep_demo") === "true";
     if (storedUserRaw) {
       activeUser = JSON.parse(storedUserRaw);
     }
@@ -15,7 +22,8 @@ const getStoredProfile = (): UserProfile => {
     console.error("Failed to parse stored auth user:", e);
   }
 
-  const userId = activeUser?.userId || mockUserProfile.userId;
+  const userId = activeUser?.userId || "anonymous-usr";
+  const isDemoUser = isDemoSession || userId.startsWith("demo-usr-");
   const userKey = `${STORAGE_KEY}_${userId}`;
 
   try {
@@ -25,12 +33,14 @@ const getStoredProfile = (): UserProfile => {
       if (activeUser?.name) parsed.name = activeUser.name;
       if (activeUser?.email) parsed.email = activeUser.email;
       if (activeUser?.role) parsed.role = activeUser.role;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       return parsed;
     }
   } catch (e) {
     console.error("Failed to parse stored profile:", e);
   }
 
+<<<<<<< ours
   const initialProfile: UserProfile = {
     ...mockUserProfile,
     userId: userId,
@@ -38,6 +48,26 @@ const getStoredProfile = (): UserProfile => {
     email: activeUser?.email || mockUserProfile.email,
     role: activeUser?.role || mockUserProfile.role,
   };
+=======
+  // Create initial profile for user
+  let initialProfile: UserProfile;
+  if (isDemoUser) {
+    initialProfile = {
+      ...mockUserProfile,
+      userId: userId,
+      name: activeUser?.name || mockUserProfile.name,
+      email: activeUser?.email || mockUserProfile.email,
+      role: activeUser?.role || mockUserProfile.role,
+    };
+  } else {
+    initialProfile = createEmptyProfile({
+      userId: userId,
+      name: activeUser?.name || "User",
+      email: activeUser?.email || "",
+      role: activeUser?.role || "STUDENT",
+    });
+  }
+>>>>>>> theirs
 
   localStorage.setItem(userKey, JSON.stringify(initialProfile));
   localStorage.setItem(STORAGE_KEY, JSON.stringify(initialProfile));

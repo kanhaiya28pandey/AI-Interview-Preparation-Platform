@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
-import { Menu, LogOut, Shield, Sparkles, Bell, Search, Sun, Moon, CheckCheck, HelpCircle, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Menu, LogOut, Shield, Sparkles, Bell, Search, Sun, Moon, CheckCheck, HelpCircle, ArrowRight, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
+import { RoleBadge } from "@/components/common/RoleBadge";
+import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
+import { usePreviewMode } from "@/context/PreviewModeContext";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
 import { FAQ_CATEGORIES, FAQItem } from "@/mocks/faqs";
@@ -56,6 +59,20 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   },
 ];
 
+import { isDemoUser, scopedKey } from "@/lib/userScope";
+
+const WELCOME_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 1,
+    title: "Welcome to AI Interview Prep",
+    text: "Complete your profile to get started and unlock recruiter-ready status.",
+    time: "Just now",
+    read: false,
+    type: "placement",
+    link: "/profile",
+  },
+];
+
 export const Topbar: React.FC<TopbarProps> = ({
   onOpenMobileSidebar,
   title,
@@ -63,11 +80,35 @@ export const Topbar: React.FC<TopbarProps> = ({
   onToggleSidebarCollapse,
 }) => {
   const { user, logout, isDemoMode } = useAuth();
+  const { isPreviewMode, togglePreviewMode } = usePreviewMode();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickHelp, setShowQuickHelp] = useState(false);
   const [quickHelpQuery, setQuickHelpQuery] = useState("");
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+
+  const isDemo = isDemoMode || isDemoUser(user);
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    const defaultList = isDemo ? INITIAL_NOTIFICATIONS : WELCOME_NOTIFICATIONS;
+    if (!user?.userId) return defaultList;
+    try {
+      const readKey = scopedKey("notifications_read", user.userId);
+      const readIdsRaw = localStorage.getItem(readKey);
+      if (readIdsRaw) {
+        const readIds: number[] = JSON.parse(readIdsRaw);
+        return defaultList.map((n) => ({
+          ...n,
+          read: readIds.includes(n.id),
+        }));
+      }
+    } catch {
+      // fallback
+    }
+    return defaultList;
+  });
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
   const [isDark, setIsDark] = useState(true);
@@ -95,18 +136,35 @@ export const Topbar: React.FC<TopbarProps> = ({
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const saveReadState = (readIds: number[]) => {
+    if (user?.userId) {
+      try {
+        const readKey = scopedKey("notifications_read", user.userId);
+        localStorage.setItem(readKey, JSON.stringify(readIds));
+      } catch {
+        // fallback
+      }
+    }
+  };
 
   const handleNotificationClick = (item: NotificationItem) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
-    );
+    setNotifications((prev) => {
+      const next = prev.map((n) => (n.id === item.id ? { ...n, read: true } : n));
+      const readIds = next.filter((n) => n.read).map((n) => n.id);
+      saveReadState(readIds);
+      return next;
+    });
     setShowNotifications(false);
     navigate(item.link);
   };
 
   const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => {
+      const next = prev.map((n) => ({ ...n, read: true }));
+      const readIds = next.map((n) => n.id);
+      saveReadState(readIds);
+      return next;
+    });
   };
 
   // Close notifications and help popover on outside click or Escape
@@ -388,31 +446,48 @@ export const Topbar: React.FC<TopbarProps> = ({
           )}
         </div>
 
-        {/* User Profile Avatar Link */}
-        <NavLink
-          to="/profile"
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity pl-1"
-          title={`Logged in as ${user?.name || "User"} (${user?.role || "STUDENT"})`}
-        >
-          <AvatarCompletionRing profile={profile} name={user?.name} size="sm" showPill={false} />
-          <span className="hidden xl:inline text-xs font-semibold text-text-primary max-w-[120px] truncate">
-            {user?.name}
-          </span>
-        </NavLink>
-
-        {/* Role switch pill if admin */}
-        {user?.role === "ADMIN" && (
-          <Button
-            variant="teal-cyan"
-            size="sm"
-            onClick={() => navigate(window.location.pathname.startsWith("/admin") ? "/dashboard" : "/admin")}
-            className="text-xs py-1"
+        {/* User Profile Avatar Link & RoleBadge */}
+        <div className="flex items-center gap-2">
+          <NavLink
+            to="/profile"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity pl-1"
+            title={`Logged in as ${user?.name || "User"}`}
           >
-            <Shield className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {window.location.pathname.startsWith("/admin") ? "Student View" : "Admin Panel"}
+            <AvatarCompletionRing profile={profile} name={user?.name} size="sm" showPill={false} />
+            <span className="hidden xl:inline text-xs font-semibold text-text-primary max-w-[120px] truncate">
+              {user?.name}
             </span>
-          </Button>
+          </NavLink>
+          <RoleBadge role={user?.role} size="sm" className="hidden sm:inline-flex" />
+        </div>
+
+        {/* Role switch / Preview as Regular User button if admin */}
+        {user?.role === "ADMIN" && (
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant={isPreviewMode ? "accent-soft" : "outline"}
+              size="sm"
+              onClick={togglePreviewMode}
+              title="Toggle preview as a regular user"
+              className="text-xs py-1 font-mono"
+            >
+              <Eye className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden md:inline">
+                {isPreviewMode ? "Exit User Preview" : "Preview as User"}
+              </span>
+            </Button>
+            <Button
+              variant="teal-cyan"
+              size="sm"
+              onClick={() => navigate(window.location.pathname.startsWith("/admin") ? "/dashboard" : "/admin")}
+              className="text-xs py-1"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {window.location.pathname.startsWith("/admin") ? "Student View" : "Admin Panel"}
+              </span>
+            </Button>
+          </div>
         )}
 
         {/* Logout */}
@@ -426,6 +501,8 @@ export const Topbar: React.FC<TopbarProps> = ({
           <LogOut className="w-4 h-4" />
         </Button>
       </div>
+
+      <KeyboardShortcutsHelp />
     </header>
   );
 };

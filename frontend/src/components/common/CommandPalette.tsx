@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog } from "@/components/ui/Dialog";
-import { Search, LayoutDashboard, BookOpen, Code2, Video, HelpCircle, FileText, Trophy, User, Settings, Shield, PanelLeftClose, GraduationCap } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { getRoleMeta } from "@/lib/roles";
+import { toast } from "sonner";
+import { Search, LayoutDashboard, BookOpen, Code2, Video, HelpCircle, FileText, Trophy, User, Settings, Shield, PanelLeftClose, GraduationCap, Sun, Moon, Keyboard } from "lucide-react";
 
 interface CommandItem {
   label: string;
@@ -16,6 +19,8 @@ export const CommandPalette: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoleMeta = getRoleMeta(user?.role);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -28,38 +33,84 @@ export const CommandPalette: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    if (root.classList.contains("dark")) {
+      root.classList.remove("dark");
+      root.classList.add("light");
+    } else {
+      root.classList.remove("light");
+      root.classList.add("dark");
+    }
+  };
+
   const commands: CommandItem[] = [
+    {
+      label: "Start AI Mock Interview",
+      path: "/mock-interview",
+      icon: Video,
+      category: "Quick Action",
+      badge: "AI",
+    },
+    {
+      label: "Toggle Dark / Light Theme",
+      action: toggleTheme,
+      icon: Sun,
+      category: "Quick Action",
+    },
+    {
+      label: `View My Role: ${userRoleMeta.label}`,
+      action: () => toast.info(`Current assigned role: ${userRoleMeta.label} (${userRoleMeta.key})`),
+      icon: userRoleMeta.icon,
+      category: "Quick Action",
+      badge: userRoleMeta.key,
+    },
+    {
+      label: "Keyboard Shortcuts Help",
+      action: () => {
+        const event = new KeyboardEvent("keydown", { key: "?", bubbles: true });
+        window.dispatchEvent(event);
+      },
+      icon: Keyboard,
+      category: "Quick Action",
+      badge: "?",
+    },
     {
       label: "Toggle sidebar",
       action: () => window.dispatchEvent(new CustomEvent("toggle-sidebar")),
       icon: PanelLeftClose,
-      category: "Action",
+      category: "Quick Action",
       badge: "Ctrl+B",
     },
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, category: "Student" },
     { label: "Practice Tracks", path: "/practice", icon: BookOpen, category: "Student" },
     { label: "Resume Analyzer (AI ATS)", path: "/resume-analyzer", icon: FileText, category: "Student" },
     { label: "Coding Arena", path: "/coding", icon: Code2, category: "Student" },
-    { label: "Mock Interview", path: "/mock-interview", icon: Video, category: "Student" },
     { label: "MCQ Quizzes", path: "/quiz", icon: HelpCircle, category: "Student" },
     { label: "Placement Guides & Articles", path: "/articles", icon: FileText, category: "Student" },
     { label: "Campus Leaderboard", path: "/leaderboard", icon: Trophy, category: "Student" },
     { label: "My Profile", path: "/profile", icon: User, category: "Student" },
     { label: "Settings", path: "/settings", icon: Settings, category: "Student" },
     { label: "Help & Support Center", path: "/help", icon: HelpCircle, category: "Student" },
-    { label: "Submit Support Ticket", path: "/help?tab=contact", icon: HelpCircle, category: "Student" },
-    { label: "Admin Student Progress Roster", path: "/admin/students", icon: GraduationCap, category: "Admin" },
-    { label: "Admin Class Cohort Analytics", path: "/admin/students", icon: GraduationCap, category: "Admin" },
     { label: "Admin Overview", path: "/admin", icon: Shield, category: "Admin" },
-    { label: "Admin Help Center", path: "/admin/help", icon: Shield, category: "Admin" },
+    { label: "Admin Student Progress Roster", path: "/admin/students", icon: GraduationCap, category: "Admin" },
     { label: "Admin User Management", path: "/admin/users", icon: User, category: "Admin" },
+    { label: "Admin ID Verifications", path: "/admin/verifications", icon: Shield, category: "Admin" },
+    { label: "Admin Help Center", path: "/admin/help", icon: HelpCircle, category: "Admin" },
   ];
 
-  const filtered = commands.filter((r) =>
-    r.label.toLowerCase().includes(query.toLowerCase()) ||
-    (r.path && r.path.toLowerCase().includes(query.toLowerCase())) ||
-    r.category.toLowerCase().includes(query.toLowerCase())
-  );
+  const isUserAdmin = userRoleMeta.key === "ADMIN";
+
+  const filtered = commands.filter((r) => {
+    if (r.category === "Admin" && !isUserAdmin) {
+      return false;
+    }
+    return (
+      r.label.toLowerCase().includes(query.toLowerCase()) ||
+      (r.path && r.path.toLowerCase().includes(query.toLowerCase())) ||
+      r.category.toLowerCase().includes(query.toLowerCase())
+    );
+  });
 
   const handleSelect = (item: CommandItem) => {
     setIsOpen(false);

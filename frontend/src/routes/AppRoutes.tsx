@@ -43,6 +43,7 @@ import { AdminReports } from "@/pages/admin/AdminReports";
 import { AdminSettings } from "@/pages/admin/AdminSettings";
 import { AdminHelp } from "@/pages/admin/AdminHelp";
 import { AdminVerifications } from "@/pages/admin/AdminVerifications";
+import { AdminContentManager } from "@/pages/admin/AdminContentManager";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -126,6 +127,7 @@ export const AppRoutes: React.FC = () => {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="content" element={<AdminContentManager />} />
         <Route path="students" element={<AdminStudents />} />
         <Route path="students/:id" element={<AdminStudentDetail />} />
         <Route path="users" element={<AdminUsers />} />

@@ -13,6 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.interviewplatform.backend.model.CodingProblem;
 import com.interviewplatform.backend.service.CodingJudgeService;
 
+import java.util.Map;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+
 @RestController
 @RequestMapping({"/api/v1/admin/coding-tests", "/api/admin/coding-tests"})
 @PreAuthorize("hasRole('ADMIN')")
@@ -34,5 +39,18 @@ public class AdminCodingController {
     public ResponseEntity<CodingProblem> saveCodingTest(@RequestBody CodingProblem problem) {
         CodingProblem saved = judgeService.saveProblem(problem);
         return ResponseEntity.ok(saved);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CodingProblem> updateCodingTest(@PathVariable String id, @RequestBody CodingProblem problem) {
+        problem.setId(id);
+        CodingProblem updated = judgeService.saveProblem(problem);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, String>> deleteCodingTest(@PathVariable String id) {
+        judgeService.deleteProblem(id);
+        return ResponseEntity.ok(Map.of("message", "Coding test problem deleted successfully", "id", id));
     }
 }

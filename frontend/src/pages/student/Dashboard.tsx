@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { CardSkeleton } from "@/components/common/Skeletons";
-import { Video, Code2, BookOpen, Flame, Award, ArrowRight, Play, Sparkles, CheckCircle2, Calendar, X } from "lucide-react";
+import { Video, Code2, BookOpen, Flame, Award, ArrowRight, Play, Sparkles, CheckCircle2, Calendar, X, ShieldAlert, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { profileService } from "@/services/profileService";
 import { UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
@@ -13,7 +13,15 @@ import { AvatarCompletionRing, ProfileSummaryCard } from "@/components/common/Av
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { verificationService } from "@/services/verificationService";
 import { VerificationStatus, VerificationSubmission } from "@/mocks/verifications";
-import { ShieldAlert, Clock, AlertTriangle, ShieldCheck } from "lucide-react";
+import { EmptyState } from "@/components/common/EmptyState";
+
+import { ReadinessScore } from "@/components/student/ReadinessScore";
+import { CountdownPlanner } from "@/components/student/CountdownPlanner";
+import { StreakHeatmap } from "@/components/student/StreakHeatmap";
+import { NextBestAction } from "@/components/student/NextBestAction";
+import { Achievements } from "@/components/student/Achievements";
+import { StudyPlanWidget } from "@/components/student/StudyPlanWidget";
+import { PrepTracksWidget } from "@/components/student/PrepTracksWidget";
 
 export const StudentDashboard: React.FC = () => {
   const { user, isDemoMode, isAdmin } = useAuth();
@@ -55,6 +63,12 @@ export const StudentDashboard: React.FC = () => {
     return "Good evening";
   };
 
+<<<<<<< ours
+=======
+  const isDemo = isDemoMode || user?.userId?.startsWith("demo-usr-");
+
+  // Mock performance trend data (demo presentation only)
+>>>>>>> theirs
   const performanceTrend = [
     { day: "Mon", score: 68 },
     { day: "Tue", score: 74 },
@@ -65,6 +79,10 @@ export const StudentDashboard: React.FC = () => {
     { day: "Sun", score: 94 },
   ];
 
+<<<<<<< ours
+=======
+  // Skill Radar Data (demo presentation only)
+>>>>>>> theirs
   const radarData = [
     { subject: "React/FE", A: 90 },
     { subject: "Java/Spring", A: 82 },
@@ -76,6 +94,7 @@ export const StudentDashboard: React.FC = () => {
   if (loading || !profile) return <CardSkeleton />;
 
   const completion = calculateProfileCompletion(profile);
+  const hasActivity = isDemo || (profile.stats && (profile.stats.codingProblemsSolved > 0 || profile.stats.mockInterviewsCompleted > 0 || profile.stats.totalPracticeSessions > 0));
 
   return (
     <div className="space-y-8">
@@ -126,6 +145,7 @@ export const StudentDashboard: React.FC = () => {
           </Button>
         </div>
       )}
+
       {/* Welcome Banner with Avatar Completion Ring */}
       <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-6 sm:p-8 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
         <div className="flex items-center gap-5 z-10">
@@ -139,7 +159,11 @@ export const StudentDashboard: React.FC = () => {
               {getGreeting()}, <span className="text-cyan-400">{user?.name || "Student"}</span>!
             </h2>
             <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans">
-              Your overall performance is in the top 5% of your campus. Ready for today's mock interview or coding challenge?
+              {isDemo ? (
+                "Your overall performance is in the top 5% of your campus. Ready for today's mock interview or coding challenge?"
+              ) : (
+                "Welcome to your AI Interview Prep Dashboard! Start practicing mock interviews and coding problems to build your score."
+              )}
             </p>
           </div>
         </div>
@@ -169,6 +193,57 @@ export const StudentDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* First-Run Onboarding Checklist Card */}
+      {(() => {
+        const checklist = [
+          { id: "profile", title: "Complete Candidate Profile", link: "/profile", done: completion >= 60 || profile.onboardingComplete },
+          { id: "resume", title: "Upload & Scan Resume (AI ATS)", link: "/resume-analyzer", done: !!profile.resumeUrl },
+          { id: "coding", title: "Solve 1 Problem in Coding Arena", link: "/coding", done: profile.stats.codingProblemsSolved > 0 },
+          { id: "quiz", title: "Take 1 MCQ Technical Quiz", link: "/quiz", done: profile.stats.quizzesCompleted > 0 },
+          { id: "mock", title: "Complete 1 AI Mock Interview Round", link: "/mock-interview", done: profile.stats.mockInterviewsCompleted > 0 },
+        ];
+        const completedCount = checklist.filter((i) => i.done).length;
+        if (completedCount === checklist.length) return null;
+
+        return (
+          <Card className="p-6 bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/30 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
+              <div>
+                <h3 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-cyan-400" /> Getting Started: Placement Onboarding Checklist
+                </h3>
+                <p className="text-xs text-text-secondary">Complete these key steps to get highlighted to campus recruitment partners.</p>
+              </div>
+              <span className="text-xs font-mono font-semibold text-cyan-400 bg-cyan-400/10 px-3 py-1 rounded-full border border-cyan-400/30 self-start sm:self-auto">
+                {completedCount} / {checklist.length} Completed
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {checklist.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => navigate(item.link)}
+                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
+                    item.done
+                      ? "bg-cyan-500/10 border-cyan-500/30 text-text-primary"
+                      : "bg-surface-raised border-border hover:border-cyan-400/40 hover:bg-surface"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <CheckCircle2 className={`w-4 h-4 shrink-0 ${item.done ? "text-cyan-400 fill-cyan-400/20" : "text-text-muted"}`} />
+                    <span className={`text-xs font-medium truncate ${item.done ? "line-through text-text-muted" : "text-text-primary"}`}>
+                      {item.title}
+                    </span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0 group-hover:text-cyan-400" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
+
       {/* KPI Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -176,27 +251,45 @@ export const StudentDashboard: React.FC = () => {
           value={`${profile.stats.overallRating}%`}
           subtitle="Campus Placement Score"
           icon={Award}
-          trend={{ value: "+4.5%", isPositive: true }}
+          trend={isDemo ? { value: "+4.5%", isPositive: true } : undefined}
         />
         <StatCard
           title="Mock Rounds"
           value={profile.stats.mockInterviewsCompleted.toString()}
-          subtitle="AI Interviews Completed"
+          subtitle={profile.stats.mockInterviewsCompleted > 0 ? "AI Interviews Completed" : "Start your first mock round"}
           icon={Video}
-          trend={{ value: "+2 this week", isPositive: true }}
+          trend={isDemo ? { value: "+2 this week", isPositive: true } : undefined}
         />
         <StatCard
           title="Problems Solved"
           value={profile.stats.codingProblemsSolved.toString()}
-          subtitle="DSA & Algorithm Challenges"
+          subtitle={profile.stats.codingProblemsSolved > 0 ? "DSA & Algorithm Challenges" : "No coding problems solved yet"}
           icon={Code2}
         />
         <StatCard
           title="Practice Streak"
           value={`${profile.stats.currentStreak} Days`}
-          subtitle="Consistent Daily Momentum"
+          subtitle={profile.stats.currentStreak > 0 ? "Consistent Daily Momentum" : "Start your daily practice streak"}
           icon={Flame}
         />
+      </div>
+
+      {/* Readiness & AI Coach Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7 space-y-6">
+          <ReadinessScore
+            breakdown={
+              isDemo
+                ? { coding: 88, quiz: 82, mockInterview: profile.stats.overallRating || 89, resume: 85 }
+                : { coding: 0, quiz: 0, mockInterview: profile.stats.overallRating || 0, resume: 0 }
+            }
+          />
+          <NextBestAction skillsData={radarData} />
+        </div>
+
+        <div className="lg:col-span-5">
+          <CountdownPlanner />
+        </div>
       </div>
 
       {/* Charts & Analytics */}
@@ -208,20 +301,31 @@ export const StudentDashboard: React.FC = () => {
               <h3 className="font-serif text-lg font-medium text-text-primary">7-Day Score Momentum</h3>
               <p className="text-xs text-text-muted">Average daily mock interview & coding scores</p>
             </div>
-            <span className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-400/10 px-2.5 py-1 rounded-full border border-cyan-400/20">
-              Top 5% Student
-            </span>
+            {isDemo && (
+              <span className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-400/10 px-2.5 py-1 rounded-full border border-cyan-400/20">
+                Top 5% Student
+              </span>
+            )}
           </div>
 
           <div className="h-64 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={performanceTrend}>
-                <XAxis dataKey="day" stroke="var(--chart-text)" fontSize={11} />
-                <YAxis domain={[50, 100]} stroke="var(--chart-text)" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
-                <Line type="monotone" dataKey="score" stroke="#22d3ee" strokeWidth={3} dot={{ fill: "#22d3ee", r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            {hasActivity ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={performanceTrend}>
+                  <XAxis dataKey="day" stroke="var(--chart-text)" fontSize={11} />
+                  <YAxis domain={[50, 100]} stroke="var(--chart-text)" fontSize={11} />
+                  <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
+                  <Line type="monotone" dataKey="score" stroke="#22d3ee" strokeWidth={3} dot={{ fill: "#22d3ee", r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState
+                title="No Momentum Data Yet"
+                description="Complete your first quiz, coding problem, or mock interview to start tracking daily score momentum."
+                actionText="Start Practice Track"
+                onAction={() => navigate("/practice")}
+              />
+            )}
           </div>
         </Card>
 
@@ -233,17 +337,42 @@ export const StudentDashboard: React.FC = () => {
           </div>
 
           <div className="h-64 w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                <PolarGrid stroke="#334155" />
-                <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" />
-                <Radar name="Proficiency" dataKey="A" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} />
-              </RadarChart>
-            </ResponsiveContainer>
+            {hasActivity ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                  <PolarGrid stroke="#334155" />
+                  <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#475569" />
+                  <Radar name="Proficiency" dataKey="A" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState
+                title="No Skill Proficiency Data"
+                description="Take a quiz or solve a coding challenge to build your technical proficiency radar."
+                actionText="Open Coding Arena"
+                onAction={() => navigate("/coding")}
+              />
+            )}
           </div>
         </Card>
       </div>
+
+      {/* Streak Heatmap */}
+      <StreakHeatmap currentStreak={profile.stats.currentStreak || 0} longestStreak={isDemo ? 18 : profile.stats.currentStreak || 0} />
+
+      {/* AI 30-Day Study Plan & Prep Tracks */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7">
+          <StudyPlanWidget />
+        </div>
+        <div className="lg:col-span-5">
+          <PrepTracksWidget />
+        </div>
+      </div>
+
+      {/* Compact Badges Strip */}
+      <Achievements variant="compact" />
     </div>
   );
 };

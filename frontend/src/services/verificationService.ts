@@ -178,4 +178,58 @@ export const verificationService = {
     }
     throw new Error("Real backend verification review endpoint not implemented");
   },
+
+  async deleteRejectedVerification(verificationId: string): Promise<void> {
+    if (USE_MOCKS) {
+      await delay(250);
+      const submissions = getStoredSubmissions();
+      const target = submissions.find(
+        (s) => s.verificationId === verificationId || s.userId === verificationId
+      );
+
+      if (!target) {
+        throw new Error(`Verification record ${verificationId} not found`);
+      }
+
+      if (target.status !== "Rejected") {
+        throw new Error(`Cannot delete verification with status '${target.status}'. Only REJECTED profiles can be deleted.`);
+      }
+
+      const filtered = submissions.filter(
+        (s) => s.verificationId !== verificationId && s.userId !== verificationId
+      );
+      saveSubmissions(filtered);
+      return;
+    }
+    const response = await fetch(`/api/v1/admin/verifications/${verificationId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Failed to delete rejected verification" }));
+      throw new Error(err.message || "Failed to delete rejected verification");
+    }
+  },
+
+  async deleteBulkRejectedVerifications(verificationIds: string[]): Promise<number> {
+    if (USE_MOCKS) {
+      await delay(350);
+      let deleted = 0;
+      for (const id of verificationIds) {
+        await this.deleteRejectedVerification(id);
+        deleted++;
+      }
+      return deleted;
+    }
+    const response = await fetch(`/api/v1/admin/verifications/rejected`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(verificationIds),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Failed to bulk delete rejected verifications" }));
+      throw new Error(err.message || "Failed to bulk delete rejected verifications");
+    }
+    const resData = await response.json();
+    return resData.count || verificationIds.length;
+  },
 };

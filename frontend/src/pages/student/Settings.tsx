@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { RoleBadge } from "@/components/common/RoleBadge";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { Lock, Bell, Shield, KeyRound } from "lucide-react";
@@ -45,14 +46,14 @@ export const Settings: React.FC = () => {
         <h3 className="font-serif text-lg font-medium text-text-primary flex items-center gap-2">
           <Shield className="w-5 h-5 text-cyan-400" /> Account Credentials
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono items-center">
           <div>
             <span className="text-text-muted block">Account Email</span>
-            <span className="text-text-primary font-semibold">{user?.email || "student@srmist.edu.in"}</span>
+            <span className="text-text-primary font-semibold">{user?.email || ""}</span>
           </div>
           <div>
-            <span className="text-text-muted block">Assigned Role</span>
-            <span className="text-cyan-400 font-semibold">{user?.role || "STUDENT"}</span>
+            <span className="text-text-muted block mb-1">Assigned Role</span>
+            <RoleBadge role={user?.role} size="md" />
           </div>
         </div>
       </Card>

@@ -12,6 +12,7 @@ import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
 
 @Service
+@SuppressWarnings("null")
 public class ProfileService {
 
     private final UserProfileRepository userProfileRepository;

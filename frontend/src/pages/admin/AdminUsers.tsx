@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import { RoleBadge } from "@/components/common/RoleBadge";
 import { Dialog } from "@/components/ui/Dialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { TableSkeleton } from "@/components/common/Skeletons";
@@ -115,9 +116,7 @@ export const AdminUsers: React.FC = () => {
                     <div className="text-[11px] text-text-muted font-mono">{usr.email}</div>
                   </td>
                   <td className="p-4">
-                    <Badge variant={usr.role === "ADMIN" ? "admin" : "student"}>
-                      {usr.role}
-                    </Badge>
+                    <RoleBadge role={usr.role} size="sm" />
                   </td>
                   <td className="p-4">
                     <Badge variant={usr.status === "ACTIVE" ? "active" : "blocked"}>
@@ -182,9 +181,9 @@ export const AdminUsers: React.FC = () => {
                 <span className="text-text-muted">Email Address:</span>
                 <span className="text-text-primary font-bold">{selectedUserDetail.email}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-text-muted">Account Role:</span>
-                <Badge variant={selectedUserDetail.role === "ADMIN" ? "admin" : "student"}>{selectedUserDetail.role}</Badge>
+                <RoleBadge role={selectedUserDetail.role} size="sm" />
               </div>
               <div className="flex justify-between">
                 <span className="text-text-muted">Status:</span>

@@ -24,6 +24,8 @@ import {
   Cell,
 } from "recharts";
 
+import { AtRiskStudents } from "@/components/admin/AtRiskStudents";
+
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [reports, setReports] = useState<AdminReportData | null>(null);
@@ -61,6 +63,13 @@ export const AdminDashboard: React.FC = () => {
         <StatCard title="Platform Health" value="99.98%" subtitle="Spring Boot + MongoDB" icon={ShieldAlert} />
       </div>
 
+<<<<<<< ours
+=======
+      {/* At Risk Students Alert */}
+      <AtRiskStudents />
+
+      {/* Recharts Analytics Grid 1: Growth & Interview Domains */}
+>>>>>>> theirs
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
           <div className="flex justify-between items-center">

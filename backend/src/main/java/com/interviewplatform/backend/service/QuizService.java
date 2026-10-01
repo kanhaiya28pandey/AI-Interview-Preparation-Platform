@@ -8,7 +8,6 @@ import com.interviewplatform.backend.dto.QuizResultResponse;
 import com.interviewplatform.backend.dto.QuizSubmissionRequest;
 import com.interviewplatform.backend.model.QuizQuestion;
 import com.interviewplatform.backend.model.QuizTopic;
-import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.repository.QuizQuestionRepository;
 import com.interviewplatform.backend.repository.QuizTopicRepository;
 import com.interviewplatform.backend.repository.UserProfileRepository;

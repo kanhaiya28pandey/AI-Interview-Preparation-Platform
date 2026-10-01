@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
-import { VerificationSubmission, VerificationStatus, validateCollegeDomainMatch } from "@/mocks/verifications";
+import { Dialog } from "@/components/ui/Dialog";
+import { VerificationSubmission, validateCollegeDomainMatch } from "@/mocks/verifications";
 import { verificationService } from "@/services/verificationService";
 import {
   ShieldCheck,
@@ -12,14 +13,12 @@ import {
   XCircle,
   Clock,
   Eye,
-  Building2,
-  FileText,
-  User,
-  AlertCircle,
+  Trash2,
   RotateCw,
-  Maximize2,
   X,
-  Filter,
+  AlertCircle,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,12 +29,20 @@ export const AdminVerifications: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
 
+  // Multi-select for bulk delete
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
   // Selected Submission for Review Modal
   const [selectedSub, setSelectedSub] = useState<VerificationSubmission | null>(null);
   const [rejectionCategory, setRejectionCategory] = useState<string>("Image unclear or low quality");
   const [rejectionNotes, setRejectionNotes] = useState<string>("");
   const [isRejecting, setIsRejecting] = useState<boolean>(false);
   const [isReviewing, setIsReviewing] = useState<boolean>(false);
+
+  // Deletion modals
+  const [deleteTarget, setDeleteTarget] = useState<VerificationSubmission | null>(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const loadSubmissions = () => {
     setIsLoading(true);
@@ -59,7 +66,15 @@ export const AdminVerifications: React.FC = () => {
       item.verificationId.toLowerCase().includes(query);
 
     const matchesStatus =
-      selectedStatus === "ALL" ? true : item.status.toUpperCase().replace(/\s+/g, "_") === selectedStatus;
+      selectedStatus === "ALL"
+        ? true
+        : selectedStatus === "REJECTED"
+        ? item.status === "Rejected"
+        : selectedStatus === "VERIFIED"
+        ? item.status === "Verified"
+        : selectedStatus === "PENDING"
+        ? item.status === "Pending Verification"
+        : item.status.toUpperCase().replace(/\s+/g, "_") === selectedStatus;
 
     return matchesQuery && matchesStatus;
   });
@@ -107,6 +122,68 @@ export const AdminVerifications: React.FC = () => {
     }
   };
 
+  const handleDeleteSingle = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await verificationService.deleteRejectedVerification(deleteTarget.verificationId);
+      toast.success(`Deleted rejected profile for ${deleteTarget.studentName}`);
+      setSubmissions((prev) => prev.filter((s) => s.verificationId !== deleteTarget.verificationId));
+      if (selectedSub?.verificationId === deleteTarget.verificationId) {
+        setSelectedSub(null);
+      }
+      setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.verificationId));
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete rejected profile.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteBulk = async () => {
+    const rejectedSelectedIds = selectedIds.filter((id) => {
+      const item = submissions.find((s) => s.verificationId === id);
+      return item && item.status === "Rejected";
+    });
+
+    if (rejectedSelectedIds.length === 0) {
+      toast.error("No REJECTED profiles selected for deletion.");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const count = await verificationService.deleteBulkRejectedVerifications(rejectedSelectedIds);
+      toast.success(`Successfully deleted ${count} rejected profile(s).`);
+      setSubmissions((prev) => prev.filter((s) => !rejectedSelectedIds.includes(s.verificationId)));
+      setSelectedIds((prev) => prev.filter((id) => !rejectedSelectedIds.includes(id)));
+      setShowBulkDeleteModal(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to bulk delete rejected profiles.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const selectedRejectedCount = selectedIds.filter((id) => {
+    const item = submissions.find((s) => s.verificationId === id);
+    return item && item.status === "Rejected";
+  }).length;
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredSubmissions.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredSubmissions.map((s) => s.verificationId));
+    }
+  };
+
+  const toggleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
   return (
     <div className="space-y-6 pb-12 animate-fade-in">
       {/* Header */}
@@ -119,12 +196,24 @@ export const AdminVerifications: React.FC = () => {
             College ID Verifications
           </h1>
           <p className="text-xs text-text-secondary">
-            Review student identity document submissions, compare details, and grant platform access.
+            Review student identity document submissions, manage verification statuses, and delete rejected accounts.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadSubmissions} className="text-xs shrink-0 gap-1.5">
-          <RotateCw className="w-3.5 h-3.5" /> Refresh Queue
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {selectedRejectedCount > 0 && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setShowBulkDeleteModal(true)}
+              className="text-xs gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete Selected Rejected ({selectedRejectedCount})
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={loadSubmissions} className="text-xs shrink-0 gap-1.5">
+            <RotateCw className="w-3.5 h-3.5" /> Refresh Queue
+          </Button>
+        </div>
       </div>
 
       {/* STAT STRIP */}
@@ -170,16 +259,22 @@ export const AdminVerifications: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-          {["ALL", "PENDING_VERIFICATION", "VERIFIED", "REJECTED"].map((st) => (
+        {/* Filter Tabs Row: All, Pending, Approved, Rejected */}
+        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto font-mono">
+          {[
+            { key: "ALL", label: "All" },
+            { key: "PENDING", label: "Pending" },
+            { key: "VERIFIED", label: "Approved" },
+            { key: "REJECTED", label: "Rejected" },
+          ].map((tab) => (
             <Button
-              key={st}
-              variant={selectedStatus === st ? "teal-cyan" : "ghost"}
+              key={tab.key}
+              variant={selectedStatus === tab.key ? "teal-cyan" : "ghost"}
               size="sm"
-              onClick={() => setSelectedStatus(st)}
-              className="text-xs uppercase font-mono px-3 py-1"
+              onClick={() => setSelectedStatus(tab.key)}
+              className="text-xs uppercase px-3 py-1"
             >
-              {st.replace(/_/g, " ")}
+              {tab.label}
             </Button>
           ))}
         </div>
@@ -198,6 +293,15 @@ export const AdminVerifications: React.FC = () => {
             <table className="w-full text-left text-xs text-text-secondary border-collapse">
               <thead>
                 <tr className="bg-surface-raised border-b border-border text-[11px] font-mono uppercase text-text-muted">
+                  <th className="p-3.5 w-10 text-center">
+                    <button type="button" onClick={toggleSelectAll} className="p-1 hover:text-cyan-400">
+                      {selectedIds.length > 0 && selectedIds.length === filteredSubmissions.length ? (
+                        <CheckSquare className="w-4 h-4 text-cyan-400" />
+                      ) : (
+                        <Square className="w-4 h-4 text-text-muted" />
+                      )}
+                    </button>
+                  </th>
                   <th className="p-3.5">Ref ID / Student</th>
                   <th className="p-3.5">Institution & Domain</th>
                   <th className="p-3.5">Roll / Course</th>
@@ -210,16 +314,30 @@ export const AdminVerifications: React.FC = () => {
               <tbody className="divide-y divide-border">
                 {filteredSubmissions.map((sub) => {
                   const domainMatch = validateCollegeDomainMatch(sub.email, sub.collegeName);
+                  const isSelected = selectedIds.includes(sub.verificationId);
+                  const isRejected = sub.status === "Rejected";
 
                   return (
                     <tr
                       key={sub.verificationId}
-                      className="hover:bg-surface-raised/60 transition-colors cursor-pointer"
+                      className={`hover:bg-surface-raised/60 transition-colors cursor-pointer ${
+                        isSelected ? "bg-cyan-400/5" : ""
+                      }`}
                       onClick={() => {
                         setSelectedSub(sub);
                         setIsRejecting(false);
                       }}
                     >
+                      <td className="p-3.5 text-center" onClick={(e) => toggleSelectRow(sub.verificationId, e)}>
+                        <button type="button" className="p-1 hover:text-cyan-400">
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-cyan-400" />
+                          ) : (
+                            <Square className="w-4 h-4 text-text-muted" />
+                          )}
+                        </button>
+                      </td>
+
                       <td className="p-3.5">
                         <div className="font-semibold text-text-primary">{sub.studentName}</div>
                         <div className="text-[11px] font-mono text-cyan-400">{sub.verificationId}</div>
@@ -271,12 +389,11 @@ export const AdminVerifications: React.FC = () => {
                         </Badge>
                       </td>
 
-                      <td className="p-3.5 text-right">
+                      <td className="p-3.5 text-right space-x-1.5" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={() => {
                             setSelectedSub(sub);
                             setIsRejecting(false);
                           }}
@@ -284,6 +401,19 @@ export const AdminVerifications: React.FC = () => {
                         >
                           Review <Eye className="w-3.5 h-3.5" />
                         </Button>
+
+                        {/* Delete button shown strictly for REJECTED verifications */}
+                        {isRejected && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(sub)}
+                            className="text-danger hover:bg-danger/10 p-1.5 h-auto"
+                            title="Delete Rejected Profile"
+                          >
+                            <Trash2 className="w-4 h-4 text-danger" />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -317,9 +447,21 @@ export const AdminVerifications: React.FC = () => {
                     {selectedSub.studentName} &bull; {selectedSub.verificationId}
                   </h2>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedSub(null)} className="text-text-muted">
-                  <X className="w-5 h-5" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {selectedSub.status === "Rejected" && (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setDeleteTarget(selectedSub)}
+                      className="text-xs gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete Profile
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedSub(null)} className="text-text-muted">
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
 
               {/* Side by side view */}
@@ -473,6 +615,93 @@ export const AdminVerifications: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* SINGLE DELETE CONFIRMATION DIALOG */}
+      {deleteTarget && (
+        <Dialog
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          title="Delete Rejected Profile"
+          description={`Verification ID: ${deleteTarget.verificationId}`}
+        >
+          <div className="space-y-4">
+            <div className="p-4 bg-danger/10 border border-danger/30 rounded-xl text-xs text-text-primary space-y-2">
+              <p className="font-semibold text-danger flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-danger shrink-0" />
+                Permanent Deletion Warning
+              </p>
+              <p className="leading-relaxed">
+                Delete this rejected profile? This permanently removes the student's account data, uploaded ID images and verification record. This cannot be undone.
+              </p>
+              <div className="pt-2 font-mono text-[11px] text-text-secondary border-t border-border">
+                Student: <span className="text-text-primary font-semibold">{deleteTarget.studentName}</span> ({deleteTarget.email})
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteSingle}
+                isLoading={isDeleting}
+                className="gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Permanently
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* BULK DELETE CONFIRMATION DIALOG */}
+      {showBulkDeleteModal && (
+        <Dialog
+          isOpen={showBulkDeleteModal}
+          onClose={() => setShowBulkDeleteModal(false)}
+          title="Delete Selected Rejected Profiles"
+          description={`${selectedRejectedCount} rejected profile(s) selected`}
+        >
+          <div className="space-y-4">
+            <div className="p-4 bg-danger/10 border border-danger/30 rounded-xl text-xs text-text-primary space-y-2">
+              <p className="font-semibold text-danger flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-danger shrink-0" />
+                Bulk Permanent Deletion Warning
+              </p>
+              <p className="leading-relaxed">
+                Delete these {selectedRejectedCount} rejected profile(s)? This permanently removes the students' account data, uploaded ID images and verification records. This cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowBulkDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteBulk}
+                isLoading={isDeleting}
+                className="gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" /> Delete {selectedRejectedCount} Rejected Profile(s)
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 };

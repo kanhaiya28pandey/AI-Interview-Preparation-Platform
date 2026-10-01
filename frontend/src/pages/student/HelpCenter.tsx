@@ -48,6 +48,7 @@ import { supportService, SupportTicket } from "@/services/supportService";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
+import { EmptyState } from "@/components/common/EmptyState";
 
 // Validation schema for Support Ticket form
 const ticketSchema = z.object({
@@ -766,33 +767,45 @@ export const HelpCenter: React.FC = () => {
               </div>
 
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {tickets.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedTicket(t)}
-                    className="p-3.5 bg-surface-raised border border-border rounded-xl hover:border-cyan-400/40 cursor-pointer transition-colors space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-cyan-400">{t.id}</span>
-                      <span
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
-                          t.status === "Resolved"
-                            ? "bg-teal-400/20 text-teal-400 border-teal-400/40"
-                            : "bg-amber-400/20 text-amber-400 border-amber-400/40"
-                        }`}
-                      >
-                        {t.status}
-                      </span>
-                    </div>
+                {tickets.length === 0 ? (
+                  <EmptyState
+                    title="No Support Tickets Submitted"
+                    description="Fill out the form on the left to submit your first ticket to our team."
+                    actionText="Create Ticket"
+                    onAction={() => {
+                      const subjectEl = document.getElementById("ticket-subject-input");
+                      if (subjectEl) subjectEl.focus();
+                    }}
+                  />
+                ) : (
+                  tickets.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTicket(t)}
+                      className="p-3.5 bg-surface-raised border border-border rounded-xl hover:border-cyan-400/40 cursor-pointer transition-colors space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold text-cyan-400">{t.id}</span>
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
+                            t.status === "Resolved"
+                              ? "bg-teal-400/20 text-teal-400 border-teal-400/40"
+                              : "bg-amber-400/20 text-amber-400 border-amber-400/40"
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+                      </div>
 
-                    <h4 className="text-xs font-bold text-text-primary line-clamp-1">{t.subject}</h4>
+                      <h4 className="text-xs font-bold text-text-primary line-clamp-1">{t.subject}</h4>
 
-                    <div className="flex justify-between items-center text-[11px] font-mono text-text-muted pt-1">
-                      <span>{t.category}</span>
-                      <span>{new Date(t.createdAt).toLocaleDateString()}</span>
+                      <div className="flex justify-between items-center text-[11px] font-mono text-text-muted pt-1">
+                        <span>{t.category}</span>
+                        <span>{new Date(t.createdAt).toLocaleDateString()}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </Card>
           </div>

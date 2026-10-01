@@ -5,9 +5,11 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { Badge } from "@/components/ui/Badge";
+import { Dialog } from "@/components/ui/Dialog";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
-import { HelpCircle, CheckCircle2, XCircle, ArrowRight, RotateCcw, Award } from "lucide-react";
+import { HelpCircle, CheckCircle2, XCircle, ArrowRight, RotateCcw, Award, X, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 export const Quiz: React.FC = () => {
   const [topics, setTopics] = useState<QuizTopic[]>([]);
@@ -19,6 +21,8 @@ export const Quiz: React.FC = () => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
   const [quizFinished, setQuizFinished] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     quizService.getQuizTopics().then((data) => {
@@ -26,6 +30,20 @@ export const Quiz: React.FC = () => {
       setLoading(false);
     });
   }, []);
+
+  // Handle browser tab exit / back button warning when quiz is active
+  useEffect(() => {
+    if (!activeTopic || quizFinished) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Are you sure you want to leave? Your quiz attempt will be cancelled.";
+      return e.returnValue;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [activeTopic, quizFinished]);
 
   const startQuiz = async (topic: QuizTopic) => {
     setActiveTopic(topic);
@@ -52,6 +70,18 @@ export const Quiz: React.FC = () => {
     }
   };
 
+  const handleConfirmCancel = async () => {
+    setIsCancelling(true);
+    try {
+      await fetch(`/api/v1/quiz/sessions/quiz-session-${Date.now()}/cancel`, { method: "POST" }).catch(() => {});
+      toast.info("Quiz attempt cancelled. Progress was not saved.");
+      setActiveTopic(null);
+      setShowCancelModal(false);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const calculateScore = () => {
     let score = 0;
     answers.forEach((ans, idx) => {
@@ -65,9 +95,9 @@ export const Quiz: React.FC = () => {
   // TOPIC SELECT VIEW
   if (!activeTopic) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         <div>
-          <h2 className="font-serif text-2xl font-medium text-text-primary">MCQ Quizzes</h2>
+          <h2 className="font-serif text-3xl font-medium text-text-primary">MCQ Practice Quizzes</h2>
           <p className="text-xs text-text-secondary">Quick 10-minute multiple choice tests to evaluate core CS concepts.</p>
         </div>
 
@@ -104,7 +134,7 @@ export const Quiz: React.FC = () => {
     const percent = Math.round((finalScore / questions.length) * 100);
 
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
         <Card className="p-8 text-center space-y-6 bg-surface border-border">
           <div className="p-4 bg-cyan-400/15 text-cyan-400 border border-cyan-400/30 rounded-full inline-block">
             <Award className="w-12 h-12" />
@@ -160,10 +190,21 @@ export const Quiz: React.FC = () => {
   const currentQ = questions[currentIndex];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <div className="flex justify-between items-center text-xs font-mono text-text-muted">
         <span>{activeTopic.title}</span>
-        <span>Question {currentIndex + 1} of {questions.length}</span>
+        <div className="flex items-center gap-3">
+          <span>Question {currentIndex + 1} of {questions.length}</span>
+          {/* Outlined Red Cancel Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCancelModal(true)}
+            className="text-danger border-danger/40 hover:bg-danger/10 text-xs px-2.5 py-1"
+          >
+            <X className="w-3.5 h-3.5 mr-1" /> Cancel
+          </Button>
+        </div>
       </div>
 
       <Progress value={((currentIndex + 1) / questions.length) * 100} color="accent" />
@@ -196,6 +237,35 @@ export const Quiz: React.FC = () => {
           </Button>
         </div>
       </Card>
+
+      {/* CONFIRM CANCEL MODAL */}
+      <Dialog
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        title="Cancel Quiz Attempt?"
+        description="Discard practice quiz progress."
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-4 bg-danger/10 border border-danger/30 rounded-xl text-text-primary space-y-1">
+            <p className="font-semibold text-danger flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-danger shrink-0" />
+              Cancel this attempt?
+            </p>
+            <p className="leading-relaxed">
+              Your progress will not be saved. This attempt will not count towards your score, streak, or history.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowCancelModal(false)} disabled={isCancelling}>
+              Keep Going
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleConfirmCancel} isLoading={isCancelling}>
+              Yes, Cancel
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

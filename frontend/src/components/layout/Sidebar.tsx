@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +27,8 @@ import { Button } from "@/components/ui/Button";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
+import { RoleBadge } from "@/components/common/RoleBadge";
+import { getRoleMeta } from "@/lib/roles";
 
 export interface SidebarProps {
   isAdmin?: boolean;
@@ -118,6 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { user } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const userRoleMeta = getRoleMeta(user?.role);
 
   useEffect(() => {
     profileService.getProfile().then((data) => {
@@ -157,6 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const adminLinks: SidebarLink[] = [
     { to: "/admin", label: "Admin Overview", icon: LayoutDashboard },
+    { to: "/admin/content", label: "Content Manager", icon: Layers, badge: "Hub" },
     { to: "/admin/students", label: "Student Progress", icon: GraduationCap, badge: "Analytics" },
     { to: "/admin/users", label: "Manage Users", icon: Users },
     { to: "/admin/verifications", label: "ID Verifications", icon: ShieldCheck, badge: "Review" },
@@ -312,8 +317,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* User Info Card Footer */}
         <div className="pt-3 border-t border-border mt-auto">
           <SidebarTooltip
-            label={user?.name || profile?.name || "Student User"}
-            sublabel={user?.email || profile?.email || "student@srmist.edu.in"}
+            label={user?.name || profile?.name || "Account"}
+            sublabel={`Role: ${userRoleMeta.label}${user?.email || profile?.email ? ` • ${user?.email || profile?.email}` : ""}`}
             disabled={!collapsed}
           >
             <NavLink
@@ -324,14 +329,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 collapsed ? "justify-center p-2 mx-auto w-11 h-11" : "p-2.5 gap-3 w-full"
               )}
             >
-              <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
+              <div className="relative shrink-0">
+                <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
+                {collapsed && (
+                  <span
+                    className={cn("absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface", userRoleMeta.dotColor)}
+                    title={`Role: ${userRoleMeta.label}`}
+                  />
+                )}
+              </div>
               {!collapsed && (
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 space-y-1">
                   <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
-                    {user?.name || profile?.name || "Student User"}
+                    {user?.name || profile?.name || "Account"}
                   </p>
+                  <div>
+                    <RoleBadge role={user?.role} size="sm" />
+                  </div>
                   <p className="text-[11px] text-text-muted font-mono truncate">
-                    {user?.email || profile?.email || "student@srmist.edu.in"}
+                    {user?.email || profile?.email || ""}
                   </p>
                 </div>
               )}

@@ -22,6 +22,10 @@ import { CardSkeleton } from "@/components/common/Skeletons";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
 import { YearSemesterSelect } from "@/components/common/YearSemesterSelect";
+import { RoleBadge } from "@/components/common/RoleBadge";
+import { Achievements } from "@/components/student/Achievements";
+import { AchievementsShelf } from "@/components/student/AchievementsShelf";
+import { EmptyState } from "@/components/common/EmptyState";
 import { COURSE_DURATIONS } from "@/lib/courseDurations";
 import {
   User,
@@ -40,6 +44,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 const TARGET_ROLES_OPTIONS = [
   "Frontend Developer",
@@ -54,6 +59,7 @@ const TARGET_ROLES_OPTIONS = [
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"personal" | "education" | "skills" | "preferences">("personal");
@@ -168,9 +174,7 @@ export const Profile: React.FC = () => {
               <h2 className="font-serif text-2xl md:text-3xl font-bold text-text-primary">
                 {profile.name}
               </h2>
-              <Badge variant="accent" className="uppercase tracking-wider">
-                {profile.role}
-              </Badge>
+              <RoleBadge role={user?.role || profile.role} size="md" />
             </div>
 
             {/* Action Buttons */}
@@ -198,27 +202,37 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Row 2: Professional Headline */}
-          <p className="text-xs md:text-sm font-semibold text-cyan-400 font-sans">
-            {profile.headline || "Student & Placement Candidate"}
+          <p className="text-xs md:text-sm font-semibold font-sans">
+            {profile.headline ? (
+              <span className="text-cyan-400">{profile.headline}</span>
+            ) : (
+              <span className="text-text-muted italic">Add a headline to introduce yourself</span>
+            )}
           </p>
 
-          {/* Row 3: Education Line with Icon */}
-          <p className="text-xs text-text-muted font-mono flex items-center justify-center md:justify-start gap-1.5 flex-wrap">
-            <GraduationCap className="w-4 h-4 text-cyan-400 shrink-0" />
-            <span>
-              {profile.degree} &bull; {profile.college} ({profile.graduationYear})
-            </span>
-          </p>
+          {/* Row 3: Education Line with Icon (if present) */}
+          {(profile.degree || profile.college) && (
+            <p className="text-xs text-text-muted font-mono flex items-center justify-center md:justify-start gap-1.5 flex-wrap">
+              <GraduationCap className="w-4 h-4 text-cyan-400 shrink-0" />
+              <span>
+                {profile.degree}{profile.degree && profile.college ? " • " : ""}{profile.college}{profile.graduationYear ? ` (${profile.graduationYear})` : ""}
+              </span>
+            </p>
+          )}
 
-          {/* Row 4: Stats Row */}
-          <div className="flex items-center justify-center md:justify-start gap-3 flex-wrap pt-0.5">
-            <span className="text-xs font-mono text-live flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 fill-live" /> {profile.stats.currentStreak} Day Streak
-            </span>
-            <span className="text-xs font-mono text-text-muted">
-              {profile.stats.codingProblemsSolved} Problems Solved &bull; {profile.stats.mockInterviewsCompleted} Mock Rounds
-            </span>
-          </div>
+          {/* Row 4: Stats Row (only if at least one stat > 0) */}
+          {(profile.stats.currentStreak > 0 || profile.stats.codingProblemsSolved > 0 || profile.stats.mockInterviewsCompleted > 0) && (
+            <div className="flex items-center justify-center md:justify-start gap-3 flex-wrap pt-0.5">
+              {profile.stats.currentStreak > 0 && (
+                <span className="text-xs font-mono text-live flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 fill-live" /> {profile.stats.currentStreak} Day Streak
+                </span>
+              )}
+              <span className="text-xs font-mono text-text-muted">
+                {profile.stats.codingProblemsSolved} Problems Solved &bull; {profile.stats.mockInterviewsCompleted} Mock Rounds
+              </span>
+            </div>
+          )}
 
           {/* Row 5: Completion Verdict Line */}
           <div className="pt-2.5 border-t border-border/60 flex flex-col sm:flex-row items-center justify-center md:justify-start gap-2 text-xs font-mono">
@@ -227,7 +241,7 @@ export const Profile: React.FC = () => {
                 prefix="Profile: "
                 verdict={verdict.label}
                 score={completion}
-                suffix={` (${completion}%) \u2022 Updated ${updatedAgo}`}
+                suffix={` (${completion}%)${profile.updatedAt ? ` \u2022 Updated ${updatedAgo}` : ""}`}
                 size="sm"
                 as="span"
                 glow={true}
@@ -246,6 +260,9 @@ export const Profile: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {/* Achievements & Badge Shelf */}
+      <AchievementsShelf />
 
       {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto font-mono text-xs">
@@ -355,19 +372,29 @@ export const Profile: React.FC = () => {
                 <div>
                   <span className="font-mono text-text-muted uppercase text-[10px] block">Location & Contact</span>
                   <p className="text-sm font-medium text-text-primary mt-0.5">
-                    {profile.location || "Location not set"} &bull; {profile.phone || "No phone"}
+                    {profile.location || profile.phone ? (
+                      `${profile.location || "Not added yet"} • ${profile.phone || "Not added yet"}`
+                    ) : (
+                      <span className="text-text-muted italic">Not added yet</span>
+                    )}
                   </p>
                 </div>
 
                 <div className="sm:col-span-2">
                   <span className="font-mono text-text-muted uppercase text-[10px] block">Professional Headline</span>
-                  <p className="text-sm font-semibold text-cyan-400 mt-0.5">{profile.headline || "None specified"}</p>
+                  <p className="text-sm font-semibold mt-0.5">
+                    {profile.headline ? (
+                      <span className="text-cyan-400">{profile.headline}</span>
+                    ) : (
+                      <span className="text-text-muted italic font-normal">Not added yet</span>
+                    )}
+                  </p>
                 </div>
 
                 <div className="sm:col-span-2">
                   <span className="font-mono text-text-muted uppercase text-[10px] block mb-1">About Me</span>
                   <p className="text-xs text-text-secondary leading-relaxed bg-surface-raised/40 p-3.5 rounded-xl border border-border">
-                    {profile.bio || "No bio entered yet."}
+                    {profile.bio || <span className="text-text-muted italic">Not added yet</span>}
                   </p>
                 </div>
               </div>
@@ -588,41 +615,58 @@ export const Profile: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {profile.educationEntries.map((edu, idx) => (
-                  <div key={edu.id || idx} className="p-4 rounded-xl bg-surface-raised border border-border space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-bold text-sm text-text-primary">{edu.degree}</h4>
-                        <p className="text-xs text-cyan-400 font-medium">{edu.institution}</p>
+                {profile.educationEntries.length === 0 && (!profile.schoolEducation || (!profile.schoolEducation.board10th && !profile.schoolEducation.board12th)) ? (
+                  <EmptyState
+                    title="No Education Records Added"
+                    description="Add your college degree, field of study, CGPA, and school board details."
+                    actionText="Add Education Details"
+                    onAction={educationSection.startEdit}
+                  />
+                ) : (
+                  <>
+                    {profile.educationEntries.map((edu, idx) => (
+                      <div key={edu.id || idx} className="p-4 rounded-xl bg-surface-raised border border-border space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-sm text-text-primary">{edu.degree || "Degree"}</h4>
+                            <p className="text-xs text-cyan-400 font-medium">{edu.institution}</p>
+                          </div>
+                          {edu.grade && (
+                            <span className="font-mono text-xs font-bold text-teal-400 bg-teal-400/10 px-2.5 py-0.5 rounded border border-teal-400/30">
+                              {edu.grade}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-text-muted font-mono">
+                          Major: {edu.fieldOfStudy} {edu.yearSemester ? `• ${edu.yearSemester}` : ""} &bull; {edu.startYear} - {edu.isCurrentlyStudying ? "Present" : edu.endYear}
+                        </p>
                       </div>
-                      <span className="font-mono text-xs font-bold text-teal-400 bg-teal-400/10 px-2.5 py-0.5 rounded border border-teal-400/30">
-                        {edu.grade}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-text-muted font-mono">
-                      Major: {edu.fieldOfStudy} {edu.yearSemester ? `• ${edu.yearSemester}` : ""} &bull; {edu.startYear} - {edu.isCurrentlyStudying ? "Present" : edu.endYear}
-                    </p>
-                  </div>
-                ))}
+                    ))}
 
-                {profile.schoolEducation && (
-                  <div className="pt-4 border-t border-border space-y-2">
-                    <h4 className="text-xs font-mono uppercase text-text-secondary">School Records (10th / 12th)</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                      <div className="p-3.5 rounded-xl bg-surface border border-border">
-                        <span className="text-text-muted block text-[10px]">10th Grade Record</span>
-                        <p className="font-semibold text-text-primary mt-0.5">
-                          {profile.schoolEducation.board10th || "CBSE"} &bull; {profile.schoolEducation.percentage10th}
-                        </p>
+                    {profile.schoolEducation && (profile.schoolEducation.board10th || profile.schoolEducation.board12th || profile.schoolEducation.percentage10th || profile.schoolEducation.percentage12th) && (
+                      <div className="pt-4 border-t border-border space-y-2">
+                        <h4 className="text-xs font-mono uppercase text-text-secondary">School Records (10th / 12th)</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+                          {(profile.schoolEducation.board10th || profile.schoolEducation.percentage10th) && (
+                            <div className="p-3.5 rounded-xl bg-surface border border-border">
+                              <span className="text-text-muted block text-[10px]">10th Grade Record</span>
+                              <p className="font-semibold text-text-primary mt-0.5">
+                                {profile.schoolEducation.board10th || "Board"} {profile.schoolEducation.percentage10th ? `• ${profile.schoolEducation.percentage10th}` : ""}
+                              </p>
+                            </div>
+                          )}
+                          {(profile.schoolEducation.board12th || profile.schoolEducation.percentage12th) && (
+                            <div className="p-3.5 rounded-xl bg-surface border border-border">
+                              <span className="text-text-muted block text-[10px]">12th Grade Record</span>
+                              <p className="font-semibold text-text-primary mt-0.5">
+                                {profile.schoolEducation.board12th || "Board"} {profile.schoolEducation.percentage12th ? `• ${profile.schoolEducation.percentage12th}` : ""}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="p-3.5 rounded-xl bg-surface border border-border">
-                        <span className="text-text-muted block text-[10px]">12th Grade Record</span>
-                        <p className="font-semibold text-text-primary mt-0.5">
-                          {profile.schoolEducation.board12th || "CBSE"} &bull; {profile.schoolEducation.percentage12th}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -830,35 +874,50 @@ export const Profile: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                <div>
-                  <h4 className="text-xs font-mono uppercase text-cyan-400 font-semibold mb-2">Technical & Soft Skills</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.skillsList?.map((s, i) => (
-                      <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono bg-cyan-400/10 text-cyan-300 border border-cyan-400/30">
-                        <span>{s.name}</span>
-                        <span className="text-[10px] text-text-muted">({s.proficiency})</span>
-                      </span>
-                    )) || profile.skills?.map((s) => <Badge key={s} variant="accent">{s}</Badge>)}
-                  </div>
-                </div>
-
-                {profile.projects && profile.projects.length > 0 && (
-                  <div className="pt-4 border-t border-border space-y-3">
-                    <h4 className="text-xs font-mono uppercase text-text-secondary">Projects ({profile.projects.length})</h4>
-                    {profile.projects.map((p) => (
-                      <div key={p.id} className="p-3.5 rounded-xl bg-surface-raised border border-border space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-xs text-text-primary">{p.title}</span>
-                          {p.link && (
-                            <a href={p.link} target="_blank" rel="noreferrer" className="text-cyan-400 text-[11px] flex items-center gap-1 hover:underline">
-                              Link <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
+                {(!profile.skillsList || profile.skillsList.length === 0) && (!profile.skills || profile.skills.length === 0) && (!profile.projects || profile.projects.length === 0) && (!profile.certifications || profile.certifications.length === 0) ? (
+                  <EmptyState
+                    title="No Skills or Projects Added"
+                    description="Add your technical skills, programming languages, and portfolio projects."
+                    actionText="Add Skills & Projects"
+                    onAction={skillsSection.startEdit}
+                  />
+                ) : (
+                  <>
+                    {((profile.skillsList && profile.skillsList.length > 0) || (profile.skills && profile.skills.length > 0)) && (
+                      <div>
+                        <h4 className="text-xs font-mono uppercase text-cyan-400 font-semibold mb-2">Technical & Soft Skills</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.skillsList && profile.skillsList.length > 0
+                            ? profile.skillsList.map((s, i) => (
+                                <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono bg-cyan-400/10 text-cyan-300 border border-cyan-400/30">
+                                  <span>{s.name}</span>
+                                  <span className="text-[10px] text-text-muted">({s.proficiency})</span>
+                                </span>
+                              ))
+                            : profile.skills?.map((s) => <Badge key={s} variant="accent">{s}</Badge>)}
                         </div>
-                        <p className="text-xs text-text-secondary">{p.description}</p>
                       </div>
-                    ))}
-                  </div>
+                    )}
+
+                    {profile.projects && profile.projects.length > 0 && (
+                      <div className="pt-4 border-t border-border space-y-3">
+                        <h4 className="text-xs font-mono uppercase text-text-secondary">Projects ({profile.projects.length})</h4>
+                        {profile.projects.map((p) => (
+                          <div key={p.id} className="p-3.5 rounded-xl bg-surface-raised border border-border space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-xs text-text-primary">{p.title}</span>
+                              {p.link && (
+                                <a href={p.link} target="_blank" rel="noreferrer" className="text-cyan-400 text-[11px] flex items-center gap-1 hover:underline">
+                                  Link <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                            <p className="text-xs text-text-secondary">{p.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -964,44 +1023,63 @@ export const Profile: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                <div>
-                  <h4 className="text-xs font-mono uppercase text-cyan-400 font-semibold mb-2">Target Job Roles</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.targetRoles.map((role) => (
-                      <Badge key={role} variant="gold">
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                {(!profile.targetRoles || profile.targetRoles.length === 0) && !profile.preferredLocation && !profile.linkedinUrl && !profile.githubUrl ? (
+                  <EmptyState
+                    title="No Career Preferences Set"
+                    description="Set target job roles, preferred work locations, and professional social links."
+                    actionText="Add Preferences & Links"
+                    onAction={preferencesSection.startEdit}
+                  />
+                ) : (
+                  <>
+                    {profile.targetRoles && profile.targetRoles.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-mono uppercase text-cyan-400 font-semibold mb-2">Target Job Roles</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.targetRoles.map((role) => (
+                            <Badge key={role} variant="gold">
+                              {role}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
-                  <div className="p-3.5 rounded-xl bg-surface-raised border border-border">
-                    <span className="font-mono text-text-muted uppercase text-[10px] block">Preferred Work Location</span>
-                    <p className="font-semibold text-text-primary mt-1">{profile.preferredLocation || "Flexible"}</p>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                      <div className="p-3.5 rounded-xl bg-surface-raised border border-border">
+                        <span className="font-mono text-text-muted uppercase text-[10px] block">Preferred Work Location</span>
+                        <p className="font-semibold text-text-primary mt-1">{profile.preferredLocation || "Flexible"}</p>
+                      </div>
 
-                  <div className="p-3.5 rounded-xl bg-surface-raised border border-border">
-                    <span className="font-mono text-text-muted uppercase text-[10px] block">Professional Links</span>
-                    <div className="space-y-1 mt-1 font-mono text-[11px]">
-                      {profile.linkedinUrl && (
-                        <a href={profile.linkedinUrl} target="_blank" rel="noreferrer" className="text-cyan-400 flex items-center gap-1.5 hover:underline">
-                          <Globe className="w-3.5 h-3.5" /> LinkedIn Profile
-                        </a>
-                      )}
-                      {profile.githubUrl && (
-                        <a href={profile.githubUrl} target="_blank" rel="noreferrer" className="text-cyan-400 flex items-center gap-1.5 hover:underline">
-                          <Globe className="w-3.5 h-3.5" /> GitHub Profile
-                        </a>
-                      )}
+                      <div className="p-3.5 rounded-xl bg-surface-raised border border-border">
+                        <span className="font-mono text-text-muted uppercase text-[10px] block">Professional Links</span>
+                        <div className="space-y-1 mt-1 font-mono text-[11px]">
+                          {profile.linkedinUrl && (
+                            <a href={profile.linkedinUrl} target="_blank" rel="noreferrer" className="text-cyan-400 flex items-center gap-1.5 hover:underline">
+                              <Globe className="w-3.5 h-3.5" /> LinkedIn Profile
+                            </a>
+                          )}
+                          {profile.githubUrl && (
+                            <a href={profile.githubUrl} target="_blank" rel="noreferrer" className="text-cyan-400 flex items-center gap-1.5 hover:underline">
+                              <Globe className="w-3.5 h-3.5" /> GitHub Profile
+                            </a>
+                          )}
+                          {!profile.linkedinUrl && !profile.githubUrl && (
+                            <span className="text-text-muted italic">No links provided</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             )}
           </div>
         )}
       </Card>
+
+      {/* Student Achievements / Badges Section */}
+      <Achievements variant="full" />
 
       {/* RECRUITER PUBLIC PREVIEW DIALOG */}
       <Dialog
@@ -1021,10 +1099,12 @@ export const Profile: React.FC = () => {
                   Verified Candidate
                 </span>
               </div>
-              <p className="text-xs text-cyan-400 font-semibold">{profile.headline}</p>
-              <p className="text-xs text-text-muted font-mono">
-                {profile.degree} &bull; {profile.college} ({profile.graduationYear})
-              </p>
+              <p className="text-xs text-cyan-400 font-semibold">{profile.headline || "Candidate"}</p>
+              {(profile.degree || profile.college) && (
+                <p className="text-xs text-text-muted font-mono">
+                  {profile.degree}{profile.degree && profile.college ? " • " : ""}{profile.college}{profile.graduationYear ? ` (${profile.graduationYear})` : ""}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1032,7 +1112,9 @@ export const Profile: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
             <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
               <span className="font-mono text-cyan-400 font-semibold text-[10px] uppercase">Target Roles</span>
-              <p className="font-semibold text-text-primary">{profile.targetRoles.join(", ")}</p>
+              <p className="font-semibold text-text-primary">
+                {profile.targetRoles && profile.targetRoles.length > 0 ? profile.targetRoles.join(", ") : "Not specified yet"}
+              </p>
             </div>
 
             <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
@@ -1045,11 +1127,15 @@ export const Profile: React.FC = () => {
             <div className="sm:col-span-2 p-4 rounded-xl bg-surface border border-border space-y-2">
               <span className="font-mono text-indigo-400 font-semibold text-[10px] uppercase">Key Skills</span>
               <div className="flex flex-wrap gap-1.5">
-                {profile.skills.map((s) => (
-                  <span key={s} className="px-2.5 py-1 rounded-lg bg-surface-raised border border-border text-xs font-mono">
-                    {s}
-                  </span>
-                ))}
+                {profile.skills && profile.skills.length > 0 ? (
+                  profile.skills.map((s) => (
+                    <span key={s} className="px-2.5 py-1 rounded-lg bg-surface-raised border border-border text-xs font-mono">
+                      {s}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-text-muted text-xs italic">No skills listed yet</span>
+                )}
               </div>
             </div>
           </div>

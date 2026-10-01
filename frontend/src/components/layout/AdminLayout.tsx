@@ -3,11 +3,15 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { PageTransition } from "./PageTransition";
+import { usePreviewMode } from "@/context/PreviewModeContext";
+import { Button } from "@/components/ui/Button";
+import { Eye } from "lucide-react";
 
 const STORAGE_KEY = "sidebar_collapsed_admin";
 
 export const AdminLayout: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isPreviewMode, togglePreviewMode } = usePreviewMode();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) === "true";
@@ -80,6 +84,17 @@ export const AdminLayout: React.FC = () => {
         onToggleCollapse={toggleCollapsed}
       />
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {isPreviewMode && (
+          <div className="bg-cyan-500/20 border-b border-cyan-500/40 px-4 py-2 text-xs font-mono text-cyan-300 flex items-center justify-between z-20">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-cyan-400" />
+              <span>Previewing as Regular User — Exit to return to admin mode</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={togglePreviewMode} className="py-0.5 text-xs h-auto font-mono">
+              Exit Preview Mode
+            </Button>
+          </div>
+        )}
         <Topbar
           onOpenMobileSidebar={() => setMobileOpen(true)}
           title={getTitle()}

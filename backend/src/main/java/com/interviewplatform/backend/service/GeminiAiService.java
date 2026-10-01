@@ -252,7 +252,7 @@ public class GeminiAiService {
         if (hasSkills) sectionScore += 8;
 
         int keywordScore = targetKeywords.isEmpty() ? 75 : Math.min(95, Math.max(50, (matchedCount * 100) / targetKeywords.size()));
-        int formattingScore = (text.length() > 500 && text.length() < 12000) ? 90 : 72;
+        int formattingScore = (text.length() > 500 && text.length() < 12000) ? Math.min(95, sectionScore + 5) : 72;
         int experienceScore = hasExperience ? (hasProjects ? 85 : 75) : 65;
         int educationScore = hasEducation ? 88 : 70;
         int skillsScore = keywordScore;

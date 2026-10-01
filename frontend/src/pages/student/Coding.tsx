@@ -16,10 +16,8 @@ import {
   Play,
   Send,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   FileCode2,
-  Clock,
   Cpu,
   Sparkles,
   RotateCcw,
@@ -32,7 +30,11 @@ import {
   AlertCircle,
   Award,
   Zap,
+  XCircle,
+  Clock,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { scopedKey } from "@/lib/userScope";
 import { cn } from "@/lib/utils";
 
 const LANGUAGE_OPTIONS: CustomSelectOption<"javascript" | "python" | "java" | "cpp">[] = [
@@ -51,6 +53,8 @@ interface ProblemLocalState {
 }
 
 export const Coding: React.FC = () => {
+  const { user } = useAuth();
+  const userId = user?.userId;
   const [problems, setProblems] = useState<CodingProblem[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<CodingProblem | null>(null);
   const [language, setLanguage] = useState<"javascript" | "python" | "java" | "cpp">("javascript");
@@ -63,6 +67,7 @@ export const Coding: React.FC = () => {
   const [solutionLang, setSolutionLang] = useState<"javascript" | "python" | "java" | "cpp">("javascript");
 
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [localStates, setLocalStates] = useState<Record<string, ProblemLocalState>>({});
   const [xpAwardMessage, setXpAwardMessage] = useState<string | null>(null);
 
@@ -82,7 +87,8 @@ export const Coding: React.FC = () => {
         const storedStates: Record<string, ProblemLocalState> = {};
         data.forEach((p) => {
           try {
-            const val = localStorage.getItem(`coding_state_${p.id}`);
+            const key = scopedKey(`coding_state_${p.id}`, userId);
+            const val = localStorage.getItem(key);
             if (val) {
               storedStates[p.id] = JSON.parse(val);
             }
@@ -101,7 +107,7 @@ export const Coding: React.FC = () => {
       }
       setLoading(false);
     });
-  }, []);
+  }, [userId]);
 
   const getProblemState = (problemId: string): ProblemLocalState => {
     return (
@@ -126,7 +132,8 @@ export const Coding: React.FC = () => {
       };
       const next = updater(current);
       try {
-        localStorage.setItem(`coding_state_${problemId}`, JSON.stringify(next));
+        const key = scopedKey(`coding_state_${problemId}`, userId);
+        localStorage.setItem(key, JSON.stringify(next));
       } catch {
         // ignore
       }
@@ -216,8 +223,14 @@ export const Coding: React.FC = () => {
     }
   };
 
-  const handleSubmitCode = async () => {
+  const handleSubmitCode = () => {
     if (!selectedProblem) return;
+    setShowSubmitModal(true);
+  };
+
+  const executeSubmitCode = async () => {
+    if (!selectedProblem) return;
+    setShowSubmitModal(false);
     setIsExecuting(true);
     setExecResult(null);
     setXpAwardMessage(null);
@@ -838,6 +851,35 @@ export const Coding: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* CONFIRM SUBMIT MODAL */}
+      <Dialog
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        title="Submit Solution?"
+        description="Confirm final code submission."
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-4 bg-cyan-400/15 border border-cyan-400/30 rounded-xl text-text-primary space-y-1">
+            <p className="font-semibold text-cyan-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+              Submit now?
+            </p>
+            <p className="leading-relaxed text-text-secondary">
+              You cannot change answers after submission. Your code will be evaluated against hidden test cases.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowSubmitModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="teal-cyan" size="sm" onClick={executeSubmitCode} className="gap-1 font-semibold shadow-glow">
+              <Send className="w-3.5 h-3.5" /> Confirm & Submit
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

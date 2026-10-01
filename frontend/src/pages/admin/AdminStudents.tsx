@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
+import { RoleBadge } from "@/components/ui/RoleBadge";
 
 export const AdminStudents: React.FC = () => {
   const navigate = useNavigate();
@@ -383,6 +384,7 @@ export const AdminStudents: React.FC = () => {
                               <div>
                                 <div className="font-semibold text-text-primary flex items-center gap-1.5">
                                   <span>{s.name}</span>
+                                  <RoleBadge role="STUDENT" size="sm" />
                                 </div>
                                 <div className="text-[11px] text-text-muted font-mono">{s.rollNumber} • {s.email}</div>
                               </div>

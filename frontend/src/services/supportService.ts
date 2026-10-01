@@ -1,3 +1,5 @@
+import { isDemoUser, scopedKey, getActiveUserId } from "@/lib/userScope";
+
 export interface SupportTicket {
   id: string;
   category: "Bug Report" | "Feature Request" | "Account Issue" | "Feedback" | "Other";
@@ -19,8 +21,8 @@ export interface CreateTicketPayload {
   attachmentDataUrl?: string;
 }
 
-const STORAGE_KEY = "ai_interview_prep_tickets";
-const VOTES_STORAGE_KEY = "ai_interview_prep_faq_votes";
+const STORAGE_KEY_BASE = "ai_interview_prep_tickets";
+const VOTES_STORAGE_KEY_BASE = "ai_interview_prep_faq_votes";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -50,16 +52,20 @@ const INITIAL_TICKETS: SupportTicket[] = [
 ];
 
 const getStoredTickets = (): SupportTicket[] => {
+  const userId = getActiveUserId();
+  const storageKey = scopedKey(STORAGE_KEY_BASE, userId);
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (raw) {
       return JSON.parse(raw);
     }
   } catch (e) {
     console.error("Failed to parse stored support tickets:", e);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_TICKETS));
-  return INITIAL_TICKETS;
+
+  const initial = isDemoUser() ? INITIAL_TICKETS : [];
+  localStorage.setItem(storageKey, JSON.stringify(initial));
+  return initial;
 };
 
 export const supportService = {
@@ -73,8 +79,8 @@ export const supportService = {
     const existing = getStoredTickets();
 
     // Get active user from localStorage if present
-    let userName = "Student User";
-    let userEmail = "student@srmist.edu.in";
+    let userName = "Student";
+    let userEmail = "";
     try {
       const activeUserRaw = localStorage.getItem("ai_interview_prep_user");
       if (activeUserRaw) {
@@ -101,13 +107,15 @@ export const supportService = {
     };
 
     const updated = [newTicket, ...existing];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    const storageKey = scopedKey(STORAGE_KEY_BASE, getActiveUserId());
+    localStorage.setItem(storageKey, JSON.stringify(updated));
     return newTicket;
   },
 
   getFaqVotes(): Record<string, "up" | "down"> {
+    const votesKey = scopedKey(VOTES_STORAGE_KEY_BASE, getActiveUserId());
     try {
-      const raw = localStorage.getItem(VOTES_STORAGE_KEY);
+      const raw = localStorage.getItem(votesKey);
       if (raw) return JSON.parse(raw);
     } catch (e) {
       console.error("Failed to parse FAQ votes:", e);
@@ -116,9 +124,10 @@ export const supportService = {
   },
 
   saveFaqVote(faqId: string, vote: "up" | "down"): Record<string, "up" | "down"> {
+    const votesKey = scopedKey(VOTES_STORAGE_KEY_BASE, getActiveUserId());
     const votes = this.getFaqVotes();
     votes[faqId] = vote;
-    localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(votes));
+    localStorage.setItem(votesKey, JSON.stringify(votes));
     return votes;
   },
 };
