@@ -7,6 +7,7 @@ export interface AuthResponse {
   name: string;
   email: string;
   role: string;
+  verificationStatus?: "Pending Verification" | "Verified" | "Rejected" | "Resubmission Required" | "Unverified";
 }
 
 export interface LoginCredentials {

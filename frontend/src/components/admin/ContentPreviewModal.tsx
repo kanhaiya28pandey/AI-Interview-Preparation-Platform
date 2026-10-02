@@ -3,7 +3,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { ContentItem } from "@/services/adminContentService";
+import { ContentItem, McqQuestionItem } from "@/services/adminContentService";
 import { Eye, Clock, CheckCircle2, AlertCircle, FileText, Code2, Video, Sparkles } from "lucide-react";
 
 export interface ContentPreviewModalProps {
@@ -55,7 +55,7 @@ export const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ isOpen
 
             {item.payload?.mcqQuestions && item.payload.mcqQuestions.length > 0 ? (
               <div className="space-y-3">
-                {item.payload.mcqQuestions.map((q, idx) => (
+                {item.payload.mcqQuestions.map((q: McqQuestionItem, idx: number) => (
                   <Card key={q.id} className="p-5 bg-surface border border-border space-y-3">
                     <div className="flex justify-between items-start">
                       <span className="font-mono text-cyan-400 font-bold text-sm">
@@ -70,7 +70,7 @@ export const ContentPreviewModal: React.FC<ContentPreviewModalProps> = ({ isOpen
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {q.options.map((opt, oIdx) => (
+                      {q.options.map((opt: string, oIdx: number) => (
                         <div
                           key={oIdx}
                           className={`p-3 rounded-xl border font-mono text-xs flex items-center justify-between ${

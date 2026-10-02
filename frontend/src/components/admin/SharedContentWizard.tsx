@@ -577,7 +577,7 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
                     className="bg-surface"
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    {newQOptions.map((opt, idx) => (
+                    {newQOptions.map((opt: string, idx: number) => (
                       <div key={idx} className="flex items-center gap-1.5">
                         <input
                           type="radio"

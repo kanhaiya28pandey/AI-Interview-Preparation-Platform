@@ -53,3 +53,8 @@ export function removeScopedItem(userId: string | undefined | null, key: string)
     console.warn(`Failed to remove scoped localStorage key "${key}":`, err);
   }
 }
+
+export function scopedKey(baseKey: string, userId?: string | null): string {
+  const safeId = userId && userId.trim() ? userId.trim().toLowerCase() : "guest_user";
+  return `user_scope:${safeId}:${baseKey}`;
+}
