@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { COURSE_FILTER_OPTIONS, matchesCourseFilter } from "@/lib/courseDurations";
 import { Card } from "@/components/ui/Card";
@@ -6,9 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { RoleBadge } from "@/components/common/RoleBadge";
+import { RowActions } from "@/components/common/RowActions";
 import { useAdminStore, MasterStudent, isRegistrationNew } from "@/context/AdminStoreContext";
+import { useAuth } from "@/context/AuthContext";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CompareStudentsDialog } from "@/components/admin/CompareStudentsDialog";
+import { DeleteAccountDialog, isAccountProtected } from "@/components/admin/DeleteAccountDialog";
+import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import {
   Users,
   Search,
@@ -17,6 +21,8 @@ import {
   AlertTriangle,
   GraduationCap,
   Eye,
+  Trash2,
+  Ban,
   TrendingUp,
   ShieldCheck,
   BarChart3,
@@ -31,6 +37,8 @@ import {
   ChevronRight,
   ThumbsUp,
   AlertCircle,
+  RotateCcw,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
@@ -50,9 +58,23 @@ export const calculateReadinessScore = (student: MasterStudent): { score: number
   return { score, level: "High Risk", color: "text-danger" };
 };
 
+export type QuickFilterType = "ALL" | "VERIFIED" | "PENDING" | "REJECTED" | "UNVERIFIED" | "INACTIVE" | "NO_ACTIVITY";
+
 export const AdminStudents: React.FC = () => {
   const navigate = useNavigate();
-  const { students } = useAdminStore();
+  const { user } = useAuth();
+  const {
+    students,
+    deleteStudent,
+    bulkDeleteStudents,
+    restoreStudent,
+    restoreStudents,
+    deactivateStudent,
+    reactivateStudent,
+    addAuditLog,
+  } = useAdminStore();
+
+  const currentAdminEmail = user?.email || "admin@aiprep.com";
 
   const [activeTab, setActiveTab] = useState<"roster" | "analytics">("roster");
 
@@ -61,6 +83,7 @@ export const AdminStudents: React.FC = () => {
   const [courseFilter, setCourseFilter] = useState("ALL");
   const [verificationFilter, setVerificationFilter] = useState("ALL");
   const [riskFilter, setRiskFilter] = useState("ALL");
+  const [quickFilter, setQuickFilter] = useState<QuickFilterType>("ALL");
 
   // Sorting & Pagination
   const [sortField, setSortField] = useState<"name" | "activityScore" | "registeredAt">("activityScore");
@@ -68,16 +91,70 @@ export const AdminStudents: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Selection & Compare
+  // Selection & Dialogs
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
+  const [skippedProtectedCount, setSkippedProtectedCount] = useState(0);
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedIds(paginatedStudents.map((s) => s.id));
-    } else {
-      setSelectedIds([]);
+  // Deletion Dialog State
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [singleStudentToDelete, setSingleStudentToDelete] = useState<MasterStudent | null>(null);
+  const [bulkStudentsToDelete, setBulkStudentsToDelete] = useState<MasterStudent[]>([]);
+
+
+  // Single delete trigger
+  const handleDeleteSingle = (student: MasterStudent) => {
+    if (isAccountProtected(student, currentAdminEmail)) {
+      toast.error("Admin and demo accounts cannot be deleted.");
+      return;
     }
+    setSingleStudentToDelete(student);
+    setBulkStudentsToDelete([]);
+    setDeleteDialogOpen(true);
+  };
+
+  // Bulk delete trigger for selected rows
+  const handleDeleteSelected = () => {
+    const selectedStudents = students.filter(
+      (s) => selectedIds.includes(s.id) && !isAccountProtected(s, currentAdminEmail)
+    );
+    if (selectedStudents.length === 0) {
+      toast.error("No eligible non-protected accounts selected for deletion.");
+      return;
+    }
+    setSingleStudentToDelete(null);
+    setBulkStudentsToDelete(selectedStudents);
+    setDeleteDialogOpen(true);
+  };
+
+  // Delete all rejected trigger
+  const handleDeleteAllRejected = () => {
+    const rejectedStudents = filteredStudents.filter(
+      (s) => s.verificationStatus.toUpperCase() === "REJECTED" && !isAccountProtected(s, currentAdminEmail)
+    );
+    if (rejectedStudents.length === 0) {
+      toast.error("No rejected accounts found to delete.");
+      return;
+    }
+    setSingleStudentToDelete(null);
+    setBulkStudentsToDelete(rejectedStudents);
+    setDeleteDialogOpen(true);
+  };
+
+  // Bulk deactivate selected rows
+  const handleDeactivateSelected = () => {
+    const targetIds = selectedIds.filter((id) => {
+      const s = students.find((item) => item.id === id);
+      return s && !isAccountProtected(s, currentAdminEmail);
+    });
+    if (targetIds.length === 0) {
+      toast.error("No eligible accounts selected to deactivate.");
+      return;
+    }
+
+    targetIds.forEach((id) => deactivateStudent(id));
+    toast.success(`Deactivated ${targetIds.length} student account(s).`);
+    setSelectedIds([]);
   };
 
   const handleToggleSelect = (id: string) => {
@@ -120,33 +197,125 @@ export const AdminStudents: React.FC = () => {
     toast.success(`Exported CSV report for ${targetStudents.length} student records.`);
   };
 
-  const filteredStudents = students
-    .filter((s) => {
-      const matchesSearch =
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.rollNumber.toLowerCase().includes(search.toLowerCase()) ||
-        s.email.toLowerCase().includes(search.toLowerCase()) ||
-        s.college.toLowerCase().includes(search.toLowerCase());
+  // Filter computation with quick filter support
+  const filteredStudents = useMemo(() => {
+    return students
+      .filter((s) => {
+        const query = search.toLowerCase();
+        const matchesSearch =
+          s.name.toLowerCase().includes(query) ||
+          s.rollNumber.toLowerCase().includes(query) ||
+          s.email.toLowerCase().includes(query) ||
+          s.college.toLowerCase().includes(query);
 
-      const matchesCourse = matchesCourseFilter(s.course, courseFilter);
-      const matchesVerification = verificationFilter === "ALL" || s.verificationStatus.toUpperCase() === verificationFilter.toUpperCase();
-      const matchesRisk = riskFilter === "ALL" || s.riskLevel.toUpperCase() === riskFilter.toUpperCase();
+        const matchesCourse = matchesCourseFilter(s.course, courseFilter);
+        const matchesVerification =
+          verificationFilter === "ALL" || s.verificationStatus.toUpperCase() === verificationFilter.toUpperCase();
+        const matchesRisk = riskFilter === "ALL" || s.riskLevel.toUpperCase() === riskFilter.toUpperCase();
 
-      return matchesSearch && matchesCourse && matchesVerification && matchesRisk;
-    })
-    .sort((a, b) => {
-      let valA: any = a[sortField];
-      let valB: any = b[sortField];
-      if (typeof valA === "string") {
-        valA = valA.toLowerCase();
-        valB = valB.toLowerCase();
-      }
-      if (sortOrder === "asc") return valA > valB ? 1 : -1;
-      return valA < valB ? 1 : -1;
-    });
+        // Quick filter conditions
+        let matchesQuick = true;
+        if (quickFilter === "VERIFIED") {
+          matchesQuick = s.verificationStatus.toUpperCase() === "VERIFIED";
+        } else if (quickFilter === "PENDING") {
+          matchesQuick = s.verificationStatus.toUpperCase() === "PENDING VERIFICATION";
+        } else if (quickFilter === "REJECTED") {
+          matchesQuick = s.verificationStatus.toUpperCase() === "REJECTED";
+        } else if (quickFilter === "UNVERIFIED") {
+          matchesQuick = s.verificationStatus.toUpperCase() === "UNVERIFIED" || !s.verificationStatus;
+        } else if (quickFilter === "INACTIVE") {
+          const registeredTime = new Date(s.registeredAt).getTime();
+          const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+          matchesQuick = s.status === "INACTIVE" || (registeredTime < thirtyDaysAgo && s.activityScore === 0);
+        } else if (quickFilter === "NO_ACTIVITY") {
+          matchesQuick = s.activityScore === 0;
+        }
+
+        return matchesSearch && matchesCourse && matchesVerification && matchesRisk && matchesQuick;
+      })
+      .sort((a, b) => {
+        let valA: any = a[sortField];
+        let valB: any = b[sortField];
+        if (typeof valA === "string") {
+          valA = valA.toLowerCase();
+          valB = valB.toLowerCase();
+        }
+        if (sortOrder === "asc") return valA > valB ? 1 : -1;
+        return valA < valB ? 1 : -1;
+      });
+  }, [students, search, courseFilter, verificationFilter, riskFilter, quickFilter, sortField, sortOrder]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / itemsPerPage));
   const paginatedStudents = filteredStudents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Non-protected students in current page for select-all
+  const eligiblePaginatedStudents = paginatedStudents.filter((s) => !isAccountProtected(s, currentAdminEmail));
+  const allEligibleSelected =
+    eligiblePaginatedStudents.length > 0 &&
+    eligiblePaginatedStudents.every((s) => selectedIds.includes(s.id));
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const eligibleIds = eligiblePaginatedStudents.map((s) => s.id);
+      const skipped = paginatedStudents.length - eligiblePaginatedStudents.length;
+      setSkippedProtectedCount(skipped);
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...eligibleIds])));
+      if (skipped > 0) {
+        toast.info(`${skipped} protected account${skipped > 1 ? "s were" : " was"} skipped from selection.`);
+      }
+    } else {
+      const pageIds = paginatedStudents.map((s) => s.id);
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+      setSkippedProtectedCount(0);
+    }
+  };
+
+  // Rejected count currently visible
+  const rejectedCountInFilter = useMemo(() => {
+    return filteredStudents.filter(
+      (s) => s.verificationStatus.toUpperCase() === "REJECTED" && !isAccountProtected(s, currentAdminEmail)
+    ).length;
+  }, [filteredStudents, currentAdminEmail]);
+
+  // Handle successful deletion with 8-second Undo toast
+  const handleDeleteSuccess = (deletedList: MasterStudent[]) => {
+    const count = deletedList.length;
+    setSelectedIds((prev) => prev.filter((id) => !deletedList.some((d) => d.id === id)));
+
+    // Trigger 8-second toast with Undo
+    toast.custom(
+      (t) => (
+        <div className="flex items-center justify-between gap-4 p-4 bg-surface-raised border border-cyan-500/40 rounded-xl shadow-2xl text-text-primary text-xs font-mono max-w-md w-full">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>
+              {count === 1
+                ? `Removed account "${deletedList[0].name}".`
+                : `Removed ${count} student accounts.`}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              if (count === 1) {
+                restoreStudent(deletedList[0]);
+              } else {
+                restoreStudents(deletedList);
+              }
+              toast.dismiss(t);
+              toast.success(
+                `Restored ${count === 1 ? deletedList[0].name : `${count} accounts`} successfully.`
+              );
+            }}
+            className="px-3 py-1.5 bg-cyan-400 text-slate-950 font-bold rounded-lg hover:bg-cyan-300 transition-colors flex items-center gap-1 shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Undo
+          </button>
+        </div>
+      ),
+      { duration: 8000 }
+    );
+  };
 
   const filteredCount = filteredStudents.length;
   const dynamicAvgActivity = filteredCount > 0
@@ -261,52 +430,100 @@ export const AdminStudents: React.FC = () => {
 
       {activeTab === "roster" ? (
         <>
-          {/* SEARCH & FILTERS */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-surface border border-border rounded-xl shadow-soft">
-            <div className="flex flex-wrap items-center gap-3 flex-1">
-              <div className="relative w-full sm:w-64">
-                <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder="Search name, roll #, email..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
+          {/* SEARCH & FILTERS & QUICK FILTER CHIPS */}
+          <div className="space-y-3 p-4 bg-surface border border-border rounded-xl shadow-soft">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3 flex-1">
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    type="text"
+                    placeholder="Search name, roll #, email..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="pl-9 text-xs"
+                  />
+                </div>
+
+                <CustomSelect
+                  options={COURSE_FILTER_OPTIONS}
+                  value={courseFilter}
+                  onChange={(v) => {
+                    setCourseFilter(v);
                     setCurrentPage(1);
                   }}
-                  className="pl-9 text-xs"
+                  ariaLabel="Filter by course"
+                />
+
+                <CustomSelect
+                  options={[
+                    { value: "ALL", label: "All Verification" },
+                    { value: "VERIFIED", label: "Verified Only" },
+                    { value: "PENDING VERIFICATION", label: "Pending Verification" },
+                    { value: "REJECTED", label: "Rejected" },
+                  ]}
+                  value={verificationFilter}
+                  onChange={(v) => {
+                    setVerificationFilter(v);
+                    setCurrentPage(1);
+                  }}
+                  ariaLabel="Filter by verification"
                 />
               </div>
+            </div>
 
-              <CustomSelect
-                options={COURSE_FILTER_OPTIONS}
-                value={courseFilter}
-                onChange={(v) => {
-                  setCourseFilter(v);
-                  setCurrentPage(1);
-                }}
-                ariaLabel="Filter by course"
-              />
+            {/* Quick Filter Chips & Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/50">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-mono text-text-muted mr-1">Quick Filters:</span>
+                {(
+                  [
+                    { id: "ALL", label: "All" },
+                    { id: "VERIFIED", label: "Verified" },
+                    { id: "PENDING", label: "Pending" },
+                    { id: "REJECTED", label: "Rejected" },
+                    { id: "UNVERIFIED", label: "Unverified" },
+                    { id: "INACTIVE", label: "Inactive" },
+                    { id: "NO_ACTIVITY", label: "No Activity" },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setQuickFilter(tab.id);
+                      setCurrentPage(1);
+                    }}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-mono transition-all border",
+                      quickFilter === tab.id
+                        ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/40 font-semibold shadow-sm"
+                        : "bg-surface-raised/60 text-text-muted border-border hover:text-text-primary hover:border-text-muted/30"
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-              <CustomSelect
-                options={[
-                  { value: "ALL", label: "All Verification" },
-                  { value: "VERIFIED", label: "Verified Only" },
-                  { value: "PENDING VERIFICATION", label: "Pending Verification" },
-                  { value: "REJECTED", label: "Rejected" },
-                ]}
-                value={verificationFilter}
-                onChange={(v) => {
-                  setVerificationFilter(v);
-                  setCurrentPage(1);
-                }}
-                ariaLabel="Filter by verification"
-              />
+              {quickFilter === "REJECTED" && rejectedCountInFilter > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeleteAllRejected}
+                  className="text-xs font-mono text-rose-400 border-rose-500/40 hover:bg-rose-500/15 hover:border-rose-400 gap-1.5 shrink-0 h-8"
+                >
+                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                  Delete All Rejected ({rejectedCountInFilter})
+                </Button>
+              )}
             </div>
           </div>
 
           {/* STUDENT ROSTER TABLE WITH READINESS SCORE & ROLE BADGE */}
-          <Card className="p-0 overflow-hidden bg-surface border-border shadow-soft">
+          <Card className="p-0 overflow-hidden bg-surface border-border shadow-soft relative">
             <div className="overflow-x-auto">
               <table className="w-full text-left font-sans text-xs">
                 <thead className="bg-surface-raised border-b border-border text-text-muted font-mono uppercase text-[11px] sticky top-0 z-10 shadow-sm">
@@ -314,18 +531,23 @@ export const AdminStudents: React.FC = () => {
                     <th className="p-4 w-10">
                       <input
                         type="checkbox"
-                        checked={selectedIds.length === paginatedStudents.length && paginatedStudents.length > 0}
+                        checked={allEligibleSelected}
                         onChange={handleSelectAll}
-                        className="rounded border-border text-cyan-400"
+                        title={
+                          skippedProtectedCount > 0
+                            ? `${skippedProtectedCount} protected accounts skipped`
+                            : "Select all eligible rows"
+                        }
+                        className="rounded border-border text-cyan-400 focus:ring-cyan-400"
                       />
                     </th>
                     <th className="p-4">Student Candidate</th>
                     <th className="p-4">Role Badge</th>
                     <th className="p-4">Course & Roll No</th>
                     <th className="p-4">Readiness Ring</th>
-                    <th className="p-4">Verification</th>
-                    <th className="p-4">Activity Score</th>
-                    <th className="p-4 text-right">Actions</th>
+                    <th className="p-4 whitespace-nowrap">Verification</th>
+                    <th className="p-4 whitespace-nowrap">Activity Score</th>
+                    <th className="p-4 text-right w-[200px] min-w-[200px] whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -340,6 +562,8 @@ export const AdminStudents: React.FC = () => {
                       const readiness = calculateReadinessScore(s);
                       const isNew = isRegistrationNew(s.registeredAt);
                       const isSelected = selectedIds.includes(s.id);
+                      const isProtected = isAccountProtected(s, currentAdminEmail);
+                      const isInactive = s.status === "INACTIVE";
 
                       return (
                         <tr
@@ -353,16 +577,26 @@ export const AdminStudents: React.FC = () => {
                             <input
                               type="checkbox"
                               checked={isSelected}
+                              disabled={isProtected}
                               onChange={() => handleToggleSelect(s.id)}
-                              className="rounded border-border text-cyan-400"
+                              title={isProtected ? "Admin and demo accounts cannot be selected" : "Select row"}
+                              className={`rounded border-border text-cyan-400 focus:ring-cyan-400 ${
+                                isProtected ? "opacity-30 cursor-not-allowed" : ""
+                              }`}
                             />
                           </td>
+
                           <td className="p-4">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-text-primary">{s.name}</span>
                               {isNew && (
                                 <Badge variant="accent" className="text-[9px] font-mono px-1.5 py-0.2 animate-pulse">
                                   NEW
+                                </Badge>
+                              )}
+                              {isInactive && (
+                                <Badge variant="outline" className="text-[9px] font-mono px-1.5 py-0.2 text-amber-400 border-amber-500/30">
+                                  INACTIVE
                                 </Badge>
                               )}
                             </div>
@@ -420,15 +654,47 @@ export const AdminStudents: React.FC = () => {
                             {s.activityScore}/100
                           </td>
 
-                          <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/admin/students/${s.id}`)}
-                              className="text-cyan-400 hover:text-cyan-300 font-mono text-xs gap-1"
-                            >
-                              <Eye className="w-3.5 h-3.5" /> Details
-                            </Button>
+                          <td className="p-4 text-right w-[200px] min-w-[200px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <RowActions>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/admin/students/${s.id}`)}
+                                className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm text-cyan-400 border border-cyan-400/30 hover:bg-cyan-500/10 hover:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none transition-colors"
+                                title="View Details"
+                                aria-label={`View details for ${s.name}`}
+                              >
+                                <Eye className="w-4 h-4 shrink-0" />
+                                <span className="hidden lg:inline">Details</span>
+                              </Button>
+
+                              {isProtected ? (
+                                <span title="Admin accounts cannot be deleted.">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm opacity-40 cursor-not-allowed border-border text-text-muted"
+                                    aria-label="Admin accounts cannot be deleted"
+                                  >
+                                    <Trash2 className="w-4 h-4 shrink-0" />
+                                    <span className="hidden lg:inline">Delete</span>
+                                  </Button>
+                                </span>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteSingle(s)}
+                                  className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm text-rose-400 border border-rose-500/40 hover:bg-rose-500/15 hover:border-rose-400 focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none transition-colors"
+                                  title={`Delete account for ${s.name}`}
+                                  aria-label={`Delete account for ${s.name}`}
+                                >
+                                  <Trash2 className="w-4 h-4 shrink-0 text-rose-400" />
+                                  <span className="hidden lg:inline">Delete</span>
+                                </Button>
+                              )}
+                            </RowActions>
                           </td>
                         </tr>
                       );
@@ -468,6 +734,33 @@ export const AdminStudents: React.FC = () => {
               </div>
             )}
           </Card>
+
+          {/* Sticky Bulk Action Bar */}
+          <BulkActionBar
+            selectedCount={selectedIds.length}
+            onClearSelection={() => {
+              setSelectedIds([]);
+              setSkippedProtectedCount(0);
+            }}
+            onDeleteSelected={handleDeleteSelected}
+            onDeactivateSelected={handleDeactivateSelected}
+            skippedProtectedCount={skippedProtectedCount}
+            entityName="students"
+          />
+
+          {/* Shared Delete Confirmation Dialog */}
+          <DeleteAccountDialog
+            isOpen={deleteDialogOpen}
+            onClose={() => {
+              setDeleteDialogOpen(false);
+              setSingleStudentToDelete(null);
+              setBulkStudentsToDelete([]);
+            }}
+            studentToDelete={singleStudentToDelete}
+            bulkStudentsToDelete={bulkStudentsToDelete}
+            onSuccess={handleDeleteSuccess}
+            currentAdminEmail={currentAdminEmail}
+          />
         </>
       ) : (
         /* ANALYTICS & SKILL RADAR TAB */

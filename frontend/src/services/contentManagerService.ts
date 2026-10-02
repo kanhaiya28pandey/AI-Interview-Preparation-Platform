@@ -1,4 +1,5 @@
 import api, { isDemoSession } from "@/lib/api";
+import { notificationService } from "./notificationService";
 
 export type ContentType =
   | "QUIZ"
@@ -505,11 +506,37 @@ export const contentManagerService = {
   },
 
   async publishContent(id: string): Promise<ContentItem> {
+    let result: ContentItem;
     if (isDemoSession()) {
-      return this.updateContent(id, { status: "PUBLISHED" });
+      result = await this.updateContent(id, { status: "PUBLISHED" });
+    } else {
+      const res = await api.patch(`/admin/content/${id}/publish`);
+      result = res.data;
     }
-    const res = await api.patch(`/admin/content/${id}/publish`);
-    return res.data;
+
+    try {
+      const linkMap: Record<ContentType, string> = {
+        ARTICLE: "/articles",
+        QUIZ: "/quiz",
+        MOCK_TEST: "/quiz",
+        CODING_PROBLEM: "/coding",
+        CODING_TEST: "/coding",
+        MOCK_INTERVIEW: "/mock-interview",
+        PRACTICE_TOPIC: "/practice",
+      };
+
+      await notificationService.notifyAllStudents({
+        type: "content",
+        title: `New Content: ${result.title}`,
+        message: `A new ${result.type.toLowerCase().replace(/_/g, " ")} is now available in ${result.subject || "library"}.`,
+        link: linkMap[result.type] || "/dashboard",
+        priority: "info",
+      });
+    } catch (e) {
+      console.warn("Failed to broadcast content notification:", e);
+    }
+
+    return result;
   },
 
   async unpublishContent(id: string): Promise<ContentItem> {

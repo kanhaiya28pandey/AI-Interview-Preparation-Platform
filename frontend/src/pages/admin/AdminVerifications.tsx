@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Dialog } from "@/components/ui/Dialog";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { RoleBadge } from "@/components/common/RoleBadge";
+import { RowActions } from "@/components/common/RowActions";
 import { useAdminStore, MasterStudent, isRegistrationNew } from "@/context/AdminStoreContext";
+import { useAuth } from "@/context/AuthContext";
+import { DeleteAccountDialog, isAccountProtected } from "@/components/admin/DeleteAccountDialog";
 import { validateCollegeDomainMatch } from "@/mocks/verifications";
 import { verificationService } from "@/services/verificationService";
 import {
@@ -29,11 +34,13 @@ import {
   CheckCheck,
   UserX,
   ArrowRight,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 export const AdminVerifications: React.FC = () => {
+  const { user } = useAuth();
   const {
     students,
     approveVerification,
@@ -42,7 +49,11 @@ export const AdminVerifications: React.FC = () => {
     bulkApproveVerifications,
     bulkRejectVerifications,
     bulkDeleteStudents,
+    restoreStudent,
+    restoreStudents,
   } = useAdminStore();
+
+  const currentAdminEmail = user?.email || "admin@aiprep.com";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
@@ -80,10 +91,21 @@ export const AdminVerifications: React.FC = () => {
   const [rejectionCategory, setRejectionCategory] = useState("Details don't match ID card");
   const [rejectionNotes, setRejectionNotes] = useState("");
 
-  // Delete Rejected Account Modal
+  useBodyScrollLock(Boolean(selectedStudent));
+
+  useEffect(() => {
+    if (!selectedStudent) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedStudent(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedStudent]);
+
+  // Delete Account Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<MasterStudent | null>(null);
-  const [confirmInput, setConfirmInput] = useState("");
+  const [bulkStudentsToDelete, setBulkStudentsToDelete] = useState<MasterStudent[]>([]);
 
   // Bulk Action Modals
   const [bulkRejectModalOpen, setBulkRejectModalOpen] = useState(false);
@@ -135,33 +157,15 @@ export const AdminVerifications: React.FC = () => {
     setIsRejecting(false);
   };
 
-  // Open Single Delete Modal (REJECTED ONLY)
+  // Open Single Delete Modal
   const handleOpenDelete = (student: MasterStudent) => {
-    if (student.verificationStatus !== "Rejected") {
-      toast.error("Account deletion from this panel is only permitted for REJECTED accounts.");
+    if (isAccountProtected(student, currentAdminEmail)) {
+      toast.error("Admin and demo accounts cannot be deleted.");
       return;
     }
     setStudentToDelete(student);
-    setConfirmInput("");
+    setBulkStudentsToDelete([]);
     setDeleteModalOpen(true);
-  };
-
-  // Confirm Single Delete
-  const handleConfirmDelete = () => {
-    if (!studentToDelete) return;
-    const targetText = studentToDelete.rollNumber || studentToDelete.name;
-    if (confirmInput.trim().toLowerCase() !== targetText.trim().toLowerCase()) {
-      toast.error(`Please type "${targetText}" exactly to confirm deletion.`);
-      return;
-    }
-
-    deleteStudent(studentToDelete.id);
-    toast.success(`Account for ${studentToDelete.name} has been permanently deleted.`);
-    setDeleteModalOpen(false);
-    if (selectedStudent?.id === studentToDelete.id) {
-      setSelectedStudent(null);
-    }
-    setStudentToDelete(null);
   };
 
   // Bulk Actions
@@ -181,18 +185,57 @@ export const AdminVerifications: React.FC = () => {
   };
 
   const handleBulkDelete = () => {
-    if (selectedIds.length === 0) return;
-    const rejectedSelected = students.filter((s) => selectedIds.includes(s.id) && s.verificationStatus === "Rejected");
+    const rejectedSelected = students.filter(
+      (s) => selectedIds.includes(s.id) && s.verificationStatus === "Rejected" && !isAccountProtected(s, currentAdminEmail)
+    );
     if (rejectedSelected.length === 0) {
-      toast.error("Bulk delete requires selecting at least one REJECTED account.");
+      toast.error("Bulk delete requires selecting at least one non-protected REJECTED account.");
       return;
     }
+    setStudentToDelete(null);
+    setBulkStudentsToDelete(rejectedSelected);
+    setDeleteModalOpen(true);
+  };
 
-    if (window.confirm(`Permanently delete ${rejectedSelected.length} selected REJECTED accounts?`)) {
-      bulkDeleteStudents(rejectedSelected.map((s) => s.id));
-      toast.success(`Bulk deleted ${rejectedSelected.length} rejected accounts.`);
-      setSelectedIds([]);
+  const handleDeleteSuccess = (deletedList: MasterStudent[]) => {
+    const count = deletedList.length;
+    setSelectedIds((prev) => prev.filter((id) => !deletedList.some((d) => d.id === id)));
+    if (selectedStudent && deletedList.some((d) => d.id === selectedStudent.id)) {
+      setSelectedStudent(null);
     }
+
+    toast.custom(
+      (t) => (
+        <div className="flex items-center justify-between gap-4 p-4 bg-surface-raised border border-cyan-500/40 rounded-xl shadow-2xl text-text-primary text-xs font-mono max-w-md w-full">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>
+              {count === 1
+                ? `Removed account "${deletedList[0].name}".`
+                : `Removed ${count} student accounts.`}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              if (count === 1) {
+                restoreStudent(deletedList[0]);
+              } else {
+                restoreStudents(deletedList);
+              }
+              toast.dismiss(t);
+              toast.success(
+                `Restored ${count === 1 ? deletedList[0].name : `${count} accounts`} successfully.`
+              );
+            }}
+            className="px-3 py-1.5 bg-cyan-400 text-slate-950 font-bold rounded-lg hover:bg-cyan-300 transition-colors flex items-center gap-1 shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Undo
+          </button>
+        </div>
+      ),
+      { duration: 8000 }
+    );
   };
 
   return (
@@ -384,10 +427,10 @@ export const AdminVerifications: React.FC = () => {
                   <th className="p-3.5">Student / Ref ID</th>
                   <th className="p-3.5">Institution & Domain</th>
                   <th className="p-3.5">Roll / Course</th>
-                  <th className="p-3.5">Registration Date</th>
-                  <th className="p-3.5">ID Card Preview</th>
-                  <th className="p-3.5">Status</th>
-                  <th className="p-3.5 text-right">Actions</th>
+                  <th className="p-3.5 whitespace-nowrap">Registration Date</th>
+                  <th className="p-3.5 whitespace-nowrap">ID Card Preview</th>
+                  <th className="p-3.5 whitespace-nowrap">Status</th>
+                  <th className="p-3.5 text-right w-[280px] min-w-[280px] whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -425,42 +468,42 @@ export const AdminVerifications: React.FC = () => {
                           />
                         </td>
 
-                        <td className="p-3.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-text-primary">{s.name}</span>
+                        <td className="p-3.5 max-w-[200px]" title={`${s.name} (${s.email})`}>
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="font-semibold text-text-primary truncate">{s.name}</span>
                             {isNew && (
-                              <Badge variant="accent" className="text-[9px] font-mono px-1.5 py-0.2 animate-pulse">
+                              <Badge variant="accent" className="text-[9px] font-mono px-1.5 py-0.2 animate-pulse shrink-0">
                                 NEW
                               </Badge>
                             )}
                           </div>
-                          <div className="text-[10px] text-text-muted">{s.email}</div>
-                          <div className="text-[10px] font-mono text-cyan-400 mt-0.5">{s.id}</div>
+                          <div className="text-[10px] text-text-muted truncate">{s.email}</div>
+                          <div className="text-[10px] font-mono text-cyan-400 mt-0.5 truncate">{s.id}</div>
                         </td>
 
-                        <td className="p-3.5 max-w-[220px]">
+                        <td className="p-3.5 max-w-[220px]" title={s.college}>
                           <div className="font-medium text-text-primary truncate">{s.college}</div>
                           {domainMatch.matches ? (
-                            <span className="text-[10px] font-mono text-live flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Domain Match
+                            <span className="text-[10px] font-mono text-live flex items-center gap-1 truncate">
+                              <CheckCircle2 className="w-3 h-3 shrink-0" /> Domain Match
                             </span>
                           ) : (
-                            <span className="text-[10px] font-mono text-amber-400 flex items-center gap-1">
+                            <span className="text-[10px] font-mono text-amber-400 flex items-center gap-1 truncate">
                               ⚠️ Domain Mismatch
                             </span>
                           )}
                         </td>
 
-                        <td className="p-3.5 font-mono text-[11px]">
-                          <div className="text-text-primary font-semibold">{s.rollNumber}</div>
-                          <div className="text-text-muted text-[10px]">{s.course} - {s.branch}</div>
+                        <td className="p-3.5 font-mono text-[11px] max-w-[150px]" title={`${s.rollNumber} - ${s.course} (${s.branch})`}>
+                          <div className="text-text-primary font-semibold truncate">{s.rollNumber}</div>
+                          <div className="text-text-muted text-[10px] truncate">{s.course} - {s.branch}</div>
                         </td>
 
-                        <td className="p-3.5 font-mono text-[11px] text-text-muted">
+                        <td className="p-3.5 font-mono text-[11px] text-text-muted whitespace-nowrap">
                           {new Date(s.registeredAt).toLocaleDateString()}
                         </td>
 
-                        <td className="p-3.5">
+                        <td className="p-3.5 whitespace-nowrap">
                           {s.idCardFrontUrl ? (
                             <img
                               src={s.idCardFrontUrl}
@@ -472,7 +515,7 @@ export const AdminVerifications: React.FC = () => {
                           )}
                         </td>
 
-                        <td className="p-3.5">
+                        <td className="p-3.5 whitespace-nowrap">
                           <Badge
                             variant={
                               s.verificationStatus === "Verified"
@@ -487,32 +530,39 @@ export const AdminVerifications: React.FC = () => {
                           </Badge>
                         </td>
 
-                        <td className="p-3.5 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedStudent(s);
-                              setZoomLevel(1);
-                              setIsRejecting(false);
-                            }}
-                            className="text-xs h-7 px-2 text-cyan-400 border-cyan-400/30"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> Detail Drawer
-                          </Button>
-
-                          {/* Delete Account button for REJECTED accounts ONLY */}
-                          {s.verificationStatus === "Rejected" && (
+                        <td className="p-3.5 text-right w-[280px] min-w-[280px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <RowActions>
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              onClick={() => handleOpenDelete(s)}
-                              className="text-xs h-7 px-2 text-danger hover:bg-danger-bg/50"
-                              title="Delete rejected student account permanently"
+                              onClick={() => {
+                                setSelectedStudent(s);
+                                setZoomLevel(1);
+                                setIsRejecting(false);
+                              }}
+                              className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm text-cyan-400 border border-cyan-400/30 hover:bg-cyan-500/10 hover:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none transition-colors"
+                              title="Detail Drawer"
+                              aria-label="Detail Drawer"
                             >
-                              <Trash2 className="w-3.5 h-3.5" /> Delete Account
+                              <Eye className="w-4 h-4 shrink-0" />
+                              <span className="hidden lg:inline">Detail Drawer</span>
                             </Button>
-                          )}
+
+                            {/* Delete Account button for REJECTED accounts ONLY */}
+                            {s.verificationStatus === "Rejected" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenDelete(s)}
+                                className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm border border-red-500/30 text-danger hover:bg-danger-bg/50 hover:border-red-400 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none transition-colors"
+                                title="Delete Account"
+                                aria-label="Delete rejected student account permanently"
+                              >
+                                <Trash2 className="w-4 h-4 shrink-0" />
+                                <span className="hidden lg:inline">Delete Account</span>
+                              </Button>
+                            )}
+                          </RowActions>
                         </td>
                       </motion.tr>
                     );
@@ -525,32 +575,43 @@ export const AdminVerifications: React.FC = () => {
       </Card>
 
       {/* DETAIL DRAWER / SLIDE-OVER WITH ZOOMABLE ID & TIMELINE */}
-      <AnimatePresence>
-        {selectedStudent && (
-          <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/70 backdrop-blur-sm">
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-surface border-l border-border w-full max-w-3xl h-full overflow-y-auto shadow-2xl p-6 space-y-6 flex flex-col justify-between"
+      {typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {selectedStudent && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="verification-drawer-title"
+              className="fixed inset-0 z-[100] flex items-center justify-end bg-black/70 backdrop-blur-sm animate-fade-in"
             >
-              {/* Drawer Header */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-border pb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-cyan-400 uppercase">Verification Detail Drawer</span>
-                      <Badge variant={selectedStudent.verificationStatus === "Verified" ? "active" : selectedStudent.verificationStatus === "Rejected" ? "blocked" : "medium"}>
-                        {selectedStudent.verificationStatus}
-                      </Badge>
-                      {isRegistrationNew(selectedStudent.registeredAt) && (
-                        <Badge variant="accent" className="text-[9px] font-mono">NEW</Badge>
-                      )}
-                    </div>
-                    <h2 className="font-serif text-2xl font-medium text-text-primary mt-1">
-                      {selectedStudent.name}
-                    </h2>
+              <div
+                className="fixed inset-0"
+                onClick={() => setSelectedStudent(null)}
+                aria-hidden="true"
+              />
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="relative z-10 bg-surface border-l border-border w-full max-w-3xl h-full overflow-y-auto shadow-2xl p-4 sm:p-6 space-y-6 flex flex-col justify-between custom-scrollbar"
+              >
+                {/* Drawer Header */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-cyan-400 uppercase">Verification Detail Drawer</span>
+                        <Badge variant={selectedStudent.verificationStatus === "Verified" ? "active" : selectedStudent.verificationStatus === "Rejected" ? "blocked" : "medium"}>
+                          {selectedStudent.verificationStatus}
+                        </Badge>
+                        {isRegistrationNew(selectedStudent.registeredAt) && (
+                          <Badge variant="accent" className="text-[9px] font-mono">NEW</Badge>
+                        )}
+                      </div>
+                      <h2 id="verification-drawer-title" className="font-serif text-2xl font-medium text-text-primary mt-1">
+                        {selectedStudent.name}
+                      </h2>
                     <p className="text-xs text-text-muted font-mono">{selectedStudent.email}</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)} className="text-text-muted">
@@ -753,47 +814,23 @@ export const AdminVerifications: React.FC = () => {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
 
-      {/* DELETE REJECTED ACCOUNT CONFIRMATION MODAL */}
-      {deleteModalOpen && studentToDelete && (
-        <Dialog
-          isOpen={deleteModalOpen}
-          onClose={() => setDeleteModalOpen(false)}
-          title={`Permanently Delete Account: ${studentToDelete.name}`}
-          footer={
-            <>
-              <Button variant="ghost" size="sm" onClick={() => setDeleteModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleConfirmDelete} className="bg-danger hover:bg-danger/80">
-                <Trash2 className="w-4 h-4" /> Permanently Remove Account
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            <div className="p-3.5 bg-danger-bg border border-danger/40 rounded-xl text-danger text-xs space-y-1">
-              <span className="font-semibold block">⚠️ Permanent Removal Warning</span>
-              <p className="text-[11px] leading-relaxed">
-                This account has been <strong>REJECTED</strong>. Deleting it will permanently remove all profile records, roll number ({studentToDelete.rollNumber}), and uploaded ID files from the platform database.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-text-secondary block">
-                Type <strong className="text-text-primary font-mono">{studentToDelete.rollNumber || studentToDelete.name}</strong> to confirm:
-              </label>
-              <Input
-                type="text"
-                placeholder={studentToDelete.rollNumber || studentToDelete.name}
-                value={confirmInput}
-                onChange={(e) => setConfirmInput(e.target.value)}
-              />
-            </div>
-          </div>
-        </Dialog>
-      )}
+      {/* SHARED DELETE ACCOUNT CONFIRMATION DIALOG */}
+      <DeleteAccountDialog
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setStudentToDelete(null);
+          setBulkStudentsToDelete([]);
+        }}
+        studentToDelete={studentToDelete}
+        bulkStudentsToDelete={bulkStudentsToDelete}
+        onSuccess={handleDeleteSuccess}
+        currentAdminEmail={currentAdminEmail}
+      />
 
       {/* BULK REJECT MODAL */}
       {bulkRejectModalOpen && (

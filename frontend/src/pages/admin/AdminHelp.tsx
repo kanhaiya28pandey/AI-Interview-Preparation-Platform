@@ -17,18 +17,17 @@ export const AdminHelp: React.FC = () => {
     supportService.getTickets().then(setTickets);
   }, []);
 
-  const handleToggleTicketStatus = (ticketId: string) => {
+  const handleToggleTicketStatus = async (ticketId: string) => {
+    const current = tickets.find((t) => t.id === ticketId);
+    if (!current) return;
+    const nextStatus =
+      current.status === "Open" ? "In Review" : current.status === "In Review" ? "Resolved" : "Open";
+    
+    await supportService.updateTicketStatus(ticketId, nextStatus);
     setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === ticketId) {
-          const nextStatus =
-            t.status === "Open" ? "In Review" : t.status === "In Review" ? "Resolved" : "Open";
-          toast.success(`Ticket ${t.id} status set to ${nextStatus}`);
-          return { ...t, status: nextStatus };
-        }
-        return t;
-      })
+      prev.map((t) => (t.id === ticketId ? { ...t, status: nextStatus } : t))
     );
+    toast.success(`Ticket ${ticketId} status set to ${nextStatus}`);
   };
 
   const filteredAdminFaqs = ADMIN_FAQ_ITEMS.filter(

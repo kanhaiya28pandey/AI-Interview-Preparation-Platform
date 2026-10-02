@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { ContextualHelpTooltip } from "@/components/common/ContextualHelpTooltip";
+import { useAdminStore, MasterStudent } from "@/context/AdminStoreContext";
+import { useAuth } from "@/context/AuthContext";
+import { DeleteAccountDialog, isAccountProtected } from "@/components/admin/DeleteAccountDialog";
 import {
   ArrowLeft,
   Printer,
@@ -26,6 +29,10 @@ import {
   MessageSquare,
   Plus,
   Zap,
+  Trash2,
+  Ban,
+  RotateCcw,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
@@ -34,8 +41,20 @@ import { cn } from "@/lib/utils";
 export const AdminStudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const {
+    students,
+    deleteStudent,
+    restoreStudent,
+    deactivateStudent,
+    reactivateStudent,
+  } = useAdminStore();
+
+  const currentAdminEmail = user?.email || "admin@aiprep.com";
+
   const [student, setStudent] = useState<StudentProgress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const [noteText, setNoteText] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -84,6 +103,85 @@ export const AdminStudentDetail: React.FC = () => {
   if (loading || !student) {
     return <CardSkeleton />;
   }
+
+  const existingMaster = students.find((s) => s.id === student.id);
+  const masterStudent: MasterStudent = existingMaster || {
+    id: student.id,
+    userId: student.id,
+    name: student.name,
+    email: student.email,
+    phone: "",
+    college: student.college,
+    course: student.course,
+    branch: student.branch,
+    yearSemester: student.year,
+    year: student.year,
+    rollNumber: student.rollNumber,
+    idCardFrontUrl: "",
+    registeredAt: student.joinedDate || new Date().toISOString(),
+    verificationStatus:
+      student.verificationStatus === "VERIFIED"
+        ? "Verified"
+        : student.verificationStatus === "REJECTED"
+        ? "Rejected"
+        : "Pending Verification",
+    role: "STUDENT",
+    status: "ACTIVE",
+    profileCompletion: 85,
+    activityScore: student.activityScore,
+    riskLevel: student.riskLevel === "At Risk" ? "At Risk" : "On Track",
+    streakDays: student.streakDays || 0,
+    problemsSolved: student.problemsSolved || 0,
+    interviewsCompleted: student.interviewsCompleted || 0,
+    avgInterviewScore: student.avgInterviewScore || 0,
+    avgQuizScore: student.avgQuizScore || 0,
+    bestAtsScore: student.bestAtsScore || 0,
+    lastActive: student.lastActive || "",
+  };
+
+  const isProtected = isAccountProtected(masterStudent, currentAdminEmail);
+  const isInactive = masterStudent.status === "INACTIVE";
+
+  const handleToggleDeactivate = () => {
+    if (isProtected) {
+      toast.error("Admin and demo accounts cannot be deactivated.");
+      return;
+    }
+    if (isInactive) {
+      reactivateStudent(student.id);
+      toast.success(`Reactivated account for ${student.name}.`);
+    } else {
+      deactivateStudent(student.id);
+      toast.success(`Deactivated account for ${student.name}.`);
+    }
+  };
+
+  const handleDeleteSuccess = (deletedList: MasterStudent[]) => {
+    const deleted = deletedList[0] || masterStudent;
+    navigate("/admin/students");
+    toast.custom(
+      (t) => (
+        <div className="flex items-center justify-between gap-4 p-4 bg-surface-raised border border-cyan-500/40 rounded-xl shadow-2xl text-text-primary text-xs font-mono max-w-md w-full">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>Removed account &quot;{deleted.name}&quot;.</span>
+          </div>
+          <button
+            onClick={() => {
+              restoreStudent(deleted);
+              toast.dismiss(t);
+              toast.success(`Restored ${deleted.name} successfully.`);
+            }}
+            className="px-3 py-1.5 bg-cyan-400 text-slate-950 font-bold rounded-lg hover:bg-cyan-300 transition-colors flex items-center gap-1 shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Undo
+          </button>
+        </div>
+      ),
+      { duration: 8000 }
+    );
+  };
 
   const isAtRisk = student.riskLevel === "At Risk";
 
@@ -569,6 +667,89 @@ export const AdminStudentDetail: React.FC = () => {
           )}
         </div>
       </Card>
+
+      {/* Danger Zone (Account Management & Deletion) */}
+      <Card className="p-5 bg-rose-500/5 border border-rose-500/30 space-y-4 shadow-lg no-print">
+        <div className="flex items-center justify-between pb-3 border-b border-rose-500/20">
+          <div>
+            <h3 className="font-serif font-semibold text-base text-rose-400 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-rose-400" /> Danger Zone: Account Lifecycle
+            </h3>
+            <p className="text-xs text-text-muted">
+              Actions here impact login access and persistent student records.
+            </p>
+          </div>
+          {isProtected && (
+            <Badge variant="outline" className="font-mono text-[10px] text-amber-400 border-amber-500/30">
+              PROTECTED ACCOUNT
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-surface rounded-xl border border-border">
+          <div>
+            <div className="font-semibold text-xs text-text-primary">
+              {isInactive ? "Reactivate Student Account" : "Deactivate Student Account"}
+            </div>
+            <div className="text-[11px] text-text-muted">
+              {isInactive
+                ? "Restores login access and active status on platform rosters."
+                : "Temporarily disables login while preserving all progress, quiz scores, and submissions."}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isProtected}
+            onClick={handleToggleDeactivate}
+            className="text-xs font-mono text-amber-400 border-amber-500/30 hover:bg-amber-500/10 hover:border-amber-400 shrink-0 gap-1.5"
+          >
+            <Ban className="w-3.5 h-3.5" />
+            {isInactive ? "Reactivate Account" : "Deactivate Account"}
+          </Button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-surface rounded-xl border border-rose-500/30">
+          <div>
+            <div className="font-semibold text-xs text-rose-400">Permanently Delete Account</div>
+            <div className="text-[11px] text-text-muted">
+              Permanently removes this student profile, ID verification images, and assessment history.
+            </div>
+          </div>
+          {isProtected ? (
+            <span title="Admin and demo accounts cannot be deleted.">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled
+                className="text-xs font-mono opacity-40 cursor-not-allowed border-border text-text-muted shrink-0 gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Account
+              </Button>
+            </span>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="text-xs font-mono text-rose-400 border-rose-500/40 hover:bg-rose-500/15 hover:border-rose-400 shrink-0 gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Account
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteAccountDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        studentToDelete={masterStudent}
+        onSuccess={handleDeleteSuccess}
+        currentAdminEmail={currentAdminEmail}
+      />
     </div>
   );
 };

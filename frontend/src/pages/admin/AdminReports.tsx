@@ -384,15 +384,15 @@ export const AdminReports: React.FC = () => {
                     <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: "var(--surface)", borderColor: "var(--border)", color: "var(--text-primary)", borderRadius: "8px" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="date" stroke="var(--chart-text)" fontSize={11} />
+                <YAxis stroke="var(--chart-text)" fontSize={11} />
+                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "#ffffff", borderRadius: "8px" }} />
                 <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }} />
-                <Area type="monotone" dataKey="registered" stroke="#22d3ee" fillOpacity={1} fill="url(#colorReg)" name="Registered Students" />
-                <Area type="monotone" dataKey="verified" stroke="#22c55e" fillOpacity={1} fill="url(#colorVer)" name="Verified Students" />
+                <Area type="monotone" dataKey="registered" stroke="var(--accent-bright)" fillOpacity={1} fill="url(#colorReg)" name="Registered Students" />
+                <Area type="monotone" dataKey="verified" stroke="var(--live)" fillOpacity={1} fill="url(#colorVer)" name="Verified Students" />
                 {comparePrevious && (
-                  <Line type="monotone" dataKey="prevPeriod" stroke="#94a3b8" strokeDasharray="5 5" name="Prev Period Comparison" />
+                  <Line type="monotone" dataKey="prevPeriod" stroke="var(--chart-text)" strokeDasharray="5 5" name="Prev Period Comparison" />
                 )}
               </AreaChart>
             </ResponsiveContainer>
@@ -411,11 +411,11 @@ export const AdminReports: React.FC = () => {
           <div className="h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={domainScoreData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="domain" stroke="var(--text-muted)" fontSize={10} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} domain={[0, 100]} />
-                <Tooltip contentStyle={{ backgroundColor: "var(--surface)", borderColor: "var(--border)", color: "var(--text-primary)", borderRadius: "8px" }} />
-                <Bar dataKey="avgScore" fill="#a855f7" radius={[4, 4, 0, 0]} name="Avg Score (%)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="domain" stroke="var(--chart-text)" fontSize={10} />
+                <YAxis stroke="var(--chart-text)" fontSize={11} domain={[0, 100]} />
+                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "#ffffff", borderRadius: "8px" }} />
+                <Bar dataKey="avgScore" fill="var(--purple-400)" radius={[4, 4, 0, 0]} name="Avg Score (%)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -437,7 +437,7 @@ export const AdminReports: React.FC = () => {
                     <Cell key={idx} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: "var(--surface)", borderColor: "var(--border)", color: "var(--text-primary)", borderRadius: "8px" }} />
+                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "#ffffff", borderRadius: "8px" }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -456,13 +456,13 @@ export const AdminReports: React.FC = () => {
           <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={passVsFailData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="testName" stroke="var(--text-muted)" fontSize={10} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: "var(--surface)", borderColor: "var(--border)", color: "var(--text-primary)", borderRadius: "8px" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="testName" stroke="var(--chart-text)" fontSize={10} />
+                <YAxis stroke="var(--chart-text)" fontSize={11} />
+                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "#ffffff", borderRadius: "8px" }} />
                 <Legend wrapperStyle={{ fontSize: "11px" }} />
-                <Bar dataKey="passed" stackId="a" fill="#22c55e" name="Passed" />
-                <Bar dataKey="failed" stackId="a" fill="#f43f5e" name="Failed" />
+                <Bar dataKey="passed" stackId="a" fill="var(--live)" name="Passed" />
+                <Bar dataKey="failed" stackId="a" fill="var(--danger)" name="Failed" />
               </BarChart>
             </ResponsiveContainer>
           </div>
