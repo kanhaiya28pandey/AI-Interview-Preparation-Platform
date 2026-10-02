@@ -63,7 +63,7 @@ export const StatCard: React.FC<StatCardProps> = ({
     >
       <Card
         className={cn(
-          "relative overflow-hidden group transition-all duration-300",
+          "relative overflow-hidden group transition-all duration-300 spotlight-card",
           "hover:border-cyan-400/30 hover:scale-[1.015]",
           className
         )}

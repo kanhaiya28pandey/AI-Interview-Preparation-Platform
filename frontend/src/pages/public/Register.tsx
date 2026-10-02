@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useAdminStore } from "@/context/AdminStoreContext";
 import { profileService } from "@/services/profileService";
 import { verificationService } from "@/services/verificationService";
+import { notificationService } from "@/services/notificationService";
 import { suggestCollegeFromEmail, INITIAL_MOCK_VERIFICATIONS } from "@/mocks/verifications";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Button } from "@/components/ui/Button";
@@ -426,10 +427,32 @@ export const Register: React.FC = () => {
           verificationStatus: "Pending Verification",
           role: "STUDENT",
           status: "PENDING",
-          profileCompletion: 85,
+          profileCompletion: 0,
         });
       } catch (e) {
         console.warn("Could not sync to admin store:", e);
+      }
+
+      // 5. Create notifications for student and admin
+      try {
+        await notificationService.notifyUser(authRes.userId, {
+          audience: "STUDENT",
+          type: "system",
+          title: "Welcome to AI Interview Prep",
+          message: "Verify your identity to unlock all features.",
+          link: "/verify-identity",
+          priority: "info",
+        });
+
+        await notificationService.notifyAdmins({
+          type: "verification",
+          title: "New Student Registration",
+          message: `${nameVal.trim()} (${emailVal.trim()}) registered and submitted verification.`,
+          link: "/admin/verifications",
+          priority: "warning",
+        });
+      } catch (notifErr) {
+        console.warn("Could not dispatch registration notifications:", notifErr);
       }
 
       // Clear draft storage
@@ -441,7 +464,7 @@ export const Register: React.FC = () => {
         if (role === "ADMIN" || role === "ROLE_ADMIN") {
           navigate("/admin", { replace: true });
         } else {
-          navigate("/dashboard", { replace: true });
+          navigate("/verify-identity", { replace: true });
         }
       }, 900);
     } catch (err: any) {
@@ -726,7 +749,7 @@ export const Register: React.FC = () => {
               Registration Completed!
             </h3>
             <p className="text-xs text-text-muted font-mono max-w-sm mx-auto leading-relaxed">
-              Your account & college ID verification details have been recorded. Redirecting to student dashboard...
+              Your account & college ID verification details have been recorded. Redirecting to verification status...
             </p>
           </div>
         ) : (

@@ -22,19 +22,19 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary:
-      "bg-gradient-to-br from-teal-500 to-cyan-400 text-[#0d1321] dark:text-[#0d1321] font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink border-none",
+      "bg-gradient-to-br from-teal-500 to-cyan-400 text-white dark:text-[#0d1321] font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink border-none",
     "teal-cyan":
-      "bg-gradient-to-br from-teal-500 to-cyan-400 text-[#0d1321] dark:text-[#0d1321] font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink border-none",
+      "bg-gradient-to-br from-teal-500 to-cyan-400 text-white dark:text-[#0d1321] font-semibold shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink border-none",
     "gold-soft":
-      "bg-cyan-400/15 text-cyan-300 border border-cyan-400/30 hover:bg-cyan-400/25 focus-visible:ring-2 focus-visible:ring-cyan-400/50",
+      "bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 dark:border-cyan-400/30 hover:bg-cyan-500/25 dark:hover:bg-cyan-400/25 focus-visible:ring-2 focus-visible:ring-cyan-400/50 font-semibold dark:font-medium",
     "accent-soft":
-      "bg-cyan-400/15 text-cyan-300 border border-cyan-400/30 hover:bg-cyan-400/25 focus-visible:ring-2 focus-visible:ring-cyan-400/50",
+      "bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 dark:border-cyan-400/30 hover:bg-cyan-500/25 dark:hover:bg-cyan-400/25 focus-visible:ring-2 focus-visible:ring-cyan-400/50 font-semibold dark:font-medium",
     ghost:
       "bg-transparent text-text-secondary hover:bg-surface-raised hover:text-text-primary border border-transparent focus-visible:ring-2 focus-visible:ring-border",
     outline:
       "bg-transparent text-text-primary border border-border hover:bg-surface-raised hover:border-border-strong focus-visible:ring-2 focus-visible:ring-border",
     danger:
-      "bg-danger text-ink font-semibold hover:bg-danger/80 focus-visible:ring-2 focus-visible:ring-danger/50",
+      "bg-danger text-white dark:text-ink font-semibold hover:bg-danger/90 focus-visible:ring-2 focus-visible:ring-danger/50",
   };
 
   const sizes = {

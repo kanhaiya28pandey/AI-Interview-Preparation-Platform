@@ -1,9 +1,12 @@
 import React from "react";
 import { Card } from "@/components/ui/Card";
 import { useAppearance, ACCENT_PRESETS, AccentPreset, ThemeMode, BackgroundStyle } from "@/context/AppearanceContext";
-import { Sun, Moon, Monitor, Palette, Sparkles, Wand2, EyeOff, Layers } from "lucide-react";
+import { useTour } from "@/context/TourContext";
+import { Sun, Moon, Monitor, Palette, Sparkles, Wand2, EyeOff, Layers, RotateCcw } from "lucide-react";
 
 export const AppearanceSettingsCard: React.FC = () => {
+  const tourCtx = (() => { try { return useTour(); } catch { return null; } })();
+
   const {
     theme,
     setTheme,
@@ -33,6 +36,7 @@ export const AppearanceSettingsCard: React.FC = () => {
     { id: "orbs", label: "Soft Orbs", desc: "Gentle drifting color blobs" },
     { id: "mesh", label: "Gradient Mesh", desc: "Subtle multi-color background glow" },
     { id: "particles", label: "Code Particles", desc: "Lightweight floating code symbols" },
+    { id: "coderain", label: "Code Rain", desc: "Matrix-style code symbols drifting downward" },
     { id: "none", label: "Minimal (None)", desc: "Solid background without decorative layers" },
   ];
 
@@ -173,6 +177,28 @@ export const AppearanceSettingsCard: React.FC = () => {
           />
         </button>
       </div>
+
+      {/* 5. REPLAY GUIDED TOUR */}
+      {tourCtx && (
+        <div className="p-4 bg-surface-raised/70 border border-border rounded-xl flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-text-primary">
+              <RotateCcw className="w-4 h-4 text-text-muted" />
+              <span>Replay Guided Tour</span>
+            </div>
+            <p className="text-[11px] text-text-muted">
+              Walk through the key features again with the guided product tour.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => tourCtx.startTour()}
+            className="px-4 py-1.5 bg-accent text-ink rounded-lg text-xs font-semibold hover:bg-accent-bright transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            Start Tour
+          </button>
+        </div>
+      )}
     </Card>
   );
 };

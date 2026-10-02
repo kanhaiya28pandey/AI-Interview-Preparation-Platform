@@ -1,17 +1,44 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useAppearance } from "@/context/AppearanceContext";
+import { useNotifications } from "@/context/NotificationContext";
+import { AppNotification } from "@/services/notificationService";
+import { useReducedEffects } from "@/hooks/useReducedEffects";
+import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import { Button } from "@/components/ui/Button";
-import { Menu, LogOut, Shield, Sparkles, Bell, Search, Sun, Moon, CheckCheck, HelpCircle, ArrowRight, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import {
+  Menu,
+  LogOut,
+  Shield,
+  Sparkles,
+  Bell,
+  Search,
+  Sun,
+  Moon,
+  CheckCheck,
+  HelpCircle,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Trash2,
+  Video,
+  Code2,
+  FileText,
+  Briefcase,
+  Flame,
+  UserCheck,
+  BookOpen,
+  LifeBuoy,
+  AlertTriangle,
+  Inbox,
+} from "lucide-react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
-import { RoleBadge } from "@/components/common/RoleBadge";
-import { KeyboardShortcutsHelp } from "@/components/common/KeyboardShortcutsHelp";
-import { usePreviewMode } from "@/context/PreviewModeContext";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
-import { FAQ_CATEGORIES, FAQItem } from "@/mocks/faqs";
+import { FAQ_CATEGORIES } from "@/mocks/faqs";
 
 export interface TopbarProps {
   onOpenMobileSidebar?: () => void;
@@ -20,60 +47,6 @@ export interface TopbarProps {
   onToggleSidebarCollapse?: () => void;
 }
 
-export interface NotificationItem {
-  id: number;
-  title: string;
-  text: string;
-  time: string;
-  read: boolean;
-  type: "interview" | "placement" | "streak";
-  link: string;
-}
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 1,
-    title: "Mock Interview Scored",
-    text: "Senior Frontend Round rating: 89/100",
-    time: "10m ago",
-    read: false,
-    type: "interview",
-    link: "/mock-interview",
-  },
-  {
-    id: 2,
-    title: "Campus Placement Alert",
-    text: "Amazon SDE Drive registration closes in 2 days",
-    time: "1h ago",
-    read: false,
-    type: "placement",
-    link: "/articles",
-  },
-  {
-    id: 3,
-    title: "Daily Practice Streak",
-    text: "12 days in a row! Keep up the momentum.",
-    time: "4h ago",
-    read: false,
-    type: "streak",
-    link: "/dashboard",
-  },
-];
-
-import { isDemoUser, scopedKey } from "@/lib/userScope";
-
-const WELCOME_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 1,
-    title: "Welcome to AI Interview Prep",
-    text: "Complete your profile to get started and unlock recruiter-ready status.",
-    time: "Just now",
-    read: false,
-    type: "placement",
-    link: "/profile",
-  },
-];
-
 export const Topbar: React.FC<TopbarProps> = ({
   onOpenMobileSidebar,
   title,
@@ -81,35 +54,12 @@ export const Topbar: React.FC<TopbarProps> = ({
   onToggleSidebarCollapse,
 }) => {
   const { user, logout, isDemoMode } = useAuth();
-  const { isPreviewMode, togglePreviewMode } = usePreviewMode();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickHelp, setShowQuickHelp] = useState(false);
   const [quickHelpQuery, setQuickHelpQuery] = useState("");
-
-  const isDemo = isDemoMode || isDemoUser(user);
-
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    const defaultList = isDemo ? INITIAL_NOTIFICATIONS : WELCOME_NOTIFICATIONS;
-    if (!user?.userId) return defaultList;
-    try {
-      const readKey = scopedKey("notifications_read", user.userId);
-      const readIdsRaw = localStorage.getItem(readKey);
-      if (readIdsRaw) {
-        const readIds: number[] = JSON.parse(readIdsRaw);
-        return defaultList.map((n) => ({
-          ...n,
-          read: readIds.includes(n.id),
-        }));
-      }
-    } catch {
-      // fallback
-    }
-    return defaultList;
-  });
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
+  const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications();
+  const reducedEffects = useReducedEffects();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
   const { isDark, toggleTheme } = useAppearance();
@@ -119,34 +69,48 @@ export const Topbar: React.FC<TopbarProps> = ({
     profileService.getProfile().then((data) => setProfile(data));
   }, [user]);
 
-  const saveReadState = (readIds: number[]) => {
-    if (user?.userId) {
-      try {
-        const readKey = scopedKey("notifications_read", user.userId);
-        localStorage.setItem(readKey, JSON.stringify(readIds));
-      } catch {
-        // fallback
-      }
+  const handleNotificationClick = async (item: AppNotification) => {
+    await markRead(item.id);
+    setShowNotifications(false);
+    if (item.link) {
+      navigate(item.link);
     }
   };
-  const handleNotificationClick = (item: NotificationItem) => {
-    setNotifications((prev) => {
-      const next = prev.map((n) => (n.id === item.id ? { ...n, read: true } : n));
-      const readIds = next.filter((n) => n.read).map((n) => n.id);
-      saveReadState(readIds);
-      return next;
-    });
-    setShowNotifications(false);
-    navigate(item.link);
+
+  const handleDismiss = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await remove(id);
   };
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => {
-      const next = prev.map((n) => ({ ...n, read: true }));
-      const readIds = next.map((n) => n.id);
-      saveReadState(readIds);
-      return next;
-    });
+  const renderNotificationIcon = (type: AppNotification["type"], priority?: AppNotification["priority"]) => {
+    switch (type) {
+      case "verification":
+        return priority === "danger" ? (
+          <AlertTriangle className="w-3.5 h-3.5 text-danger shrink-0" />
+        ) : (
+          <Shield className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+        );
+      case "interview":
+        return <Video className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
+      case "coding":
+        return <Code2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />;
+      case "quiz":
+        return <HelpCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+      case "resume":
+        return <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+      case "placement":
+        return <Briefcase className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
+      case "streak":
+        return <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+      case "profile":
+        return <UserCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
+      case "content":
+        return <BookOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
+      case "support":
+        return <LifeBuoy className="w-3.5 h-3.5 text-pink-400 shrink-0" />;
+      default:
+        return <Bell className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
+    }
   };
 
   // Close notifications and help popover on outside click or Escape
@@ -348,128 +312,155 @@ export const Topbar: React.FC<TopbarProps> = ({
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <>
-                <span className="w-2 h-2 rounded-full bg-cyan-400 absolute top-1 right-1 animate-ping" />
-                <span className="w-2 h-2 rounded-full bg-cyan-400 absolute top-1 right-1" />
-              </>
+              <span
+                className={`absolute -top-1 -right-1 px-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-cyan-400 text-surface font-mono text-[10px] font-bold shadow-sm ${
+                  !reducedEffects ? "animate-pulse" : ""
+                }`}
+              >
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
             )}
           </Button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-surface-raised border border-border rounded-xl shadow-soft p-4 z-50 space-y-3 opacity-100">
-              <div className="flex justify-between items-center pb-2 border-b border-border">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface-raised border border-border rounded-xl shadow-2xl p-4 z-50 space-y-3 opacity-100">
+              <div className="flex justify-between items-center pb-2.5 border-b border-border">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-semibold text-text-primary">System Notifications</span>
+                  <span className="font-serif text-xs font-bold text-text-primary tracking-tight">Notifications</span>
                   {unreadCount > 0 ? (
                     <span className="text-[10px] font-mono text-cyan-400 font-semibold bg-cyan-400/15 border border-cyan-400/30 px-2 py-0.5 rounded-full">
                       {unreadCount} new
                     </span>
                   ) : (
                     <span className="text-[10px] font-mono text-text-muted bg-surface border border-border px-2 py-0.5 rounded-full">
-                      All read
+                      Caught up
                     </span>
                   )}
                 </div>
 
-                {unreadCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleMarkAllRead}
-                    className="text-[11px] font-mono text-cyan-400 hover:underline hover:text-cyan-300 transition-colors flex items-center gap-1"
-                    title="Mark all notifications as read"
-                  >
-                    <CheckCheck className="w-3 h-3" />
-                    Read all
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllRead()}
+                      className="text-[11px] font-mono text-cyan-400 hover:underline hover:text-cyan-300 transition-colors flex items-center gap-1"
+                      title="Mark all notifications as read"
+                    >
+                      <CheckCheck className="w-3 h-3" />
+                      Read all
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => clearAll()}
+                      className="text-[11px] font-mono text-text-muted hover:text-danger transition-colors flex items-center gap-1 ml-1"
+                      title="Clear all notifications"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
-                {notifications.map((n) => {
-                  const isUnread = !n.read;
-                  return (
-                    <button
-                      key={n.id}
-                      type="button"
-                      onClick={() => handleNotificationClick(n)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleNotificationClick(n);
-                        }
-                      }}
-                      className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400/40 block ${
-                        isUnread
-                          ? "bg-surface border-cyan-400/40 shadow-sm hover:bg-surface-raised hover:border-cyan-400"
-                          : "bg-surface/40 border-border opacity-75 hover:opacity-100 hover:bg-surface-raised"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 font-semibold text-xs">
-                          {isUnread ? (
-                            <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
-                          ) : (
-                            <span className="w-2 h-2 rounded-full bg-transparent shrink-0" />
-                          )}
-                          <span className={isUnread ? "text-text-primary font-bold" : "text-text-secondary"}>
-                            {n.title}
-                          </span>
+                {notifications.length === 0 ? (
+                  <div className="py-8 px-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center mx-auto text-text-muted">
+                      <Inbox className="w-5 h-5 opacity-60" />
+                    </div>
+                    <p className="text-xs font-semibold text-text-primary">You're all caught up</p>
+                    <p className="text-[11px] text-text-muted">No notifications yet</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => {
+                    const isUnread = !n.read;
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleNotificationClick(n);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        className={`group relative w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400/40 block ${
+                          isUnread
+                            ? "bg-surface border-cyan-400/40 shadow-sm hover:bg-surface-raised hover:border-cyan-400"
+                            : "bg-surface/40 border-border opacity-80 hover:opacity-100 hover:bg-surface-raised"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <div className="p-1.5 rounded-lg bg-surface-raised border border-border shrink-0 mt-0.5">
+                              {renderNotificationIcon(n.type, n.priority)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs truncate ${isUnread ? "font-bold text-text-primary" : "font-medium text-text-secondary"}`}>
+                                  {n.title}
+                                </span>
+                                {isUnread && (
+                                  <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-text-secondary leading-relaxed mt-0.5 line-clamp-2">
+                                {n.message}
+                              </p>
+                              <span className="text-[10px] text-text-muted font-mono mt-1.5 block">
+                                {formatRelativeTime(n.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => handleDismiss(e, n.id)}
+                            className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-surface opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shrink-0"
+                            title="Dismiss notification"
+                            aria-label="Dismiss notification"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        <span className="text-[10px] text-text-muted font-mono shrink-0">{n.time}</span>
                       </div>
-                      <p className="text-[11px] text-text-secondary leading-relaxed mt-1 pl-4">
-                        {n.text}
-                      </p>
-                    </button>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* User Profile Avatar Link & RoleBadge */}
-        <div className="flex items-center gap-2">
-          <NavLink
-            to="/profile"
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity pl-1"
-            title={`Logged in as ${user?.name || "User"}`}
-          >
-            <AvatarCompletionRing profile={profile} name={user?.name} size="sm" showPill={false} />
-            <span className="hidden xl:inline text-xs font-semibold text-text-primary max-w-[120px] truncate">
-              {user?.name}
-            </span>
-          </NavLink>
-          <RoleBadge role={user?.role} size="sm" className="hidden sm:inline-flex" />
-        </div>
+        {/* User Profile Avatar Link */}
+        <NavLink
+          to="/profile"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity pl-1"
+          title={`Logged in as ${user?.name || "User"} (${user?.role || "STUDENT"})`}
+        >
+          <AvatarCompletionRing profile={profile} name={user?.name} size="sm" showPill={false} />
+          <span className="hidden xl:inline text-xs font-semibold text-text-primary max-w-[120px] truncate">
+            {user?.name}
+          </span>
+        </NavLink>
 
-        {/* Role switch / Preview as Regular User button if admin */}
+        {/* Role switch pill if admin */}
         {user?.role === "ADMIN" && (
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant={isPreviewMode ? "accent-soft" : "outline"}
-              size="sm"
-              onClick={togglePreviewMode}
-              title="Toggle preview as a regular user"
-              className="text-xs py-1 font-mono"
-            >
-              <Eye className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden md:inline">
-                {isPreviewMode ? "Exit User Preview" : "Preview as User"}
-              </span>
-            </Button>
-            <Button
-              variant="teal-cyan"
-              size="sm"
-              onClick={() => navigate(window.location.pathname.startsWith("/admin") ? "/dashboard" : "/admin")}
-              className="text-xs py-1"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">
-                {window.location.pathname.startsWith("/admin") ? "Student View" : "Admin Panel"}
-              </span>
-            </Button>
-          </div>
+          <Button
+            variant="teal-cyan"
+            size="sm"
+            onClick={() => navigate(window.location.pathname.startsWith("/admin") ? "/dashboard" : "/admin")}
+            className="text-xs py-1"
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              {window.location.pathname.startsWith("/admin") ? "Student View" : "Admin Panel"}
+            </span>
+          </Button>
         )}
 
         {/* Logout */}
@@ -483,8 +474,6 @@ export const Topbar: React.FC<TopbarProps> = ({
           <LogOut className="w-4 h-4" />
         </Button>
       </div>
-
-      <KeyboardShortcutsHelp />
     </header>
   );
 };

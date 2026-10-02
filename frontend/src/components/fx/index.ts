@@ -21,3 +21,5 @@ export * from "./ScrollProgress";
 // Step 4: Tour & hotspots
 export * from "./HotspotDot";
 export * from "./CoachMark";
+// Step 5: Ambient background
+export * from "./CodeRain";

@@ -5,11 +5,51 @@ import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Code2, Video, Award, ArrowRight, CheckCircle2, Terminal, ChevronDown, Star, Layers, ShieldCheck, Flame, BookOpen } from "lucide-react";
+import {
+  Sparkles,
+  Code2,
+  Video,
+  Award,
+  ArrowRight,
+  CheckCircle2,
+  Terminal,
+  ChevronDown,
+  ChevronUp,
+  Star,
+  Layers,
+  ShieldCheck,
+  Flame,
+  BookOpen,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { CompanyMarquee } from "@/components/common/CompanyMarquee";
 import { TestimonialsCarousel } from "@/components/common/TestimonialsCarousel";
-import { GradientMesh, FloatingOrbs, Typewriter, AnimatedCounter, Reveal, TiltCard } from "@/components/fx";
+import { GradientMesh, FloatingOrbs, AnimatedCounter, Reveal, TiltCard } from "@/components/fx";
+import { HERO_ROLES } from "@/constants/heroRoles";
+import { HeroShowcase } from "@/components/landing/HeroShowcase";
+import { useReducedEffects } from "@/hooks/useReducedEffects";
+import { cn } from "@/lib/utils";
+
+export const ROTATE_MS = 1200;
+
+export const ROLES = [
+  "Frontend Engineers",
+  "Backend Developers",
+  "Full Stack Developers",
+  "Data Analysts",
+  "AI/ML Engineers",
+  "DevOps Engineers",
+  "Cloud Engineers",
+  "Android Developers",
+  "QA & Test Engineers",
+  "Cybersecurity Analysts",
+] as const;
+
+export const LONGEST_ROLE = "Cybersecurity Analysts";
+
+const TYPE_MS = 70;
+const DELETE_MS = 35;
+const HOLD_MS = 1600;
 
 export const LandingPage: React.FC = () => {
   const { isAuthenticated, user, loginDemoStudent, loginDemoAdmin } = useAuth();
@@ -17,6 +57,16 @@ export const LandingPage: React.FC = () => {
 
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+
+  // Rotating roles state
+  const [roleIndex, setRoleIndex] = useState(0);
+  const [typedText, setTypedText] = useState("");
+  const [isPaused, setIsPaused] = useState(false);
+  const [showAllChips, setShowAllChips] = useState(false);
+
+  const reducedMotion = useReducedEffects();
+  const currentRole = HERO_ROLES[roleIndex] || HERO_ROLES[0];
+  const currentRoleName = ROLES[roleIndex] || ROLES[0];
 
   // Animated counters state
   const [studentsCount, setStudentsCount] = useState(0);
@@ -41,6 +91,54 @@ export const LandingPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Typewriter effect: types, holds, deletes, and advances to the next role in an infinite loop
+  useEffect(() => {
+    if (isPaused) return;
+
+    if (reducedMotion) {
+      setTypedText(ROLES[roleIndex]);
+      const timer = setTimeout(() => {
+        setRoleIndex((p) => (p + 1) % ROLES.length);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+
+    const target = ROLES[roleIndex];
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const typeNext = (charIndex: number) => {
+      if (charIndex <= target.length) {
+        setTypedText(target.slice(0, charIndex));
+        if (charIndex < target.length) {
+          timerId = setTimeout(() => typeNext(charIndex + 1), TYPE_MS);
+        } else {
+          timerId = setTimeout(() => deleteNext(target.length), HOLD_MS);
+        }
+      }
+    };
+
+    const deleteNext = (charIndex: number) => {
+      if (charIndex >= 0) {
+        setTypedText(target.slice(0, charIndex));
+        if (charIndex > 0) {
+          timerId = setTimeout(() => deleteNext(charIndex - 1), DELETE_MS);
+        } else {
+          setRoleIndex((p) => (p + 1) % ROLES.length);
+        }
+      }
+    };
+
+    typeNext(0);
+
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [roleIndex, isPaused, reducedMotion]);
+
+  const handleRoleSelect = (index: number) => {
+    setRoleIndex(index);
+  };
+
   const formatClock = (sec: number) => {
     const m = String(Math.floor(sec / 60)).padStart(2, "0");
     const s = String(sec % 60).padStart(2, "0");
@@ -49,12 +147,12 @@ export const LandingPage: React.FC = () => {
 
   const handleDemoStudent = () => {
     loginDemoStudent();
-    navigate("/dashboard");
+    navigate(`/dashboard?role=${currentRole.slug}`);
   };
 
   const handleDemoAdmin = () => {
     loginDemoAdmin();
-    navigate("/admin");
+    navigate(`/admin?role=${currentRole.slug}`);
   };
 
   const faqs = [
@@ -105,162 +203,183 @@ export const LandingPage: React.FC = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative max-w-7xl mx-auto px-6 py-12 lg:py-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center w-full overflow-hidden">
-        {/* Ambient Gradient Mesh and Floating Orbs */}
-        <GradientMesh variant="aurora" />
-        <FloatingOrbs count={3} />
-
-        {/* Floating Tech Badges */}
-        <div className="hidden xl:block pointer-events-none select-none">
-          <motion.div
-            animate={{ y: [0, -12, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-12 left-4 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 text-cyan-300 border border-cyan-500/30 backdrop-blur-md shadow-sm"
-          >
-            ⚛ React 19
-          </motion.div>
-          <motion.div
-            animate={{ y: [0, 14, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute bottom-20 left-6 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-emerald-500/20 to-emerald-500/5 text-emerald-300 border border-emerald-500/30 backdrop-blur-md shadow-sm"
-          >
-            ☕ Spring Boot 4
-          </motion.div>
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="absolute top-10 right-8 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-amber-500/20 to-amber-500/5 text-amber-300 border border-amber-500/30 backdrop-blur-md shadow-sm"
-          >
-            🐍 Python & AI
-          </motion.div>
-          <motion.div
-            animate={{ y: [0, 12, 0] }}
-            transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            className="absolute bottom-24 right-6 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-violet-500/20 to-violet-500/5 text-violet-300 border border-violet-500/30 backdrop-blur-md shadow-sm"
-          >
-            🏛 System Design
-          </motion.div>
+      <section className="relative max-w-7xl mx-auto px-6 py-12 lg:py-24 w-full">
+        {/* Ambient Gradient Mesh and Floating Orbs (Contained outside grid flow) */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <GradientMesh variant="aurora" />
+          <FloatingOrbs count={3} />
         </div>
 
-        <div className="lg:col-span-7 space-y-6 text-left relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 text-xs font-mono uppercase tracking-wider shadow-[0_0_12px_rgba(34,211,238,0.2)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-            AI Placement Preparation Platform
-          </div>
+        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center w-full z-10">
+          {/* Left Content Column */}
+          <div className="lg:col-span-7 space-y-6 text-left relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 text-xs font-mono uppercase tracking-wider shadow-[0_0_12px_rgba(34,211,238,0.2)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+              AI Placement Preparation Platform
+            </div>
 
-          <h1 className="font-serif text-4xl sm:text-6xl font-medium tracking-tight leading-[1.08]">
-            Master every placement round for <br />
-            <Typewriter
-              phrases={[
-                "Frontend Engineers",
-                "Backend Developers",
-                "Full-Stack Architects",
-                "AI & ML Engineers",
-                "System Designers",
-                "Cloud & DevOps SREs",
-              ]}
-              className="text-cyan-400 font-serif italic font-normal"
-            />
-          </h1>
-
-          <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-2xl font-sans">
-            AI Interview Preparation is the modern practice platform for top engineering students. Practice adapted mock interviews, solve algorithm benchmarks, and walk into placement drives with complete confidence.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-4 pt-2">
-            {isAuthenticated ? (
-              <Button
-                variant="teal-cyan"
-                size="lg"
-                onClick={() => navigate(user?.role === "ADMIN" ? "/admin" : "/dashboard")}
-                className="shadow-[0_0_20px_var(--accent-glow)]"
+            <h1 className="font-serif text-4xl sm:text-6xl font-medium tracking-tight leading-[1.08]">
+              Master every placement round for <br />
+              <span
+                className="inline-grid grid-cols-1 grid-rows-1 text-cyan-400 font-serif italic font-normal align-bottom select-none cursor-default"
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+                onFocus={() => setIsPaused(true)}
+                onBlur={() => setIsPaused(false)}
+                tabIndex={0}
+                aria-live="off"
+                title="Hover to pause rotation"
               >
-                <span>Go to Dashboard</span>
-                <ArrowRight className="w-5 h-5 text-[#0d1321] transition-transform duration-200 group-hover:translate-x-1" />
-              </Button>
-            ) : (
-              <>
-                <Button variant="primary" size="lg" onClick={handleDemoStudent} className="shadow-[0_0_20px_var(--accent-glow)]">
-                  <Sparkles className="w-5 h-5" /> Try Instant Demo
+                {/* Invisible placeholder for max width/height reservation to eliminate layout shifts */}
+                <span
+                  className="invisible col-start-1 row-start-1 select-none pointer-events-none whitespace-normal sm:whitespace-nowrap"
+                  aria-hidden="true"
+                >
+                  {LONGEST_ROLE}
+                </span>
+                {/* Typewriter role renderer */}
+                <span className="col-start-1 row-start-1 inline-flex items-center whitespace-normal sm:whitespace-nowrap">
+                  <span>{typedText}</span>
+                  <span
+                    className="inline-block w-0.5 h-[0.9em] ml-1.5 align-middle bg-cyan-400 animate-pulse shadow-sm"
+                    aria-hidden="true"
+                  />
+                </span>
+              </span>
+            </h1>
+
+            {/* Accessible screen reader announcement for the roles */}
+            <span className="sr-only">
+              Master every placement round for {ROLES.join(", ")}.
+            </span>
+
+            {/* Interactive Role Chips */}
+            <div
+              className="flex flex-wrap items-center gap-1.5 pt-1"
+              onMouseEnter={() => setIsPaused(true)}
+              onMouseLeave={() => setIsPaused(false)}
+              role="group"
+              aria-label="Target engineering roles"
+            >
+              {(showAllChips
+                ? HERO_ROLES.map((r, i) => ({ role: r, index: i }))
+                : [
+                    ...HERO_ROLES.slice(0, 6).map((r, i) => ({ role: r, index: i })),
+                    ...(roleIndex >= 6 ? [{ role: HERO_ROLES[roleIndex], index: roleIndex }] : []),
+                  ]
+              ).map(({ role, index }) => {
+                const Icon = role.icon;
+                const isActive = roleIndex === index;
+
+                return (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => handleRoleSelect(index)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer border",
+                      isActive
+                        ? "font-semibold scale-[1.03]"
+                        : "bg-surface-raised/70 border-border text-text-secondary hover:text-text-primary hover:border-cyan-400/40 hover:bg-surface-raised"
+                    )}
+                    style={
+                      isActive
+                        ? {
+                            borderColor: role.accentColor,
+                            backgroundColor: `${role.accentColor}18`,
+                            color: role.accentColor,
+                            boxShadow: `0 0 12px ${role.glowColor}`,
+                          }
+                        : undefined
+                    }
+                  >
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{role.label}</span>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setShowAllChips((prev) => !prev)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono text-cyan-400/90 hover:text-cyan-300 bg-cyan-400/10 hover:bg-cyan-400/20 border border-cyan-400/30 transition-all cursor-pointer"
+                aria-expanded={showAllChips}
+              >
+                {showAllChips ? (
+                  <>
+                    <span>Show less</span>
+                    <ChevronUp className="w-3 h-3" />
+                  </>
+                ) : (
+                  <>
+                    <span>+{HERO_ROLES.length - 6} more</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-2xl font-sans">
+              AI Interview Preparation is the modern practice platform for top engineering students. Practice adapted mock interviews, solve algorithm benchmarks, and walk into placement drives with complete confidence.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              {isAuthenticated ? (
+                <Button
+                  variant="teal-cyan"
+                  size="lg"
+                  onClick={() => navigate(user?.role === "ADMIN" ? `/admin?role=${currentRole.slug}` : `/dashboard?role=${currentRole.slug}`)}
+                  className="shadow-[0_0_20px_var(--accent-glow)]"
+                >
+                  <span>Go to Dashboard</span>
+                  <ArrowRight className="w-5 h-5 text-[#0d1321] transition-transform duration-200 group-hover:translate-x-1" />
                 </Button>
-                <Link to="/register">
-                  <Button variant="outline" size="lg" className="hover:border-cyan-400/60">
-                    Create Account
+              ) : (
+                <>
+                  <Button variant="primary" size="lg" onClick={handleDemoStudent} className="shadow-[0_0_20px_var(--accent-glow)]">
+                    <Sparkles className="w-5 h-5" /> Try Instant Demo
                   </Button>
-                </Link>
-              </>
-            )}
+                  <Link to={`/register?role=${currentRole.slug}`}>
+                    <Button variant="outline" size="lg" className="hover:border-cyan-400/60">
+                      Create Account
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Count-up Statistics Row */}
+            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-border/80">
+              <div>
+                <b className="font-serif text-3xl sm:text-4xl font-semibold text-text-primary block">
+                  <AnimatedCounter value={1250} suffix="+" />
+                </b>
+                <span className="text-xs text-text-muted font-mono uppercase">Verified Students</span>
+              </div>
+              <div>
+                <b className="font-serif text-3xl sm:text-4xl font-semibold text-cyan-400 block">
+                  <AnimatedCounter value={2150} suffix="+" />
+                </b>
+                <span className="text-xs text-text-muted font-mono uppercase">Mock Interviews</span>
+              </div>
+              <div>
+                <b className="font-serif text-3xl sm:text-4xl font-semibold text-live block">
+                  <AnimatedCounter value={94} suffix="%" />
+                </b>
+                <span className="text-xs text-text-muted font-mono uppercase">Placement Success</span>
+              </div>
+            </div>
           </div>
 
-          {/* Count-up Statistics Row */}
-          <div className="grid grid-cols-3 gap-6 pt-8 border-t border-border/80">
-            <div>
-              <b className="font-serif text-3xl sm:text-4xl font-semibold text-text-primary block">
-                <AnimatedCounter value={1250} suffix="+" />
-              </b>
-              <span className="text-xs text-text-muted font-mono uppercase">Verified Students</span>
-            </div>
-            <div>
-              <b className="font-serif text-3xl sm:text-4xl font-semibold text-cyan-400 block">
-                <AnimatedCounter value={2150} suffix="+" />
-              </b>
-              <span className="text-xs text-text-muted font-mono uppercase">Mock Interviews</span>
-            </div>
-            <div>
-              <b className="font-serif text-3xl sm:text-4xl font-semibold text-live block">
-                <AnimatedCounter value={94} suffix="%" />
-              </b>
-              <span className="text-xs text-text-muted font-mono uppercase">Placement Success</span>
-            </div>
+          {/* Right Visual Showcase Column */}
+          <div className="lg:col-span-5 w-full relative z-10 flex items-center justify-center">
+            <HeroShowcase
+              roleIndex={roleIndex}
+              sessionSeconds={sessionSeconds}
+              onDemoAdmin={handleDemoAdmin}
+            />
           </div>
-        </div>
-
-        {/* Live Session Terminal Card */}
-        <div className="lg:col-span-5 w-full relative z-10">
-          <TiltCard intensity={12} className="shadow-2xl">
-            <Card className="p-0 overflow-hidden bg-surface/90 backdrop-blur-md border-cyan-400/40 shadow-soft relative group">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-raised">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-live animate-pulse-live" />
-                  <span className="font-mono text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-                    <Terminal className="w-3.5 h-3.5 text-cyan-400" /> Mock Session #104
-                  </span>
-                </div>
-                <span className="font-mono text-xs text-text-muted">{formatClock(sessionSeconds)}</span>
-              </div>
-
-              <div className="p-5 h-[340px] overflow-y-auto font-mono text-xs space-y-4 bg-surface divider-fade">
-                <div className="p-3 bg-surface-raised border border-border rounded-lg space-y-1">
-                  <span className="text-cyan-400 font-semibold block">AI Evaluator:</span>
-                  <p className="text-text-primary leading-relaxed">
-                    "Explain how React 19 concurrent rendering and Fiber engine prevent main-thread UI lag during complex updates."
-                  </p>
-                </div>
-
-                <div className="p-3 bg-ink border border-cyan-400/30 rounded-lg space-y-1">
-                  <span className="text-live font-semibold block">Candidate Answer:</span>
-                  <p className="text-text-primary leading-relaxed">
-                    "Fiber breaks work into units. useTransition marks state updates as non-urgent so urgent user input renders immediately..."
-                  </p>
-                </div>
-
-                <div className="p-3 bg-surface-raised border border-live/30 rounded-lg space-y-1">
-                  <span className="text-live font-semibold block">Instant Scorecard: 92/100</span>
-                  <p className="text-text-muted text-[11px]">
-                    ✓ Articulated reconciliation accurately. <br />
-                    💡 Tip: Mention requestAnimationFrame for animation frames.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-3 bg-surface-raised border-t border-border flex justify-between items-center text-xs font-mono text-text-muted">
-                <span>Status: <strong className="text-live">Live Evaluator Active</strong></span>
-                <button onClick={handleDemoAdmin} className="text-cyan-400 hover:underline">
-                  Try Admin View →
-                </button>
-              </div>
-            </Card>
-          </TiltCard>
         </div>
       </section>
 
