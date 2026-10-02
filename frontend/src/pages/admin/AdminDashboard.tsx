@@ -26,6 +26,8 @@ import {
   Cell,
 } from "recharts";
 
+import { AtRiskStudents } from "@/components/admin/AtRiskStudents";
+
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [reports, setReports] = useState<AdminReportData | null>(null);

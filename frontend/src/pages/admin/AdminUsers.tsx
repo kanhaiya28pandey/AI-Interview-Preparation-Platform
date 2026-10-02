@@ -4,8 +4,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { Dialog } from "@/components/ui/Dialog";
 import { RoleBadge } from "@/components/common/RoleBadge";
+import { Dialog } from "@/components/ui/Dialog";
 import { useAdminStore, MasterStudent, isRegistrationNew } from "@/context/AdminStoreContext";
 import {
   Search,

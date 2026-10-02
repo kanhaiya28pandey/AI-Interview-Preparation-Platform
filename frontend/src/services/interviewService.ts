@@ -129,6 +129,15 @@ export const interviewService = {
         idealKeyPoints: ["Clear problem statement", "Trade-off analysis", "Measurable result"],
         followUpPrompt: "What would you change if you had to re-architect it for 10x traffic?",
       },
+      {
+        id: "q-default-2",
+        roleId,
+        questionNumber: 2,
+        question: "How do you handle disagreement with a senior team member or product manager regarding technical debt?",
+        category: "Behavioral & Leadership",
+        idealKeyPoints: ["Data-driven reasoning", "Empathy and business impact", "Compromise and alignment"],
+        followUpPrompt: "Can you give a specific example from your past project?",
+      },
     ];
   },
 
@@ -160,11 +169,32 @@ export const interviewService = {
   },
 
   async getFeedback(sessionId: string): Promise<InterviewFeedback> {
-    await delay(400);
+    await delay(300);
     return {
-      ...fallbackFeedback,
       sessionId,
-      date: new Date().toLocaleDateString(),
+      roleTitle: "Software Engineer",
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      overallScore: 86,
+      scores: {
+        technicalAccuracy: 88,
+        communicationClarity: 85,
+        problemSolving: 84,
+        confidence: 87,
+      },
+      strengths: [
+        "Structured thought process using concrete architectural examples",
+        "Clear conceptual grasp of modern web and backend patterns",
+        "Well-articulated edge cases and trade-offs",
+      ],
+      areasForImprovement: [
+        "Include production monitoring metrics (latency p99, APM telemetry)",
+        "Quantify business impact and performance optimization with percentages",
+      ],
+      detailedFeedback: "Candidate demonstrated strong core competency with solid communication. Ready for top campus placement rounds.",
+      transcripts: [
+        { speaker: "interviewer", text: "Tell me about your architectural approach to state management.", timestamp: "00:15" },
+        { speaker: "candidate", text: "I structure services around clear domain boundaries and avoid prop drilling via context or redux toolkit.", timestamp: "00:45" },
+      ],
     };
   },
 

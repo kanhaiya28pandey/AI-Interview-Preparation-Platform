@@ -96,15 +96,6 @@ export const authService = {
     }
   },
 
-  async checkEmail(email: string): Promise<boolean> {
-    try {
-      const response = await api.get<{ exists: boolean }>(`/api/auth/check-email?email=${encodeURIComponent(email.trim())}`);
-      return Boolean(response.data?.exists);
-    } catch {
-      return false;
-    }
-  },
-
   async forgotPassword(email: string): Promise<string> {
     try {
       const response = await api.post("/api/auth/forgot-password", { email: email.trim() });

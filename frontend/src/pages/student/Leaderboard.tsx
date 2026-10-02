@@ -5,17 +5,30 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
+import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { Trophy, Crown, Flame, Award, ArrowUp, ArrowDown } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { isDemoUser } from "@/lib/userScope";
+import { profileService } from "@/services/profileService";
+import { UserProfile } from "@/mocks/profileData";
 
 export const Leaderboard: React.FC = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<LeaderboardUser[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "weekly" | "college">("all");
 
+  const isDemo = isDemoUser(user);
+
   useEffect(() => {
     setLoading(true);
-    leaderboardService.getLeaderboard(filter).then((res) => {
+    Promise.all([
+      leaderboardService.getLeaderboard(filter),
+      profileService.getProfile(),
+    ]).then(([res, prof]) => {
       setData(res);
+      setProfile(prof);
       setLoading(false);
     });
   }, [filter]);
@@ -60,26 +73,56 @@ export const Leaderboard: React.FC = () => {
 
       {/* Current Student Rank Banner */}
       {(() => {
-        const currentUser = data.find((u) => u.isCurrentUser) || data[3];
-        if (!currentUser) return null;
+        if (isDemo) {
+          const demoUser = data.find((u) => u.isCurrentUser) || data[3];
+          if (!demoUser) return null;
+          return (
+            <Card className="p-4 bg-surface border-cyan-400/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <img src={demoUser.avatar} alt={demoUser.name} className="w-10 h-10 rounded-full object-cover border border-cyan-400 shrink-0" />
+                <div>
+                  <VerdictHeadline
+                    prefix="Your Performance is "
+                    score={demoUser.avgInterviewScore}
+                    size="sm"
+                    as="div"
+                  />
+                  <p className="text-xs text-text-muted font-mono mt-0.5">
+                    Rank #{demoUser.rank} &bull; {demoUser.score} XP &bull; {demoUser.streakDays} Day Streak
+                  </p>
+                </div>
+              </div>
+              <Badge variant="accent" className="font-mono text-xs shrink-0">
+                Campus Rank #{demoUser.rank}
+              </Badge>
+            </Card>
+          );
+        }
+
+        const realXP = profile?.stats.totalXP || 0;
+        const realStreak = profile?.stats.currentStreak || 0;
+        const realRating = profile?.stats.overallRating || 0;
+        const realName = user?.name || profile?.name || "Student";
+        const rankLabel = realXP > 0 ? "Active Candidate" : "Unranked";
+
         return (
           <Card className="p-4 bg-surface border-cyan-400/30 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full object-cover border border-cyan-400 shrink-0" />
+              <AvatarCompletionRing profile={profile} name={realName} size="sm" showPill={false} />
               <div>
                 <VerdictHeadline
                   prefix="Your Performance is "
-                  score={currentUser.avgInterviewScore}
+                  score={realRating}
                   size="sm"
                   as="div"
                 />
                 <p className="text-xs text-text-muted font-mono mt-0.5">
-                  Rank #{currentUser.rank} &bull; {currentUser.score} XP &bull; {currentUser.streakDays} Day Streak
+                  {rankLabel} &bull; {realXP} XP &bull; {realStreak} Day Streak
                 </p>
               </div>
             </div>
-            <Badge variant="accent" className="font-mono text-xs shrink-0">
-              Campus Rank #{currentUser.rank}
+            <Badge variant={realXP > 0 ? "accent" : "gold"} className="font-mono text-xs shrink-0">
+              Campus Rank: {rankLabel}
             </Badge>
           </Card>
         );

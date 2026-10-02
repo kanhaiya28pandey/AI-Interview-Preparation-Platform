@@ -31,6 +31,7 @@ import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { RoleBadge } from "@/components/common/RoleBadge";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
+import { getRoleMeta } from "@/lib/roles";
 
 export interface SidebarProps {
   isAdmin?: boolean;
@@ -62,7 +63,11 @@ const SidebarTooltip: React.FC<SidebarTooltipProps> = ({
   disabled = false,
   children,
 }) => {
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
   const targetRef = useRef<HTMLDivElement>(null);
 
   if (disabled) return <>{children}</>;
@@ -70,6 +75,7 @@ const SidebarTooltip: React.FC<SidebarTooltipProps> = ({
   const handleMouseEnter = () => {
     if (targetRef.current) {
       const rect = targetRef.current.getBoundingClientRect();
+
       setCoords({
         top: rect.top + rect.height / 2,
         left: rect.right + 10,
@@ -89,17 +95,30 @@ const SidebarTooltip: React.FC<SidebarTooltipProps> = ({
       className="relative flex items-center justify-center w-full"
     >
       {children}
+
       {coords &&
         typeof window !== "undefined" &&
         createPortal(
           <div
-            style={{ top: `${coords.top}px`, left: `${coords.left}px`, transform: "translateY(-50%)" }}
+            style={{
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              transform: "translateY(-50%)",
+            }}
             className="fixed z-[9999] pointer-events-none bg-surface-raised border border-border shadow-2xl rounded-lg px-3 py-1.5 text-xs text-text-primary flex items-center gap-2 whitespace-nowrap animate-fade-in"
           >
             <div className="flex flex-col">
-              <span className="font-semibold text-text-primary">{label}</span>
-              {sublabel && <span className="text-[10px] text-text-muted font-mono">{sublabel}</span>}
+              <span className="font-semibold text-text-primary">
+                {label}
+              </span>
+
+              {sublabel && (
+                <span className="text-[10px] text-text-muted font-mono">
+                  {sublabel}
+                </span>
+              )}
             </div>
+
             {badge && (
               <span className="text-[10px] font-mono bg-cyan-400/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                 <Sparkles className="w-2.5 h-2.5" />
@@ -123,6 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { user } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const userRoleMeta = getRoleMeta(user?.role);
 
   useEffect(() => {
     profileService.getProfile().then((data) => {
@@ -136,10 +156,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onCloseMobile();
       }
     };
+
     if (isOpenMobile) {
       document.body.style.overflow = "hidden";
       window.addEventListener("keydown", handleKeyDown);
     }
+
     return () => {
       // Restore to empty string so CSS (not 'unset') controls overflow again
       document.body.style.overflow = "";
@@ -148,34 +170,141 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [isOpenMobile, onCloseMobile]);
 
   const studentLinks: SidebarLink[] = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/preparation", label: "Prep Roadmaps", icon: Compass, badge: "Track" },
-    { to: "/practice", label: "Practice Tracks", icon: BookOpen },
-    { to: "/resume-analyzer", label: "Resume Analyzer", icon: FileText, badge: "AI" },
-    { to: "/coding", label: "Coding Arena", icon: Code2 },
-    { to: "/mock-interview", label: "Mock Interview", icon: Video, badge: "AI" },
-    { to: "/quiz", label: "MCQ Quizzes", icon: HelpCircle },
-    { to: "/articles", label: "Articles & Guides", icon: FileText },
-    { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
-    { to: "/profile", label: "My Profile", icon: User },
-    { to: "/settings", label: "Settings", icon: Settings },
-    { to: "/help", label: "Help & Support", icon: HelpCircle },
+    {
+      to: "/dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      to: "/preparation",
+      label: "Prep Roadmaps",
+      icon: Compass,
+      badge: "Track",
+    },
+    {
+      to: "/practice",
+      label: "Practice Tracks",
+      icon: BookOpen,
+    },
+    {
+      to: "/resume-analyzer",
+      label: "Resume Analyzer",
+      icon: FileText,
+      badge: "AI",
+    },
+    {
+      to: "/coding",
+      label: "Coding Arena",
+      icon: Code2,
+    },
+    {
+      to: "/mock-interview",
+      label: "Mock Interview",
+      icon: Video,
+      badge: "AI",
+    },
+    {
+      to: "/quiz",
+      label: "MCQ Quizzes",
+      icon: HelpCircle,
+    },
+    {
+      to: "/articles",
+      label: "Articles & Guides",
+      icon: FileText,
+    },
+    {
+      to: "/leaderboard",
+      label: "Leaderboard",
+      icon: Trophy,
+    },
+    {
+      to: "/profile",
+      label: "My Profile",
+      icon: User,
+    },
+    {
+      to: "/settings",
+      label: "Settings",
+      icon: Settings,
+    },
+    {
+      to: "/help",
+      label: "Help & Support",
+      icon: HelpCircle,
+    },
   ];
 
   const adminLinks: SidebarLink[] = [
-    { to: "/admin", label: "Admin Overview", icon: LayoutDashboard },
-    { to: "/admin/content", label: "Content Manager", icon: Layers, badge: "Hub" },
-    { to: "/admin/students", label: "Student Progress", icon: GraduationCap, badge: "Analytics" },
-    { to: "/admin/users", label: "Manage Users", icon: Users },
-    { to: "/admin/verifications", label: "ID Verifications", icon: ShieldCheck, badge: "Review" },
-    { to: "/admin/coding-tests", label: "Coding Tests", icon: Code2 },
-    { to: "/admin/taxonomy", label: "Domains & Topics", icon: FolderTree },
-    { to: "/admin/live-tests", label: "Live Tests", icon: Radio, badge: "Live" },
-    { to: "/admin/mock-interviews", label: "Mock Interviews", icon: Video },
-    { to: "/admin/articles", label: "Articles CMS", icon: FileText },
-    { to: "/admin/reports", label: "Analytics & Reports", icon: BarChart3 },
-    { to: "/admin/settings", label: "Platform Settings", icon: Settings },
-    { to: "/admin/help", label: "Help & Support", icon: HelpCircle },
+    {
+      to: "/admin",
+      label: "Admin Overview",
+      icon: LayoutDashboard,
+    },
+    {
+      to: "/admin/content",
+      label: "Content Manager",
+      icon: Layers,
+      badge: "Hub",
+    },
+    {
+      to: "/admin/students",
+      label: "Student Progress",
+      icon: GraduationCap,
+      badge: "Analytics",
+    },
+    {
+      to: "/admin/users",
+      label: "Manage Users",
+      icon: Users,
+    },
+    {
+      to: "/admin/verifications",
+      label: "ID Verifications",
+      icon: ShieldCheck,
+      badge: "Review",
+    },
+    {
+      to: "/admin/coding-tests",
+      label: "Coding Tests",
+      icon: Code2,
+    },
+    {
+      to: "/admin/taxonomy",
+      label: "Domains & Topics",
+      icon: FolderTree,
+    },
+    {
+      to: "/admin/live-tests",
+      label: "Live Tests",
+      icon: Radio,
+      badge: "Live",
+    },
+    {
+      to: "/admin/mock-interviews",
+      label: "Mock Interviews",
+      icon: Video,
+    },
+    {
+      to: "/admin/articles",
+      label: "Articles CMS",
+      icon: FileText,
+    },
+    {
+      to: "/admin/reports",
+      label: "Analytics & Reports",
+      icon: BarChart3,
+    },
+    {
+      to: "/admin/settings",
+      label: "Platform Settings",
+      icon: Settings,
+    },
+    {
+      to: "/admin/help",
+      label: "Help & Support",
+      icon: HelpCircle,
+    },
   ];
 
   const links = isAdmin ? adminLinks : studentLinks;
@@ -185,18 +314,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const widthClass = collapsed ? "w-[68px]" : "w-64";
 
     return (
-      <div className={cn("flex flex-col h-full bg-surface border-r border-border text-text-primary transition-all duration-200 ease-in-out p-3", widthClass)}>
+      <div
+        className={cn(
+          "flex flex-col h-full bg-surface border-r border-border text-text-primary transition-all duration-200 ease-in-out p-3",
+          widthClass
+        )}
+      >
         {/* Brand Header */}
         <div
           className={cn(
             "pb-3 border-b border-border sticky top-0 bg-surface z-10 shrink-0",
-            collapsed ? "flex flex-col items-center gap-2" : "flex items-center justify-between px-1"
+            collapsed
+              ? "flex flex-col items-center gap-2"
+              : "flex items-center justify-between px-1"
           )}
         >
           <NavLink
             to={isAdmin ? "/admin" : "/dashboard"}
             className="flex items-center gap-2.5 font-serif font-semibold text-lg tracking-tight group"
-            title={collapsed ? (isAdmin ? "Admin Overview" : "Dashboard") : undefined}
+            title={
+              collapsed
+                ? isAdmin
+                  ? "Admin Overview"
+                  : "Dashboard"
+                : undefined
+            }
           >
             <svg
               width="24"
@@ -214,23 +356,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 strokeWidth="2"
                 strokeLinejoin="round"
               />
+
               <path
                 d="M16 9L17.2 12.8L21 14L17.2 15.2L16 19L14.8 15.2L11 14L14.8 12.8L16 9Z"
                 fill="#22d3ee"
               />
+
               <circle cx="21" cy="9" r="1.5" fill="#14b8a6" />
+
               <defs>
-                <linearGradient id="sidebarChatAiGlow" x1="6" y1="4" x2="26" y2="24" gradientUnits="userSpaceOnUse">
+                <linearGradient
+                  id="sidebarChatAiGlow"
+                  x1="6"
+                  y1="4"
+                  x2="26"
+                  y2="24"
+                  gradientUnits="userSpaceOnUse"
+                >
                   <stop stopColor="#22d3ee" />
                   <stop offset="1" stopColor="#14b8a6" />
                 </linearGradient>
               </defs>
             </svg>
+
             {!collapsed && (
               <>
                 <span className="text-text-primary group-hover:text-cyan-400 transition-colors whitespace-nowrap">
                   AI Interview Prep
                 </span>
+
                 {isAdmin && (
                   <span className="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded font-mono uppercase">
                     Admin
@@ -246,17 +400,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
               variant="ghost"
               size="sm"
               onClick={onToggleCollapse}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={collapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+              aria-label={
+                collapsed ? "Expand sidebar" : "Collapse sidebar"
+              }
+              title={
+                collapsed
+                  ? "Expand sidebar (Ctrl+B)"
+                  : "Collapse sidebar (Ctrl+B)"
+              }
               className="hidden lg:flex p-1.5 h-auto text-text-muted hover:text-cyan-400 hover:bg-surface-raised shrink-0"
             >
-              {collapsed ? <ChevronRight className="w-4 h-4 text-cyan-400" /> : <ChevronLeft className="w-4 h-4" />}
+              {collapsed ? (
+                <ChevronRight className="w-4 h-4 text-cyan-400" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
             </Button>
           )}
 
           {/* Mobile Close Button */}
           {onCloseMobile && (
-            <Button variant="ghost" size="sm" onClick={onCloseMobile} className="lg:hidden p-1 h-auto text-text-muted">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCloseMobile}
+              className="lg:hidden p-1 h-auto text-text-muted"
+            >
               <X className="w-5 h-5" />
             </Button>
           )}
@@ -299,12 +468,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Icon
                     className={cn(
                       "w-4 h-4 shrink-0 transition-colors",
-                      isActive ? "text-cyan-400" : "text-text-muted group-hover:text-text-primary"
+                      isActive
+                        ? "text-cyan-400"
+                        : "text-text-muted group-hover:text-text-primary"
                     )}
                   />
+
                   {!collapsed && (
                     <>
-                      <span className="flex-1 truncate">{link.label}</span>
+                      <span className="flex-1 truncate">
+                        {link.label}
+                      </span>
+
                       {link.badge && (
                         <span className="text-[10px] font-mono bg-cyan-400/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                           <Sparkles className="w-2.5 h-2.5" />
@@ -322,8 +497,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* User Info Card Footer */}
         <div className="pt-3 border-t border-border mt-auto">
           <SidebarTooltip
-            label={user?.name || profile?.name || "Student User"}
-            sublabel={user?.email || profile?.email || "student@srmist.edu.in"}
+            label={user?.name || profile?.name || "Account"}
+            sublabel={`Role: ${userRoleMeta.label}${
+              user?.email || profile?.email
+                ? ` • ${user?.email || profile?.email}`
+                : ""
+            }`}
             disabled={!collapsed}
           >
             <NavLink
@@ -331,20 +510,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onCloseMobile}
               className={cn(
                 "bg-surface-raised border border-border hover:border-cyan-400/40 rounded-lg transition-colors group flex items-center",
-                collapsed ? "justify-center p-2 mx-auto w-11 h-11" : "p-2.5 gap-3 w-full"
+                collapsed
+                  ? "justify-center p-2 mx-auto w-11 h-11"
+                  : "p-2.5 gap-3 w-full"
               )}
             >
-              <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
+              <div className="relative shrink-0">
+                <AvatarCompletionRing
+                  profile={profile}
+                  name={user?.name || profile?.name}
+                  size="sm"
+                  showPill={false}
+                />
+
+                {collapsed && (
+                  <span
+                    className={cn(
+                      "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface",
+                      userRoleMeta.dotColor
+                    )}
+                    title={`Role: ${userRoleMeta.label}`}
+                  />
+                )}
+              </div>
+
               {!collapsed && (
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-1.5 justify-between">
                     <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
                       {user?.name || profile?.name || "Student User"}
                     </p>
-                    <RoleBadge role={user?.role || (isAdmin ? "ADMIN" : "STUDENT")} size="xs" />
+
+                    <RoleBadge
+                      role={user?.role || (isAdmin ? "ADMIN" : "STUDENT")}
+                      size="sm"
+                    />
                   </div>
+
                   <p className="text-[11px] text-text-muted font-mono truncate">
-                    {user?.email || profile?.email || "student@srmist.edu.in"}
+                    {user?.email || profile?.email || ""}
                   </p>
                 </div>
               )}
@@ -372,7 +576,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         typeof window !== "undefined" &&
         createPortal(
           <div className="fixed inset-0 z-[60] lg:hidden flex">
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onCloseMobile} />
+            <div
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+              onClick={onCloseMobile}
+            />
+
             <div className="relative z-10 w-64 max-w-xs h-full bg-surface shadow-soft">
               {renderSidebarContent(true)}
             </div>
@@ -382,4 +590,3 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
-

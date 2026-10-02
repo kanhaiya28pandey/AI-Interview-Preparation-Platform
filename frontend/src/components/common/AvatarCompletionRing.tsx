@@ -70,7 +70,7 @@ export interface AvatarCompletionRingProps {
 export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
   profile,
   percentage,
-  name = "Student User",
+  name = "User",
   avatarUrl,
   size = "md",
   showLabel = false,
@@ -86,7 +86,7 @@ export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
       ? percentage
       : profile
       ? calculateProfileCompletion(profile)
-      : 85;
+      : 0;
 
   const animatedScore = useAnimatedScore(targetCompletion);
   const imageSrc = avatarUrl || profile?.avatar;
@@ -262,7 +262,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({
   compact = false,
 }) => {
   const navigate = useNavigate();
-  const completion = profile ? calculateProfileCompletion(profile) : 60;
+  const completion = profile ? calculateProfileCompletion(profile) : 0;
   const updatedAgo = formatRelativeTime(profile?.updatedAt);
   const nudge = getProfileNudge(profile || {});
 
@@ -275,7 +275,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({
         <div className="space-y-1">
           <VerdictHeadline prefix="Your Profile is " score={completion} size="lg" />
           <p className="text-xs text-text-muted font-mono">
-            Updated {updatedAgo} &bull; Score: <span className="font-bold text-text-primary">{completion}%</span>
+            {profile?.updatedAt ? `Updated ${updatedAgo} • ` : ""}Score: <span className="font-bold text-text-primary">{completion}%</span>
           </p>
           {completion < 100 && (
             <p className="text-xs text-cyan-400 font-medium flex items-center justify-center sm:justify-start gap-1 pt-0.5">

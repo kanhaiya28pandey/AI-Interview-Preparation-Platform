@@ -52,6 +52,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
 import { resumeService } from "@/services/resumeService";
+import { JdMatcher } from "@/components/student/JdMatcher";
 import {
   ResumeAnalysisResult,
   SuggestionDetail,
@@ -1163,6 +1164,8 @@ export const ResumeAnalyzer: React.FC = () => {
                 </Button>
               </div>
             </Card>
+
+            <JdMatcher />
           </motion.div>
         )}
       </AnimatePresence>

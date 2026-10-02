@@ -357,7 +357,6 @@ export const AdminStudents: React.FC = () => {
                               className="rounded border-border text-cyan-400"
                             />
                           </td>
-
                           <td className="p-4">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-text-primary">{s.name}</span>

@@ -216,6 +216,74 @@ export const mockUserProfile: UserProfile = {
   },
 };
 
+export const createEmptyProfile = (base: {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+}): UserProfile => ({
+  userId: base.userId,
+  name: base.name,
+  preferredName: "",
+  email: base.email,
+  role: base.role,
+  avatar: "",
+  isCustomAvatar: false,
+  photoChecklist: {
+    clearFace: false,
+    plainBackground: false,
+    noGlasses: false,
+    goodLighting: false,
+  },
+  headline: "",
+  bio: "",
+  phone: "",
+  dateOfBirth: "",
+  gender: "",
+  location: "",
+  languages: [],
+  college: "",
+  graduationYear: "",
+  degree: "",
+  educationEntries: [],
+  schoolEducation: {
+    board10th: "",
+    school10th: "",
+    year10th: "",
+    percentage10th: "",
+    board12th: "",
+    school12th: "",
+    year12th: "",
+    percentage12th: "",
+  },
+  skillsList: [],
+  skills: [],
+  workExperience: [],
+  projects: [],
+  certifications: [],
+  targetRoles: [],
+  preferredLocation: "",
+  openToRelocation: false,
+  employmentType: "Both",
+  githubUrl: "",
+  linkedinUrl: "",
+  portfolioUrl: "",
+  codingPlatformHandle: "",
+  resumeUrl: "",
+  onboardingComplete: false,
+  verificationStatus: "Unverified",
+  updatedAt: undefined,
+  stats: {
+    totalPracticeSessions: 0,
+    codingProblemsSolved: 0,
+    mockInterviewsCompleted: 0,
+    quizzesCompleted: 0,
+    overallRating: 0,
+    currentStreak: 0,
+    totalXP: 0,
+  },
+});
+
 export function getProfileVerdict(score: number): { label: "Incomplete" | "Good" | "Great" | "Excellent"; colorClass: string; hex: string } {
   if (score >= 90) return { label: "Excellent", colorClass: "text-[#4ade80]", hex: "#4ade80" };
   if (score >= 75) return { label: "Great", colorClass: "text-[#22d3ee]", hex: "#22d3ee" };
@@ -239,7 +307,7 @@ export const calculateProfileCompletion = (profile: Partial<UserProfile>): numbe
   let score = 0;
 
   // Section 1: Photo & Checklist (20%)
-  if (profile.isCustomAvatar || (profile.avatar && !profile.avatar.includes("default"))) score += 10;
+  if (profile.isCustomAvatar || (profile.avatar && profile.avatar.trim() !== "" && !profile.avatar.includes("default"))) score += 10;
   const checklistCount = profile.photoChecklist
     ? Object.values(profile.photoChecklist).filter(Boolean).length
     : 0;

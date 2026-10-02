@@ -118,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("ai_interview_prep_token");
     localStorage.removeItem("ai_interview_prep_user");
     localStorage.removeItem("ai_interview_prep_demo");
+    localStorage.removeItem("ai_interview_prep_profile");
   };
 
   const hasRole = (requiredRole: string): boolean => {

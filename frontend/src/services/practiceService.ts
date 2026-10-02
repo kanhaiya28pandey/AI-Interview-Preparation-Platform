@@ -1,4 +1,5 @@
 import { mockPracticeTopics, mockPracticeQuestions, PracticeTopic, PracticeQuestion } from "@/mocks/practiceData";
+import { isDemoUser } from "@/lib/userScope";
 import { SEED_PRACTICE_TOPICS, SEED_PRACTICE_QUESTIONS } from "@/mocks/taxonomyPracticeSeed";
 import { contentManagerService } from "./contentManagerService";
 
@@ -7,8 +8,11 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 export const practiceService = {
   async getTopics(): Promise<PracticeTopic[]> {
     await delay(100);
-    // Combine base mocks and taxonomy seed tracks
-    const seeded: PracticeTopic[] = [...mockPracticeTopics];
+    const isDemo = isDemoUser();
+    const seeded: PracticeTopic[] = mockPracticeTopics.map((t) => ({
+      ...t,
+      completedCount: isDemo ? t.completedCount : 0,
+    }));
     const seenIds = new Set(seeded.map((s) => s.id));
 
     SEED_PRACTICE_TOPICS.forEach((sp) => {
