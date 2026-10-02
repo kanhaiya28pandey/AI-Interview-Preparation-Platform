@@ -9,23 +9,35 @@ export interface AdminUser {
   interviewsCompleted: number;
 }
 
+export interface TopicConfig {
+  name: string;
+  questionCount: number;
+  weightage: number;
+}
+
 export interface AdminCodingTest {
   id: string;
   title: string;
+  domain: string;
+  topics: TopicConfig[];
   difficulty: "Easy" | "Medium" | "Hard";
   submissionsCount: number;
   passRate: string;
-  status: "ACTIVE" | "DRAFT" | "ARCHIVED";
+  status: "ACTIVE" | "DRAFT" | "IN_PROGRESS" | "LIVE" | "COMPLETED" | "CANCELLED" | "ARCHIVED";
   createdAt: string;
+  cancelReason?: string;
 }
 
 export interface AdminMockInterviewConfig {
   id: string;
   roleTitle: string;
+  domain: string;
+  topics: TopicConfig[];
   category: string;
   questionsCount: number;
   durationMinutes: number;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "CANCELLED";
+  cancelReason?: string;
 }
 
 export interface AdminReportData {
@@ -80,7 +92,13 @@ export const mockAdminUsers: AdminUser[] = [
 export const mockAdminCodingTests: AdminCodingTest[] = [
   {
     id: "test-1",
-    title: "1. Two Sum",
+    title: "Java Core & Multithreading Benchmark",
+    domain: "Java",
+    topics: [
+      { name: "OOP Principles", questionCount: 2, weightage: 30 },
+      { name: "Collections Framework", questionCount: 2, weightage: 30 },
+      { name: "Multithreading & Executor", questionCount: 1, weightage: 40 },
+    ],
     difficulty: "Easy",
     submissionsCount: 1420,
     passRate: "68.4%",
@@ -89,21 +107,45 @@ export const mockAdminCodingTests: AdminCodingTest[] = [
   },
   {
     id: "test-2",
-    title: "146. LRU Cache Implementation",
+    title: "Distributed Systems & LRU Cache",
+    domain: "System Design",
+    topics: [
+      { name: "Distributed Caching", questionCount: 1, weightage: 50 },
+      { name: "Database Sharding", questionCount: 1, weightage: 50 },
+    ],
     difficulty: "Hard",
     submissionsCount: 520,
     passRate: "41.2%",
-    status: "ACTIVE",
+    status: "IN_PROGRESS",
     createdAt: "2026-08-10",
   },
   {
     id: "test-3",
-    title: "3. Longest Substring Without Repeating Characters",
+    title: "Array & Dynamic Programming Assessment",
+    domain: "DSA",
+    topics: [
+      { name: "Sliding Window", questionCount: 2, weightage: 40 },
+      { name: "Dynamic Programming", questionCount: 2, weightage: 60 },
+    ],
     difficulty: "Medium",
     submissionsCount: 890,
     passRate: "54.7%",
     status: "ACTIVE",
     createdAt: "2026-08-18",
+  },
+  {
+    id: "test-4",
+    title: "React Hooks & Web Security Assessment",
+    domain: "Frontend",
+    topics: [
+      { name: "React Hooks & State", questionCount: 3, weightage: 50 },
+      { name: "DOM & Async JS", questionCount: 2, weightage: 50 },
+    ],
+    difficulty: "Medium",
+    submissionsCount: 650,
+    passRate: "72.1%",
+    status: "ACTIVE",
+    createdAt: "2026-09-02",
   },
 ];
 
@@ -111,6 +153,11 @@ export const mockAdminMockInterviews: AdminMockInterviewConfig[] = [
   {
     id: "int-1",
     roleTitle: "Senior Frontend Engineer (React/TypeScript)",
+    domain: "Frontend",
+    topics: [
+      { name: "React Architecture", questionCount: 2, weightage: 50 },
+      { name: "Performance Optimization", questionCount: 2, weightage: 50 },
+    ],
     category: "Frontend",
     questionsCount: 4,
     durationMinutes: 25,
@@ -119,6 +166,11 @@ export const mockAdminMockInterviews: AdminMockInterviewConfig[] = [
   {
     id: "int-2",
     roleTitle: "Java Spring Boot Microservices Developer",
+    domain: "Java",
+    topics: [
+      { name: "Spring Boot & REST", questionCount: 3, weightage: 60 },
+      { name: "JVM Tuning", questionCount: 2, weightage: 40 },
+    ],
     category: "Backend",
     questionsCount: 5,
     durationMinutes: 30,
@@ -127,6 +179,11 @@ export const mockAdminMockInterviews: AdminMockInterviewConfig[] = [
   {
     id: "int-3",
     roleTitle: "Full Stack MERN Developer",
+    domain: "MERN",
+    topics: [
+      { name: "MongoDB Indexing", questionCount: 2, weightage: 40 },
+      { name: "Express & Node.js", questionCount: 3, weightage: 60 },
+    ],
     category: "Full Stack",
     questionsCount: 5,
     durationMinutes: 30,

@@ -11,6 +11,7 @@ import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 
 @Service
+@SuppressWarnings("null")
 public class LeaderboardService {
 
     private final UserProfileRepository userProfileRepository;

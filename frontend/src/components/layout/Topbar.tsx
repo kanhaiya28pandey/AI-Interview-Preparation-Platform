@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useAppearance } from "@/context/AppearanceContext";
 import { Button } from "@/components/ui/Button";
 import { Menu, LogOut, Shield, Sparkles, Bell, Search, Sun, Moon, CheckCheck, HelpCircle, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, NavLink } from "react-router-dom";
@@ -70,30 +71,12 @@ export const Topbar: React.FC<TopbarProps> = ({
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
-  const [isDark, setIsDark] = useState(true);
+  const { isDark, toggleTheme } = useAppearance();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     profileService.getProfile().then((data) => setProfile(data));
   }, [user]);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    setIsDark(root.classList.contains("dark"));
-  }, []);
-
-  const toggleTheme = () => {
-    const root = document.documentElement;
-    if (root.classList.contains("dark")) {
-      root.classList.remove("dark");
-      root.classList.add("light");
-      setIsDark(false);
-    } else {
-      root.classList.remove("light");
-      root.classList.add("dark");
-      setIsDark(true);
-    }
-  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -147,7 +130,7 @@ export const Topbar: React.FC<TopbarProps> = ({
     : allFaqs.slice(0, 3);
 
   return (
-    <header className="h-16 border-b border-border bg-surface sticky top-0 z-30 px-4 sm:px-8 flex items-center justify-between gap-4 select-none shrink-0 shadow-sm">
+    <header className="h-16 border-b border-border bg-surface z-30 px-4 sm:px-8 flex items-center justify-between gap-4 select-none shrink-0 shadow-sm">
       <CommandPalette />
 
       <div className="flex items-center gap-3 min-w-0">

@@ -4,6 +4,7 @@ import {
   INITIAL_MOCK_VERIFICATIONS,
 } from "@/mocks/verifications";
 import { profileService } from "@/services/profileService";
+import api, { isDemoSession } from "@/lib/api";
 
 const STORAGE_KEY = "ai_interview_prep_verifications";
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
@@ -117,15 +118,17 @@ export const verificationService = {
 
       return newSubmission;
     }
-    throw new Error("Real backend verification submission endpoint not implemented");
+    const res = await api.post("/api/v1/verifications/submit", data);
+    return res.data;
   },
 
   async getAllSubmissions(): Promise<VerificationSubmission[]> {
-    if (USE_MOCKS) {
+    if (isDemoSession() || USE_MOCKS) {
       await delay(200);
       return getStoredSubmissions();
     }
-    throw new Error("Real backend verifications list endpoint not implemented");
+    const res = await api.get("/api/v1/admin/verifications");
+    return res.data;
   },
 
   async reviewVerification(
@@ -134,7 +137,7 @@ export const verificationService = {
     rejectionCategory?: string,
     rejectionNotes?: string
   ): Promise<VerificationSubmission> {
-    if (USE_MOCKS) {
+    if (isDemoSession() || USE_MOCKS) {
       await delay(350);
       const submissions = getStoredSubmissions();
       const targetIndex = submissions.findIndex((s) => s.verificationId === verificationId);
@@ -176,6 +179,11 @@ export const verificationService = {
 
       return updatedItem;
     }
-    throw new Error("Real backend verification review endpoint not implemented");
+    const res = await api.post(`/api/v1/admin/verifications/${verificationId}/review`, {
+      action,
+      rejectionCategory,
+      rejectionNotes,
+    });
+    return res.data;
   },
 };

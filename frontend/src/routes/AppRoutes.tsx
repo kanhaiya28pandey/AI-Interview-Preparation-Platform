@@ -30,6 +30,7 @@ import { Profile } from "@/pages/student/Profile";
 import { Settings } from "@/pages/student/Settings";
 import { HelpCenter } from "@/pages/student/HelpCenter";
 import { VerifyIdentity } from "@/pages/student/VerifyIdentity";
+import { PreparationRoadmaps } from "@/pages/student/PreparationRoadmaps";
 
 // Admin Pages
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
@@ -37,12 +38,15 @@ import { AdminUsers } from "@/pages/admin/AdminUsers";
 import { AdminStudents } from "@/pages/admin/AdminStudents";
 import { AdminStudentDetail } from "@/pages/admin/AdminStudentDetail";
 import { AdminCodingTests } from "@/pages/admin/AdminCodingTests";
+import { AdminLiveTests } from "@/pages/admin/AdminLiveTests";
 import { AdminMockInterviews } from "@/pages/admin/AdminMockInterviews";
 import { AdminArticles } from "@/pages/admin/AdminArticles";
 import { AdminReports } from "@/pages/admin/AdminReports";
 import { AdminSettings } from "@/pages/admin/AdminSettings";
 import { AdminHelp } from "@/pages/admin/AdminHelp";
 import { AdminVerifications } from "@/pages/admin/AdminVerifications";
+import { ContentManagerHub } from "@/pages/admin/ContentManagerHub";
+import { AdminTaxonomy } from "@/pages/admin/AdminTaxonomy";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -67,6 +71,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/dashboard" element={<StudentDashboard />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/practice" element={<Practice />} />
+        <Route path="/preparation" element={<PreparationRoadmaps />} />
         <Route
           path="/resume-analyzer"
           element={
@@ -126,11 +131,14 @@ export const AppRoutes: React.FC = () => {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="content" element={<ContentManagerHub />} />
         <Route path="students" element={<AdminStudents />} />
         <Route path="students/:id" element={<AdminStudentDetail />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="verifications" element={<AdminVerifications />} />
         <Route path="coding-tests" element={<AdminCodingTests />} />
+        <Route path="taxonomy" element={<AdminTaxonomy />} />
+        <Route path="live-tests" element={<AdminLiveTests />} />
         <Route path="mock-interviews" element={<AdminMockInterviews />} />
         <Route path="articles" element={<AdminArticles />} />
         <Route path="reports" element={<AdminReports />} />

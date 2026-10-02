@@ -110,14 +110,21 @@ export async function checkImageQuality(file: File): Promise<ImageQualityCheckRe
       for (let i = 0; i < laplacian.length; i++) {
         varianceSum += (laplacian[i] - mean) ** 2;
       }
-      const variance = varianceSum / count;
-      const blurScore = Math.round(variance);
+      const rawVariance = varianceSum / count;
+      // Normalize raw variance into a sensible percentage capped at 100%
+      // 30 is the sharp pass threshold (maps to 60%)
+      let blurScore = 0;
+      if (rawVariance < 30) {
+        blurScore = Math.min(59, Math.round((rawVariance / 30) * 59));
+      } else {
+        blurScore = Math.min(100, Math.round(60 + Math.min(40, ((rawVariance - 30) / 200) * 40)));
+      }
 
-      // Low blur score (< 30) indicates low sharpness / out of focus image
-      if (blurScore < 30) {
+      // Low blur score (< 60%) indicates low sharpness / out of focus image
+      if (blurScore < 60) {
         return resolve({
           valid: false,
-          reason: `Image is too blurry (clarity score: ${blurScore}/100). Please upload a sharp, well-lit photo of your college ID card.`,
+          reason: `Image is too blurry (clarity score: ${blurScore}%). Please upload a sharp, well-lit photo of your college ID card.`,
           blurScore,
           width,
           height,

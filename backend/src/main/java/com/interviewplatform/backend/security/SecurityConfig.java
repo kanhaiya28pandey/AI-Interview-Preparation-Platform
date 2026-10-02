@@ -78,6 +78,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    @SuppressWarnings("null")
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         List<String> origins = Arrays.stream(allowedOrigins.split(","))

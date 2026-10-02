@@ -27,6 +27,7 @@ import com.interviewplatform.backend.model.QuestionAnswer;
 import com.interviewplatform.backend.model.TranscriptItem;
 
 @Service
+@SuppressWarnings("null")
 public class AiInterviewService {
 
     private static final Logger log = LoggerFactory.getLogger(AiInterviewService.class);
@@ -207,5 +208,93 @@ public class AiInterviewService {
         feedback.setTranscripts(transcripts);
 
         return feedback;
+    }
+
+    public List<InterviewQuestion> generateQuestions(String roleTitle, String subject, List<String> topics, String difficulty, int count) {
+        if (apiKey != null && !apiKey.trim().isBlank() && !apiKey.equalsIgnoreCase("YOUR_GEMINI_API_KEY")) {
+            try {
+                return callGeminiForQuestions(roleTitle, subject, topics, difficulty, count);
+            } catch (Exception e) {
+                log.warn("Gemini question generation failed (using structured template fallback): {}", e.getMessage());
+            }
+        }
+        return generateFallbackQuestions(roleTitle, subject, topics, difficulty, count);
+    }
+
+    private List<InterviewQuestion> callGeminiForQuestions(String roleTitle, String subject, List<String> topics, String difficulty, int count) throws Exception {
+        String topicsStr = topics != null && !topics.isEmpty() ? String.join(", ", topics) : "Core Concepts";
+        String prompt = """
+                Generate %d technical interview questions for role "%s", subject "%s", topics [%s], difficulty "%s".
+                Return ONLY valid JSON array of objects:
+                [
+                  {
+                    "question": "The question text",
+                    "category": "%s",
+                    "idealKeyPoints": ["Point 1", "Point 2", "Point 3"],
+                    "followUpQuestion": "Follow up question"
+                  }
+                ]
+                """.formatted(count, roleTitle, subject, topicsStr, difficulty, subject);
+
+        String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey.trim();
+        Map<String, Object> requestBody = Map.of(
+                "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
+                "generationConfig", Map.of("responseMimeType", "application/json", "temperature", 0.3)
+        );
+
+        String jsonPayload = objectMapper.writeValueAsString(requestBody);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(20))
+                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200) {
+            JsonNode root = objectMapper.readTree(response.body());
+            String textOutput = root.path("candidates").path(0).path("content").path("parts").path(0).path("text").asText();
+            if (textOutput != null && !textOutput.isBlank()) {
+                String cleaned = textOutput.replaceAll("```json|```", "").trim();
+                JsonNode array = objectMapper.readTree(cleaned);
+                List<InterviewQuestion> result = new ArrayList<>();
+                for (int i = 0; i < array.size(); i++) {
+                    JsonNode item = array.get(i);
+                    List<String> keypoints = new ArrayList<>();
+                    if (item.has("idealKeyPoints")) {
+                        item.get("idealKeyPoints").forEach(k -> keypoints.add(k.asText()));
+                    }
+                    result.add(new InterviewQuestion(
+                            "q-gen-" + System.currentTimeMillis() + "-" + i,
+                            roleTitle,
+                            i + 1,
+                            item.path("question").asText("Describe key concepts in " + subject),
+                            item.path("category").asText(subject),
+                            keypoints.isEmpty() ? List.of("Technical accuracy", "Clarity", "Best practices") : keypoints,
+                            item.path("followUpQuestion").asText("How would you optimize this in production?")
+                    ));
+                }
+                return result;
+            }
+        }
+        throw new RuntimeException("Gemini returned non-200: " + response.statusCode());
+    }
+
+    private List<InterviewQuestion> generateFallbackQuestions(String roleTitle, String subject, List<String> topics, String difficulty, int count) {
+        List<InterviewQuestion> list = new ArrayList<>();
+        String topicName = (topics != null && !topics.isEmpty()) ? topics.get(0) : subject;
+        for (int i = 1; i <= count; i++) {
+            list.add(new InterviewQuestion(
+                    "q-ai-" + System.currentTimeMillis() + "-" + i,
+                    roleTitle,
+                    i,
+                    String.format("Explain key principles of %s in %s for %s level interviews. How do you implement and optimize it?", topicName, subject, difficulty),
+                    subject,
+                    List.of("Core architecture understanding", "Performance implications", "Real-world trade-offs"),
+                    "What edge cases or failures would you prepare for in production?"
+            ));
+        }
+        return list;
     }
 }

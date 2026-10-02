@@ -11,7 +11,6 @@ import com.interviewplatform.backend.dto.ReviewVerificationRequest;
 import com.interviewplatform.backend.dto.VerificationStatusResponse;
 import com.interviewplatform.backend.dto.VerificationSubmissionRequest;
 import com.interviewplatform.backend.model.User;
-import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.model.Verification;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
@@ -154,5 +153,44 @@ public class VerificationService {
         }
 
         return updated;
+    }
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VerificationService.class);
+
+    public void deleteRejectedVerification(String id, String adminId) {
+        Verification verification = verificationRepository.findById(id)
+                .or(() -> verificationRepository.findByVerificationId(id))
+                .orElseThrow(() -> new IllegalArgumentException("Verification record not found: " + id));
+
+        String status = verification.getStatus();
+        if (!"Rejected".equalsIgnoreCase(status) && !"REJECTED".equalsIgnoreCase(status)) {
+            throw new IllegalArgumentException("Cannot delete verification record. Only REJECTED profiles can be deleted. Current status: " + status);
+        }
+
+        String userId = verification.getUserId();
+
+        // Delete verification record
+        verificationRepository.delete(verification);
+
+        // Delete associated user and profile if present
+        if (userId != null && !userId.isBlank()) {
+            userRepository.deleteById(userId);
+            userProfileRepository.deleteByUserId(userId);
+        }
+
+        logger.info("AUDIT LOG: Admin [{}] deleted REJECTED verification record [{}] and student profile [{}] at [{}]",
+                adminId, id, userId, LocalDateTime.now());
+    }
+
+    public int deleteBulkRejectedVerifications(List<String> ids, String adminId) {
+        if (ids == null || ids.isEmpty()) {
+            throw new IllegalArgumentException("No verification IDs provided for bulk deletion");
+        }
+        int count = 0;
+        for (String id : ids) {
+            deleteRejectedVerification(id, adminId);
+            count++;
+        }
+        return count;
     }
 }

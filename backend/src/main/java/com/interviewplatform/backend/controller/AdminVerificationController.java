@@ -18,6 +18,10 @@ import com.interviewplatform.backend.service.VerificationService;
 
 import jakarta.validation.Valid;
 
+import java.util.Map;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+
 @RestController
 @RequestMapping("/api/v1/admin/verifications")
 @PreAuthorize("hasRole('ADMIN')")
@@ -44,5 +48,31 @@ public class AdminVerificationController {
     ) {
         Verification reviewed = verificationService.reviewVerification(verificationId, request);
         return ResponseEntity.ok(reviewed);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> deleteRejectedVerification(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        String adminId = authentication != null ? authentication.getName() : "ADMIN";
+        verificationService.deleteRejectedVerification(id, adminId);
+        return ResponseEntity.ok(Map.of(
+            "message", "Rejected profile successfully deleted",
+            "id", id
+        ));
+    }
+
+    @DeleteMapping("/rejected")
+    public ResponseEntity<Map<String, Object>> deleteBulkRejectedVerifications(
+            @RequestBody List<String> ids,
+            Authentication authentication
+    ) {
+        String adminId = authentication != null ? authentication.getName() : "ADMIN";
+        int count = verificationService.deleteBulkRejectedVerifications(ids, adminId);
+        return ResponseEntity.ok(Map.of(
+            "message", "Successfully deleted " + count + " rejected profiles",
+            "count", count
+        ));
     }
 }

@@ -9,6 +9,7 @@ import {
   RegisterStep2FormData,
 } from "@/validations/auth";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminStore } from "@/context/AdminStoreContext";
 import { profileService } from "@/services/profileService";
 import { verificationService } from "@/services/verificationService";
 import { suggestCollegeFromEmail, INITIAL_MOCK_VERIFICATIONS } from "@/mocks/verifications";
@@ -45,6 +46,7 @@ const DRAFT_STORAGE_KEY = "ai_interview_prep_register_draft";
 
 export const Register: React.FC = () => {
   const { register: registerAuth, loginDemoStudent, isAuthenticated, user, logout } = useAuth();
+  const { addStudent } = useAdminStore();
   const navigate = useNavigate();
 
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -390,7 +392,7 @@ export const Register: React.FC = () => {
         verificationStatus: "Pending Verification",
       });
 
-      // 3. Submit Verification Request
+      // 3. Submit Verification Request & Add to Central Store
       await verificationService.submitVerification({
         userId: authRes.userId,
         studentName: step3Data.nameOnId || nameVal,
@@ -404,6 +406,31 @@ export const Register: React.FC = () => {
           "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
         selfieUrl: step3Data.selfiePreview || undefined,
       });
+
+      // 4. Sync new student registration to shared AdminStore
+      try {
+        addStudent({
+          userId: authRes.userId,
+          name: nameVal.trim(),
+          email: emailVal.trim(),
+          phone: phoneVal.trim(),
+          college: collegeNameVal.trim(),
+          course: courseVal,
+          branch: branchVal,
+          yearSemester: watchStep2("yearSemester"),
+          year: `${watchStep2("graduationYear")} Grad`,
+          rollNumber: rollNumberVal.trim(),
+          idCardFrontUrl: step3Data.idFrontPreview || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+          selfieUrl: step3Data.selfiePreview || undefined,
+          registeredAt: new Date().toISOString(),
+          verificationStatus: "Pending Verification",
+          role: "STUDENT",
+          status: "PENDING",
+          profileCompletion: 85,
+        });
+      } catch (e) {
+        console.warn("Could not sync to admin store:", e);
+      }
 
       // Clear draft storage
       localStorage.removeItem(DRAFT_STORAGE_KEY);
@@ -634,11 +661,35 @@ export const Register: React.FC = () => {
 
         {/* Server Error Alert */}
         {serverError && (
-          <div className="p-3 rounded-lg bg-danger-bg border border-danger/40 text-danger text-xs space-y-2">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{serverError}</span>
+          <div className="p-3.5 rounded-xl bg-danger-bg border border-danger/40 text-danger text-xs space-y-2.5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{serverError}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setServerError(null);
+                  if (currentStep === 3) {
+                    executeRegistration();
+                  } else {
+                    toast.info("Please retry submitting your step details.");
+                  }
+                }}
+                isLoading={isSubmitting}
+                className="text-xs shrink-0 bg-surface border-danger/40 text-danger hover:bg-danger/10"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Retry</span>
+              </Button>
             </div>
+            {serverError.toLowerCase().includes("cannot reach the server") && (
+              <p className="text-[11px] font-mono text-amber-300 bg-amber-500/10 p-2 rounded border border-amber-500/30">
+                💡 Tip: Ensure backend service is running on <code>http://localhost:8080</code> or set <code>VITE_USE_MOCKS=true</code> in your <code>.env</code> file.
+              </p>
+            )}
             {serverError.toLowerCase().includes("already exists") && (
               <div className="flex items-center gap-3 pt-2 border-t border-danger/20 font-mono text-[11px]">
                 <Link to="/login" className="text-cyan-400 hover:underline font-semibold">

@@ -17,7 +17,7 @@ export interface PracticeQuestion {
   difficulty: "Easy" | "Medium" | "Hard";
   prompt: string;
   keyPoints: string[];
-  sampleAnswer: string;
+  sampleAnswer?: string;
 }
 
 export const mockPracticeTopics: PracticeTopic[] = [

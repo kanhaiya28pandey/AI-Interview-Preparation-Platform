@@ -15,13 +15,13 @@ import com.interviewplatform.backend.model.CodingSubmission;
 import com.interviewplatform.backend.model.ExecutionResult;
 import com.interviewplatform.backend.model.TestCase;
 import com.interviewplatform.backend.model.TestCaseResult;
-import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.repository.CodingProblemRepository;
 import com.interviewplatform.backend.repository.CodingSubmissionRepository;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
 
 @Service
+@SuppressWarnings("null")
 public class CodingJudgeService {
 
     private static final Logger log = LoggerFactory.getLogger(CodingJudgeService.class);
@@ -48,6 +48,7 @@ public class CodingJudgeService {
     }
 
     public CodingProblem getProblemById(String id) {
+        log.info("Fetching coding problem: {}", id);
         return problemRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Problem not found with id: " + id));
     }
@@ -165,5 +166,9 @@ public class CodingJudgeService {
             problem.setId("prob-" + System.currentTimeMillis());
         }
         return problemRepository.save(problem);
+    }
+
+    public void deleteProblem(String id) {
+        problemRepository.deleteById(id);
     }
 }

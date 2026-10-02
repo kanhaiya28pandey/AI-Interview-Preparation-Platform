@@ -7,15 +7,20 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { CardSkeleton } from "@/components/common/Skeletons";
+import { EmptyState } from "@/components/common/EmptyState";
 import { MarkdownRenderer } from "@/components/common/MarkdownRenderer";
+import { TaxonomySelect, TaxonomySelectOption } from "@/components/ui/TaxonomySelect";
+import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { Search, FileText, ThumbsUp, Eye, Clock, ArrowLeft, Share2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 export const Articles: React.FC = () => {
+  const { domains, getTopicsForDomain, normalizeDomain } = useTaxonomy();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string>("ALL");
+  const [selectedDomain, setSelectedDomain] = useState<string>("ALL");
+  const [selectedTopic, setSelectedTopic] = useState<string>("ALL");
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
 
   useEffect(() => {
@@ -24,6 +29,49 @@ export const Articles: React.FC = () => {
       setLoading(false);
     });
   }, []);
+
+  const handleDomainChange = (val: string) => {
+    setSelectedDomain(val);
+    if (val !== "ALL") {
+      const validTopics = getTopicsForDomain(val).map((t) => t.name.toLowerCase());
+      if (selectedTopic !== "ALL" && !validTopics.includes(selectedTopic.toLowerCase())) {
+        setSelectedTopic("ALL");
+      }
+    }
+  };
+
+  const domainOptions: TaxonomySelectOption[] = [
+    { value: "ALL", label: "All Domains" },
+    ...domains.map((d) => ({
+      value: d.slug,
+      label: d.name,
+    })),
+  ];
+
+  const topicOptions: TaxonomySelectOption[] =
+    selectedDomain === "ALL"
+      ? [
+          { value: "ALL", label: "All Topics" },
+          ...domains.flatMap((d) =>
+            d.topics.map((t) => ({
+              value: t.name,
+              label: t.name,
+              group: d.name,
+            }))
+          ),
+        ]
+      : (() => {
+          const currentDomain = domains.find(
+            (d) => d.slug === selectedDomain || d.name.toLowerCase() === selectedDomain.toLowerCase()
+          );
+          return [
+            { value: "ALL", label: `All ${currentDomain?.name || ""} Topics` },
+            ...(currentDomain?.topics || []).map((t) => ({
+              value: t.name,
+              label: t.name,
+            })),
+          ];
+        })();
 
   const handleLike = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -37,9 +85,25 @@ export const Articles: React.FC = () => {
   };
 
   const filtered = articles.filter((a) => {
-    const matchSearch = a.title.toLowerCase().includes(search.toLowerCase()) || a.summary.toLowerCase().includes(search.toLowerCase());
-    const matchTag = selectedTag === "ALL" || a.category.toUpperCase().includes(selectedTag) || a.tags.some(t => t.toUpperCase() === selectedTag);
-    return matchSearch && matchTag;
+    const q = search.toLowerCase();
+    const matchSearch =
+      a.title.toLowerCase().includes(q) ||
+      a.summary.toLowerCase().includes(q) ||
+      a.tags.some((t) => t.toLowerCase().includes(q));
+
+    const aDomain = (a as any).domainSlug || normalizeDomain(a.category);
+    const matchDomain =
+      selectedDomain === "ALL" ||
+      aDomain === selectedDomain ||
+      a.category.toLowerCase().includes(selectedDomain.toLowerCase()) ||
+      domains.find((d) => d.slug === selectedDomain)?.name.toLowerCase() === a.category.toLowerCase();
+
+    const matchTopic =
+      selectedTopic === "ALL" ||
+      a.title.toLowerCase().includes(selectedTopic.toLowerCase()) ||
+      a.tags.some((t) => t.toLowerCase().includes(selectedTopic.toLowerCase()));
+
+    return matchSearch && matchDomain && matchTopic;
   });
 
   if (loading) return <CardSkeleton />;
@@ -52,7 +116,7 @@ export const Articles: React.FC = () => {
           <p className="text-xs text-text-secondary">Curated guides on STAR framework, system design architecture, and tech resume tips.</p>
         </div>
 
-        <div className="relative w-full sm:w-72">
+        <div className="relative w-full sm:w-64">
           <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
           <Input
             type="text"
@@ -64,8 +128,43 @@ export const Articles: React.FC = () => {
         </div>
       </div>
 
+      {/* Filter Bar */}
+      <Card className="p-3 bg-surface border-border grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <TaxonomySelect
+            options={domainOptions}
+            value={selectedDomain}
+            onChange={handleDomainChange}
+            placeholder="Filter by Domain"
+            ariaLabel="Filter articles by domain"
+          />
+        </div>
+        <div>
+          <TaxonomySelect
+            options={topicOptions}
+            value={selectedTopic}
+            onChange={(val) => setSelectedTopic(val)}
+            placeholder="Filter by Topic"
+            ariaLabel="Filter articles by topic"
+            grouped={selectedDomain === "ALL"}
+          />
+        </div>
+      </Card>
+
       {/* Article Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {filtered.length === 0 ? (
+        <EmptyState
+          title="No articles found"
+          description="Try clearing your search query or selecting another domain."
+          actionText="Reset Filters"
+          onAction={() => {
+            setSearch("");
+            setSelectedDomain("ALL");
+            setSelectedTopic("ALL");
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((art) => (
           <Card
             key={art.id}
@@ -105,6 +204,7 @@ export const Articles: React.FC = () => {
           </Card>
         ))}
       </div>
+      )}
 
       {/* Article Detail View Modal */}
       {activeArticle && (
