@@ -6,6 +6,12 @@ import { contentManagerService } from "./contentManagerService";
 
 export const codingService = {
   async getProblems(): Promise<CodingProblem[]> {
+    const list = [...mockCodingProblems];
+    SEED_CODING_PROBLEMS.forEach((sp) => {
+      if (!list.some((item) => item.id === sp.id)) {
+        list.push(sp);
+      }
+    });
     try {
       const response = await api.get<CodingProblem[]>("/api/v1/coding/problems");
       if (response.data && response.data.length > 0) {
@@ -14,13 +20,6 @@ export const codingService = {
     } catch (err) {
       console.warn("Could not fetch problems from backend, using local dataset", err);
     }
-
-    const list = [...mockCodingProblems];
-    SEED_CODING_PROBLEMS.forEach((sp) => {
-      if (!list.some((item) => item.id === sp.id)) {
-        list.push(sp);
-      }
-    });
 
     try {
       const published = await contentManagerService.getPublishedContent("CODING_PROBLEM");
@@ -37,7 +36,7 @@ export const codingService = {
         examples: item.contentData?.testCases
           ? item.contentData.testCases
               .filter((tc: any) => !tc.isHidden)
-              .map((tc: any) => ({
+              .map((tc: any, i: number) => ({
                 input: tc.inputStr,
                 output: tc.expectedStr,
                 explanation: "Automated sample test case",
@@ -97,7 +96,6 @@ export const codingService = {
     } catch (err) {
       console.warn("Could not fetch problem by id from backend, using local problem", err);
     }
-
     const problems = await this.getProblems();
     return problems.find((p) => p.id === id);
   },
@@ -130,34 +128,10 @@ export const codingService = {
       };
     }
 
-    if (language === "javascript") {
-      const result = await executeJSInSandbox(code, problem.fnName, problem.testCases, 3000);
-      return {
-        ...result,
-        isSimulated: true,
-      };
-    }
-
-    await new Promise((res) => setTimeout(res, 600));
+    const result = await executeJSInSandbox(code, problem.fnName, problem.testCases);
     return {
-      status: "ACCEPTED",
-      runtimeMs: Math.floor(Math.random() * 20) + 10,
-      memoryMb: 16.4,
-      passedTests: problem.testCases?.length || 3,
-      totalTests: problem.testCases?.length || 3,
+      ...result,
       isSimulated: true,
-      outputLogs: [
-        `⚠ Offline Fallback Execution Mode (${language.toUpperCase()})`,
-        `Executed test cases against standard benchmark suite.`,
-      ],
-      testCaseResults: (problem.testCases || []).map((tc) => ({
-        id: tc.id,
-        inputStr: tc.inputStr,
-        expectedStr: tc.expectedStr,
-        actualStr: tc.expectedStr,
-        passed: true,
-        runtimeMs: Math.floor(Math.random() * 15) + 5,
-      })),
     };
   },
 
@@ -189,34 +163,10 @@ export const codingService = {
       };
     }
 
-    if (language === "javascript") {
-      const result = await executeJSInSandbox(code, problem.fnName, problem.testCases, 3000);
-      return {
-        ...result,
-        isSimulated: true,
-      };
-    }
-
-    await new Promise((res) => setTimeout(res, 600));
+    const result = await executeJSInSandbox(code, problem.fnName, problem.testCases);
     return {
-      status: "ACCEPTED",
-      runtimeMs: Math.floor(Math.random() * 20) + 10,
-      memoryMb: 18.2,
-      passedTests: problem.testCases?.length || 3,
-      totalTests: problem.testCases?.length || 3,
+      ...result,
       isSimulated: true,
-      outputLogs: [
-        `⚠ Offline Fallback Submission (${language.toUpperCase()})`,
-        `All benchmark test cases validated successfully.`,
-      ],
-      testCaseResults: (problem.testCases || []).map((tc) => ({
-        id: tc.id,
-        inputStr: tc.inputStr,
-        expectedStr: tc.expectedStr,
-        actualStr: tc.expectedStr,
-        passed: true,
-        runtimeMs: Math.floor(Math.random() * 10) + 2,
-      })),
     };
   },
 };

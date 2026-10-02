@@ -51,8 +51,9 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
+import { useAuth } from "@/context/AuthContext";
 import { resumeService } from "@/services/resumeService";
-import { JdMatcher } from "@/components/student/JdMatcher";
+import { notificationService } from "@/services/notificationService";
 import {
   ResumeAnalysisResult,
   SuggestionDetail,
@@ -87,6 +88,7 @@ const SCANNING_STEPS = [
 ];
 
 export const ResumeAnalyzer: React.FC = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -192,6 +194,17 @@ export const ResumeAnalyzer: React.FC = () => {
         jobDescription
       );
       setAnalysisResult(result);
+
+      if (user?.userId) {
+        notificationService.notifyUser(user.userId, {
+          audience: "STUDENT",
+          type: "resume",
+          title: "Resume Analysis Completed",
+          message: `ATS score for ${result.fileName}: ${result.atsScore}% (${result.role}).`,
+          link: "/resume-analyzer",
+          priority: result.atsScore >= 75 ? "success" : "warning",
+        }).catch((e) => console.warn(e));
+      }
     } catch (err: any) {
       setFileError(err.message || "Failed to analyze resume. Please try again.");
     } finally {
@@ -1164,8 +1177,6 @@ export const ResumeAnalyzer: React.FC = () => {
                 </Button>
               </div>
             </Card>
-
-            <JdMatcher />
           </motion.div>
         )}
       </AnimatePresence>

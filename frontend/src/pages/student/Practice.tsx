@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { practiceService } from "@/services/practiceService";
+import { progressService } from "@/services/progressService";
 import { PracticeTopic, PracticeQuestion } from "@/mocks/practiceData";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -447,6 +448,30 @@ export const Practice: React.FC = () => {
                         <li key={kIdx}>{kp}</li>
                       ))}
                     </ul>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                    {(() => {
+                      const completedIds = progressService.getCompletedQuestionsForTopic(user?.userId, selectedTopic.id);
+                      const isCompleted = completedIds.includes(q.id);
+
+                      return (
+                        <Button
+                          type="button"
+                          variant={isCompleted ? "outline" : "teal-cyan"}
+                          size="sm"
+                          onClick={() => {
+                            progressService.togglePracticeQuestion(user?.userId, selectedTopic.id, q.id);
+                            // Refresh topics list to update completedCount on cards
+                            practiceService.getTopics(user?.userId).then((res) => setTopics(res));
+                          }}
+                          className="text-xs gap-1.5 font-mono"
+                        >
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${isCompleted ? "text-live" : "text-ink"}`} />
+                          <span>{isCompleted ? "Practiced (Completed)" : "Mark as Practiced (+10 XP)"}</span>
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))

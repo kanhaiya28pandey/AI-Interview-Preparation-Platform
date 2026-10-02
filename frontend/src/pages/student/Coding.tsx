@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import { ContextualHelpTooltip } from "@/components/common/ContextualHelpTooltip";
 import { codingService } from "@/services/codingService";
+import { progressService } from "@/services/progressService";
+import { notificationService } from "@/services/notificationService";
 import { CodingProblem, ExecutionResult, DIFFICULTY_XP, TestCaseResult } from "@/mocks/codingData";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -18,8 +20,10 @@ import {
   Play,
   Send,
   CheckCircle2,
+  XCircle,
   AlertTriangle,
   FileCode2,
+  Clock,
   Cpu,
   Sparkles,
   RotateCcw,
@@ -32,11 +36,7 @@ import {
   AlertCircle,
   Award,
   Zap,
-  XCircle,
-  Clock,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { scopedKey } from "@/lib/userScope";
 import { cn } from "@/lib/utils";
 
 const LANGUAGE_OPTIONS: CustomSelectOption<"javascript" | "python" | "java" | "cpp">[] = [
@@ -45,6 +45,9 @@ const LANGUAGE_OPTIONS: CustomSelectOption<"javascript" | "python" | "java" | "c
   { value: "java", label: "Java 21 (Simulated)" },
   { value: "cpp", label: "C++ 20 (Simulated)" },
 ];
+
+import { useAuth } from "@/context/AuthContext";
+import { getScopedItem, setScopedItem } from "@/lib/userScope";
 
 interface ProblemLocalState {
   status: "UNSOLVED" | "SOLVED" | "SOLVED_WITH_HELP";
@@ -56,7 +59,6 @@ interface ProblemLocalState {
 
 export const Coding: React.FC = () => {
   const { user } = useAuth();
-  const userId = user?.userId;
   const { domains, getTopicsForDomain, normalizeDomain } = useTaxonomy();
   const [problems, setProblems] = useState<CodingProblem[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<CodingProblem | null>(null);
@@ -75,7 +77,6 @@ export const Coding: React.FC = () => {
   const [solutionLang, setSolutionLang] = useState<"javascript" | "python" | "java" | "cpp">("javascript");
 
   const [showResetModal, setShowResetModal] = useState(false);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [localStates, setLocalStates] = useState<Record<string, ProblemLocalState>>({});
   const [xpAwardMessage, setXpAwardMessage] = useState<string | null>(null);
 
@@ -95,10 +96,9 @@ export const Coding: React.FC = () => {
         const storedStates: Record<string, ProblemLocalState> = {};
         data.forEach((p) => {
           try {
-            const key = scopedKey(`coding_state_${p.id}`, userId);
-            const val = localStorage.getItem(key);
+            const val = getScopedItem<ProblemLocalState | null>(user?.userId, `coding_state_${p.id}`, null);
             if (val) {
-              storedStates[p.id] = JSON.parse(val);
+              storedStates[p.id] = val;
             }
           } catch {
             // ignore
@@ -115,7 +115,7 @@ export const Coding: React.FC = () => {
       }
       setLoading(false);
     });
-  }, [userId]);
+  }, [user?.userId]);
 
   const getProblemState = (problemId: string): ProblemLocalState => {
     return (
@@ -140,8 +140,7 @@ export const Coding: React.FC = () => {
       };
       const next = updater(current);
       try {
-        const key = scopedKey(`coding_state_${problemId}`, userId);
-        localStorage.setItem(key, JSON.stringify(next));
+        setScopedItem(user?.userId, `coding_state_${problemId}`, next);
       } catch {
         // ignore
       }
@@ -231,14 +230,8 @@ export const Coding: React.FC = () => {
     }
   };
 
-  const handleSubmitCode = () => {
+  const handleSubmitCode = async () => {
     if (!selectedProblem) return;
-    setShowSubmitModal(true);
-  };
-
-  const executeSubmitCode = async () => {
-    if (!selectedProblem) return;
-    setShowSubmitModal(false);
     setIsExecuting(true);
     setExecResult(null);
     setXpAwardMessage(null);
@@ -263,7 +256,30 @@ export const Coding: React.FC = () => {
           status: newStatus,
         }));
 
+        progressService.recordCodingSubmission(user?.userId, {
+          problemId: selectedProblem.id,
+          problemTitle: selectedProblem.title,
+          difficulty: selectedProblem.difficulty,
+          language: language,
+          status: "ACCEPTED",
+          passedTests: res.passedTests,
+          totalTests: res.totalTests,
+          runtimeMs: res.runtimeMs,
+          xpEarned: finalXP,
+        });
+
         setXpAwardMessage(`🎉 Benchmark Solved! Awarded +${finalXP} XP ${pState.hintsRevealed > 0 ? `(${pState.hintsRevealed} hint penalty applied)` : ""}`);
+
+        if (user?.userId) {
+          notificationService.notifyUser(user.userId, {
+            audience: "STUDENT",
+            type: "coding",
+            title: "Coding Problem Solved",
+            message: `You solved "${selectedProblem.title}"! (+${finalXP} XP)`,
+            link: "/coding",
+            priority: "success",
+          }).catch((err) => console.warn(err));
+        }
       } else {
         // Failed attempt
         const newAttempts = pState.attempts + 1;
@@ -274,6 +290,17 @@ export const Coding: React.FC = () => {
           attempts: newAttempts,
           unlockedSolution: prev.unlockedSolution || shouldAutoUnlock,
         }));
+
+        if (user?.userId) {
+          notificationService.notifyUser(user.userId, {
+            audience: "STUDENT",
+            type: "coding",
+            title: "Submission Result",
+            message: `Submission for "${selectedProblem.title}": ${res.status} (${res.passedTests}/${res.totalTests} tests passed).`,
+            link: "/coding",
+            priority: "warning",
+          }).catch((err) => console.warn(err));
+        }
       }
     } catch (e: any) {
       console.error(e);
@@ -959,35 +986,6 @@ export const Coding: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* CONFIRM SUBMIT MODAL */}
-      <Dialog
-        isOpen={showSubmitModal}
-        onClose={() => setShowSubmitModal(false)}
-        title="Submit Solution?"
-        description="Confirm final code submission."
-      >
-        <div className="space-y-4 text-xs">
-          <div className="p-4 bg-cyan-400/15 border border-cyan-400/30 rounded-xl text-text-primary space-y-1">
-            <p className="font-semibold text-cyan-400 flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-              Submit now?
-            </p>
-            <p className="leading-relaxed text-text-secondary">
-              You cannot change answers after submission. Your code will be evaluated against hidden test cases.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowSubmitModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="teal-cyan" size="sm" onClick={executeSubmitCode} className="gap-1 font-semibold shadow-glow">
-              <Send className="w-3.5 h-3.5" /> Confirm & Submit
-            </Button>
-          </div>
-        </div>
-      </Dialog>
     </div>
   );
 };

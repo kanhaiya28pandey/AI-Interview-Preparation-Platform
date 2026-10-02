@@ -10,6 +10,7 @@ import {
   VerificationSubmission,
 } from "@/mocks/verifications";
 import { verificationService } from "@/services/verificationService";
+import { useVerificationStatus } from "@/hooks/useVerificationStatus";
 import { CollegeIdUploader, CollegeIdData } from "@/components/verification/CollegeIdUploader";
 import {
   ShieldCheck,
@@ -24,10 +25,9 @@ export const VerifyIdentity: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState<VerificationStatus>("Unverified");
-  const [currentSubmission, setCurrentSubmission] = useState<VerificationSubmission | undefined>(undefined);
-  const [isLoadingStatus, setIsLoadingStatus] = useState<boolean>(true);
+  const { status, submission: currentSubmission, isLoading: isLoadingStatus, refresh } = useVerificationStatus();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState<boolean>(false);
 
   // Form Pre-fill State
   const [collegeName, setCollegeName] = useState<string>("");
@@ -37,31 +37,25 @@ export const VerifyIdentity: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    verificationService.getVerificationStatus(user.userId, user.email).then((res) => {
-      setStatus(res.status);
-      setCurrentSubmission(res.submission);
-      setIsLoadingStatus(false);
-
-      if (res.submission) {
-        setCollegeName(res.submission.collegeName);
-        setRollNumber(res.submission.rollNumber);
-        setCourseBranch(res.submission.courseBranch);
-        setYearSemester(res.submission.yearSemester);
-      } else {
-        const suggested = suggestCollegeFromEmail(user.email);
-        if (suggested) {
-          setCollegeName(suggested);
-        }
+    if (currentSubmission) {
+      setCollegeName(currentSubmission.collegeName);
+      setRollNumber(currentSubmission.rollNumber);
+      setCourseBranch(currentSubmission.courseBranch);
+      setYearSemester(currentSubmission.yearSemester);
+    } else {
+      const suggested = suggestCollegeFromEmail(user.email);
+      if (suggested) {
+        setCollegeName(suggested);
       }
-    });
-  }, [user]);
+    }
+  }, [user, currentSubmission]);
 
   const handleVerificationSubmit = async (data: CollegeIdData) => {
     if (!user) return;
     setIsSubmitting(true);
 
     try {
-      const created = await verificationService.submitVerification({
+      await verificationService.submitVerification({
         userId: user.userId,
         studentName: data.nameOnId || user.name || "Student User",
         email: user.email,
@@ -75,8 +69,7 @@ export const VerifyIdentity: React.FC = () => {
         selfieUrl: data.selfiePreview || undefined,
       });
 
-      setStatus("Pending Verification");
-      setCurrentSubmission(created);
+      await refresh();
       toast.success("College ID submitted successfully for review!");
     } catch (err: any) {
       toast.error(err.message || "Failed to submit verification request.");
@@ -192,26 +185,46 @@ export const VerifyIdentity: React.FC = () => {
             </p>
           </div>
 
-          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl max-w-md mx-auto text-left text-xs space-y-2 font-mono text-amber-300">
+          <div className="p-4 bg-amber-500/15 dark:bg-amber-500/10 border border-amber-500/40 dark:border-amber-500/30 rounded-xl max-w-md mx-auto text-left text-xs space-y-2 font-mono text-amber-900 dark:text-amber-300 shadow-xs">
             <div className="flex justify-between">
-              <span>College:</span>
+              <span className="text-amber-800 dark:text-amber-400/90 font-medium">College:</span>
               <span className="font-semibold text-text-primary">
                 {currentSubmission?.collegeName}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Roll Number:</span>
-              <span>{currentSubmission?.rollNumber}</span>
+              <span className="text-amber-800 dark:text-amber-400/90 font-medium">Roll Number:</span>
+              <span className="font-semibold text-text-primary">{currentSubmission?.rollNumber}</span>
             </div>
             <div className="flex justify-between">
-              <span>Submitted:</span>
-              <span>{new Date(currentSubmission?.submittedAt || Date.now()).toLocaleDateString()}</span>
+              <span className="text-amber-800 dark:text-amber-400/90 font-medium">Submitted:</span>
+              <span className="text-text-secondary font-medium">{new Date(currentSubmission?.submittedAt || Date.now()).toLocaleDateString()}</span>
             </div>
           </div>
 
-          <div className="pt-2">
-            <Button variant="outline" onClick={() => navigate("/dashboard")} className="text-xs">
-              Return to Dashboard (Limited View)
+          <div className="pt-2 flex justify-center gap-3">
+            <Button
+              variant="outline"
+              disabled={isCheckingStatus}
+              onClick={async () => {
+                if (!user) return;
+                setIsCheckingStatus(true);
+                await refresh();
+                setIsCheckingStatus(false);
+                const currentRes = verificationService.resolveStatus(user.userId, user.email);
+                if (currentRes.status === "Verified") {
+                  toast.success("Your identity is verified - all features unlocked");
+                  navigate("/dashboard", { replace: true });
+                } else {
+                  toast.info("Still under review");
+                }
+              }}
+              className="text-xs"
+            >
+              {isCheckingStatus ? "Checking Status..." : "Check Review Status"}
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/help")} className="text-xs">
+              Help & Support
             </Button>
           </div>
         </Card>
