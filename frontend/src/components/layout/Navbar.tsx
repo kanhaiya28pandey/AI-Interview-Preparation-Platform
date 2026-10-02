@@ -1,32 +1,16 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useAppearance } from "@/context/AppearanceContext";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/common/Logo";
+import { RoleBadge } from "@/components/common/RoleBadge";
 import { Sparkles, Command, Sun, Moon } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const { isAuthenticated, user, logout, loginDemoStudent, isDemoMode } = useAuth();
+  const { isDark, toggleTheme } = useAppearance();
   const navigate = useNavigate();
-  const [isDark, setIsDark] = React.useState(true);
-
-  React.useEffect(() => {
-    const root = document.documentElement;
-    setIsDark(root.classList.contains("dark"));
-  }, []);
-
-  const toggleTheme = () => {
-    const root = document.documentElement;
-    if (root.classList.contains("dark")) {
-      root.classList.remove("dark");
-      root.classList.add("light");
-      setIsDark(false);
-    } else {
-      root.classList.remove("light");
-      root.classList.add("dark");
-      setIsDark(true);
-    }
-  };
 
   const handleDemoStudent = () => {
     loginDemoStudent();
@@ -67,9 +51,22 @@ export const Navbar: React.FC = () => {
 
           {isAuthenticated ? (
             <>
-              <span className="text-xs font-mono text-text-secondary hidden md:inline-block">
-                Hi, <strong className="text-cyan-400 font-semibold">{user?.name}</strong>
-              </span>
+              <div className="hidden md:flex items-center gap-2">
+                <RoleBadge role={user?.role} size="sm" />
+                <span className="text-xs font-mono text-text-secondary">
+                  Hi, <strong className="text-cyan-400 font-semibold">{user?.name}</strong>
+                </span>
+              </div>
+              {user?.role === "ADMIN" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(window.location.pathname.startsWith("/admin") ? "/dashboard" : "/admin")}
+                  className="text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10"
+                >
+                  {window.location.pathname.startsWith("/admin") ? "Switch to Student View" : "Switch to Admin View"}
+                </Button>
+              )}
               <Button
                 variant="primary"
                 size="sm"

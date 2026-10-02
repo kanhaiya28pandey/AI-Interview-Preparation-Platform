@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
 import { CustomSelect, CustomSelectOption } from "@/components/ui/CustomSelect";
+import { TaxonomySelect, TaxonomySelectOption } from "@/components/ui/TaxonomySelect";
+import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { Dialog } from "@/components/ui/Dialog";
 import { highlightLineTokens } from "@/lib/syntaxHighlight";
 import {
@@ -55,11 +57,17 @@ interface ProblemLocalState {
 export const Coding: React.FC = () => {
   const { user } = useAuth();
   const userId = user?.userId;
+  const { domains, getTopicsForDomain, normalizeDomain } = useTaxonomy();
   const [problems, setProblems] = useState<CodingProblem[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<CodingProblem | null>(null);
   const [language, setLanguage] = useState<"javascript" | "python" | "java" | "cpp">("javascript");
   const [code, setCode] = useState<string>("");
   const [loading, setLoading] = useState(true);
+
+  // Taxonomy Filters
+  const [selectedDomainFilter, setSelectedDomainFilter] = useState("ALL");
+  const [selectedTopicFilter, setSelectedTopicFilter] = useState("ALL");
+  const [selectedDifficultyFilter, setSelectedDifficultyFilter] = useState("ALL");
 
   const [isExecuting, setIsExecuting] = useState(false);
   const [execResult, setExecResult] = useState<ExecutionResult | null>(null);
@@ -299,7 +307,72 @@ export const Coding: React.FC = () => {
   const lineCount = code.split("\n").length;
   const lineNumbers = Array.from({ length: Math.max(15, lineCount) }, (_, i) => i + 1);
 
-  const problemOptions: CustomSelectOption[] = problems.map((p) => {
+  // Cascading filters logic
+  const handleDomainFilterChange = (domainVal: string) => {
+    setSelectedDomainFilter(domainVal);
+    if (domainVal !== "ALL") {
+      const validTopics = getTopicsForDomain(domainVal).map((t) => t.name.toLowerCase());
+      if (selectedTopicFilter !== "ALL" && !validTopics.includes(selectedTopicFilter.toLowerCase())) {
+        setSelectedTopicFilter("ALL");
+      }
+    }
+  };
+
+  const domainOptions: TaxonomySelectOption[] = [
+    { value: "ALL", label: "All Domains" },
+    ...domains.map((d) => ({
+      value: d.slug,
+      label: d.name,
+    })),
+  ];
+
+  const topicOptions: TaxonomySelectOption[] =
+    selectedDomainFilter === "ALL"
+      ? [
+          { value: "ALL", label: "All Topics" },
+          ...domains.flatMap((d) =>
+            d.topics.map((t) => ({
+              value: t.name,
+              label: t.name,
+              group: d.name,
+            }))
+          ),
+        ]
+      : (() => {
+          const currentDomain = domains.find(
+            (d) => d.slug === selectedDomainFilter || d.name.toLowerCase() === selectedDomainFilter.toLowerCase()
+          );
+          return [
+            { value: "ALL", label: `All ${currentDomain?.name || ""} Topics` },
+            ...(currentDomain?.topics || []).map((t) => ({
+              value: t.name,
+              label: t.name,
+            })),
+          ];
+        })();
+
+  const filteredProblems = problems.filter((p) => {
+    const pDomain = (p as any).domainSlug || normalizeDomain(p.category);
+    const matchesDomain =
+      selectedDomainFilter === "ALL" ||
+      pDomain === selectedDomainFilter ||
+      p.category.toLowerCase() === selectedDomainFilter.toLowerCase() ||
+      domains.find((d) => d.slug === selectedDomainFilter)?.name.toLowerCase() === p.category.toLowerCase();
+
+    const matchesTopic =
+      selectedTopicFilter === "ALL" ||
+      (p as any).topicSlug === selectedTopicFilter ||
+      p.title.toLowerCase().includes(selectedTopicFilter.toLowerCase()) ||
+      p.category.toLowerCase().includes(selectedTopicFilter.toLowerCase());
+
+    const matchesDiff =
+      selectedDifficultyFilter === "ALL" ||
+      p.difficulty.toUpperCase() === selectedDifficultyFilter.toUpperCase();
+
+    return matchesDomain && matchesTopic && matchesDiff;
+  });
+
+  const problemOptions: CustomSelectOption[] = (filteredProblems.length > 0 ? filteredProblems : problems).map((p) => {
     const st = getProblemState(p.id);
     const badgeStr = st.status === "SOLVED" ? "✓" : st.status === "SOLVED_WITH_HELP" ? "⚡" : "";
     return {
@@ -373,6 +446,41 @@ export const Coding: React.FC = () => {
             align="right"
             ariaLabel="Select benchmark problem"
           />
+        </div>
+      </div>
+
+      {/* Domain & Topic Cascading Filter Bar */}
+      <div className="p-3 bg-surface border border-border rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <TaxonomySelect
+            options={domainOptions}
+            value={selectedDomainFilter}
+            onChange={handleDomainFilterChange}
+            placeholder="Filter Domain"
+            ariaLabel="Filter problem domain"
+          />
+        </div>
+        <div>
+          <TaxonomySelect
+            options={topicOptions}
+            value={selectedTopicFilter}
+            onChange={(val) => setSelectedTopicFilter(val)}
+            placeholder="Filter Topic"
+            ariaLabel="Filter problem topic"
+            grouped={selectedDomainFilter === "ALL"}
+          />
+        </div>
+        <div>
+          <select
+            value={selectedDifficultyFilter}
+            onChange={(e) => setSelectedDifficultyFilter(e.target.value)}
+            className="w-full bg-surface-raised border border-border rounded-lg p-2 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+          >
+            <option value="ALL">All Difficulties</option>
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
         </div>
       </div>
 

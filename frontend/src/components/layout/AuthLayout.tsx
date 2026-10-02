@@ -16,6 +16,7 @@ import {
   Building2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FloatingOrbs } from "@/components/fx";
 
 export interface AuthLayoutProps {
   children: React.ReactNode;
@@ -91,7 +92,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, step = 1 }) =>
   const currentQuote = authQuotes[activeQuoteIndex];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-ink text-text-primary select-none">
+    <div className="h-screen flex flex-col overflow-hidden bg-ink text-text-primary select-none relative">
+      <FloatingOrbs count={3} />
       {/* Top Navbar: Fixed height in normal flow, never scrolls */}
       <Navbar />
 

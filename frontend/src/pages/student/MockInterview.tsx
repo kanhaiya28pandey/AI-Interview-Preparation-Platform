@@ -6,16 +6,27 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { CardSkeleton } from "@/components/common/Skeletons";
+import { EmptyState } from "@/components/common/EmptyState";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
-import { Video, Mic, Clock, Sparkles, CheckCircle2, ArrowRight, Award, AlertCircle, RefreshCw, Volume2, X, AlertTriangle, Users } from "lucide-react";
+import { TaxonomySelect, TaxonomySelectOption } from "@/components/ui/TaxonomySelect";
+import { useTaxonomy } from "@/hooks/useTaxonomy";
+import { Video, Mic, Clock, Sparkles, CheckCircle2, ArrowRight, Award, AlertCircle, RefreshCw, Volume2, X, AlertTriangle, Users, Search } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { MockInsightsReport } from "@/components/student/MockInsightsReport";
 import { PeerMockMatchingModal } from "@/components/student/PeerMockMatchingModal";
 
 export const MockInterview: React.FC = () => {
+  const { domains, getTopicsForDomain, normalizeDomain } = useTaxonomy();
   const [roles, setRoles] = useState<InterviewRole[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [selectedDomain, setSelectedDomain] = useState("ALL");
+  const [selectedTopic, setSelectedTopic] = useState("ALL");
+  const [selectedDifficulty, setSelectedDifficulty] = useState("ALL");
+  const [selectedType, setSelectedType] = useState("ALL");
 
   // Flow State: 'select' | 'interview' | 'feedback'
   const [flowState, setFlowState] = useState<"select" | "interview" | "feedback">("select");
@@ -112,6 +123,78 @@ export const MockInterview: React.FC = () => {
 
   if (loading) return <CardSkeleton />;
 
+  // Cascading filters
+  const handleDomainChange = (val: string) => {
+    setSelectedDomain(val);
+    if (val !== "ALL") {
+      const validTopics = getTopicsForDomain(val).map((t) => t.name.toLowerCase());
+      if (selectedTopic !== "ALL" && !validTopics.includes(selectedTopic.toLowerCase())) {
+        setSelectedTopic("ALL");
+      }
+    }
+  };
+
+  const domainOptions: TaxonomySelectOption[] = [
+    { value: "ALL", label: "All Domains" },
+    ...domains.map((d) => ({
+      value: d.slug,
+      label: d.name,
+    })),
+  ];
+
+  const topicOptions: TaxonomySelectOption[] =
+    selectedDomain === "ALL"
+      ? [
+          { value: "ALL", label: "All Topics" },
+          ...domains.flatMap((d) =>
+            d.topics.map((t) => ({
+              value: t.name,
+              label: t.name,
+              group: d.name,
+            }))
+          ),
+        ]
+      : (() => {
+          const currentDomain = domains.find(
+            (d) => d.slug === selectedDomain || d.name.toLowerCase() === selectedDomain.toLowerCase()
+          );
+          return [
+            { value: "ALL", label: `All ${currentDomain?.name || ""} Topics` },
+            ...(currentDomain?.topics || []).map((t) => ({
+              value: t.name,
+              label: t.name,
+            })),
+          ];
+        })();
+
+  const filteredRoles = roles.filter((r) => {
+    const q = search.toLowerCase();
+    const matchesSearch =
+      r.title.toLowerCase().includes(q) ||
+      r.description.toLowerCase().includes(q) ||
+      r.category.toLowerCase().includes(q);
+
+    const rDomainSlug = (r as any).domainSlug || normalizeDomain(r.category);
+    const matchesDomain =
+      selectedDomain === "ALL" ||
+      rDomainSlug === selectedDomain ||
+      r.category.toLowerCase() === selectedDomain.toLowerCase() ||
+      domains.find((d) => d.slug === selectedDomain)?.name.toLowerCase() === r.category.toLowerCase();
+
+    const matchesTopic =
+      selectedTopic === "ALL" ||
+      r.title.toLowerCase().includes(selectedTopic.toLowerCase()) ||
+      r.description.toLowerCase().includes(selectedTopic.toLowerCase());
+
+    const matchesDiff =
+      selectedDifficulty === "ALL" || r.difficulty.toUpperCase() === selectedDifficulty.toUpperCase();
+
+    const matchesType =
+      selectedType === "ALL" || r.category.toLowerCase() === selectedType.toLowerCase();
+
+    return matchesSearch && matchesDomain && matchesTopic && matchesDiff && matchesType;
+  });
+
   // SCREEN 1: Role Selection
   if (flowState === "select") {
     return (
@@ -121,7 +204,9 @@ export const MockInterview: React.FC = () => {
             <h2 className="font-serif text-3xl font-medium text-text-primary flex items-center gap-2">
               <Video className="w-6 h-6 text-cyan-400" /> AI Mock Interview Rooms
             </h2>
-            <p className="text-xs text-text-secondary">Select your target engineering domain for a 3-round simulated placement interview.</p>
+            <p className="text-xs text-text-secondary">
+              Select your target engineering domain and role for a simulated technical placement round.
+            </p>
           </div>
           <Button
             variant="teal-cyan"
@@ -135,32 +220,133 @@ export const MockInterview: React.FC = () => {
 
         <PeerMockMatchingModal isOpen={showPeerModal} onClose={() => setShowPeerModal(false)} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {roles.map((role) => (
-            <Card key={role.id} className="p-6 space-y-4 hover:border-cyan-400/50 transition-colors flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="p-2.5 bg-surface-raised border border-border rounded-xl text-cyan-400">
-                    <Video className="w-5 h-5" />
-                  </div>
-                  <Badge variant="accent">{role.difficulty}</Badge>
-                </div>
-                <h3 className="font-serif text-xl font-medium text-text-primary">{role.title}</h3>
-                <p className="text-xs text-text-secondary">{role.description}</p>
-              </div>
+        {/* Filter Bar */}
+        <Card className="p-4 bg-surface border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search roles..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+              />
+            </div>
 
-              <div className="space-y-3 pt-4 border-t border-border">
-                <div className="flex justify-between text-xs font-mono text-text-muted">
-                  <span>{role.totalQuestions || 3} Questions</span>
-                  <span>⏱ {role.durationMinutes} Mins</span>
+            <div>
+              <TaxonomySelect
+                options={domainOptions}
+                value={selectedDomain}
+                onChange={handleDomainChange}
+                placeholder="Domain"
+                ariaLabel="Filter interview domain"
+              />
+            </div>
+
+            <div>
+              <TaxonomySelect
+                options={topicOptions}
+                value={selectedTopic}
+                onChange={(val) => setSelectedTopic(val)}
+                placeholder="Topic"
+                ariaLabel="Filter interview topic"
+                grouped={selectedDomain === "ALL"}
+              />
+            </div>
+
+            <div>
+              <select
+                value={selectedDifficulty}
+                onChange={(e) => setSelectedDifficulty(e.target.value)}
+                className="w-full bg-surface-raised border border-border rounded-lg p-2 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+              >
+                <option value="ALL">All Levels</option>
+                <option value="Junior">Junior</option>
+                <option value="Mid-Level">Mid-Level</option>
+                <option value="Senior">Senior</option>
+                <option value="Lead">Lead</option>
+              </select>
+            </div>
+
+            <div>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full bg-surface-raised border border-border rounded-lg p-2 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+              >
+                <option value="ALL">All Interview Types</option>
+                <option value="Technical">Technical</option>
+                <option value="Behavioral">Behavioral</option>
+                <option value="Product">Product</option>
+              </select>
+            </div>
+          </div>
+        </Card>
+
+        {filteredRoles.length === 0 ? (
+          <EmptyState
+            title="No mock interview roles match your filters"
+            description="Try selecting a different domain, difficulty level, or interview type."
+            actionText="Reset Filters"
+            onAction={() => {
+              setSearch("");
+              setSelectedDomain("ALL");
+              setSelectedTopic("ALL");
+              setSelectedDifficulty("ALL");
+              setSelectedType("ALL");
+            }}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredRoles.map((role) => (
+              <Card
+                key={role.id}
+                className="p-6 space-y-4 hover:border-cyan-400/50 transition-colors flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2.5 bg-surface-raised border border-border rounded-xl text-cyan-400">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="accent" className="text-[10px]">
+                        {role.category}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {role.difficulty}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-serif text-xl font-medium text-text-primary">
+                      {role.title}
+                    </h3>
+                    <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+                      {role.description}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs font-mono text-text-muted pt-1">
+                    <span>⏱ {role.durationMinutes} mins</span>
+                    <span>❓ {role.totalQuestions} Questions</span>
+                  </div>
                 </div>
-                <Button variant="primary" size="sm" className="w-full" onClick={() => startInterviewRoom(role)}>
-                  Enter Assessment Room <ArrowRight className="w-4 h-4" />
+
+                <Button
+                  variant="primary"
+                  size="md"
+                  className="w-full mt-4"
+                  onClick={() => startInterviewRoom(role)}
+                >
+                  <span>Enter Assessment Room</span>
+                  <ArrowRight className="w-4 h-4" />
                 </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

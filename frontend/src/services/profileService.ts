@@ -1,9 +1,5 @@
-<<<<<<< ours
 import api from "@/lib/api";
-import { mockUserProfile, UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
-=======
 import { mockUserProfile, createEmptyProfile, UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
->>>>>>> theirs
 
 const STORAGE_KEY = "ai_interview_prep_profile";
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -40,15 +36,6 @@ const getStoredProfile = (): UserProfile => {
     console.error("Failed to parse stored profile:", e);
   }
 
-<<<<<<< ours
-  const initialProfile: UserProfile = {
-    ...mockUserProfile,
-    userId: userId,
-    name: activeUser?.name || mockUserProfile.name,
-    email: activeUser?.email || mockUserProfile.email,
-    role: activeUser?.role || mockUserProfile.role,
-  };
-=======
   // Create initial profile for user
   let initialProfile: UserProfile;
   if (isDemoUser) {
@@ -67,7 +54,6 @@ const getStoredProfile = (): UserProfile => {
       role: activeUser?.role || "STUDENT",
     });
   }
->>>>>>> theirs
 
   localStorage.setItem(userKey, JSON.stringify(initialProfile));
   localStorage.setItem(STORAGE_KEY, JSON.stringify(initialProfile));

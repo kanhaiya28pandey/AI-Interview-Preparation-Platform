@@ -7,13 +7,22 @@ import { Progress } from "@/components/ui/Progress";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { CardSkeleton } from "@/components/common/Skeletons";
+import { EmptyState } from "@/components/common/EmptyState";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
-import { HelpCircle, CheckCircle2, XCircle, ArrowRight, RotateCcw, Award, X, AlertTriangle } from "lucide-react";
+import { TaxonomySelect, TaxonomySelectOption } from "@/components/ui/TaxonomySelect";
+import { useTaxonomy } from "@/hooks/useTaxonomy";
+import { HelpCircle, CheckCircle2, XCircle, ArrowRight, RotateCcw, Award, X, AlertTriangle, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Quiz: React.FC = () => {
+  const { domains, getTopicsForDomain, normalizeDomain } = useTaxonomy();
   const [topics, setTopics] = useState<QuizTopic[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [selectedDomain, setSelectedDomain] = useState("ALL");
+  const [selectedTopic, setSelectedTopic] = useState("ALL");
 
   const [activeTopic, setActiveTopic] = useState<QuizTopic | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -44,6 +53,72 @@ export const Quiz: React.FC = () => {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [activeTopic, quizFinished]);
+
+  const handleDomainChange = (val: string) => {
+    setSelectedDomain(val);
+    if (val !== "ALL") {
+      const validTopics = getTopicsForDomain(val).map((t) => t.name.toLowerCase());
+      if (selectedTopic !== "ALL" && !validTopics.includes(selectedTopic.toLowerCase())) {
+        setSelectedTopic("ALL");
+      }
+    }
+  };
+
+  const domainOptions: TaxonomySelectOption[] = [
+    { value: "ALL", label: "All Domains" },
+    ...domains.map((d) => ({
+      value: d.slug,
+      label: d.name,
+    })),
+  ];
+
+  const topicOptions: TaxonomySelectOption[] =
+    selectedDomain === "ALL"
+      ? [
+          { value: "ALL", label: "All Topics" },
+          ...domains.flatMap((d) =>
+            d.topics.map((t) => ({
+              value: t.name,
+              label: t.name,
+              group: d.name,
+            }))
+          ),
+        ]
+      : (() => {
+          const currentDomain = domains.find(
+            (d) => d.slug === selectedDomain || d.name.toLowerCase() === selectedDomain.toLowerCase()
+          );
+          return [
+            { value: "ALL", label: `All ${currentDomain?.name || ""} Topics` },
+            ...(currentDomain?.topics || []).map((t) => ({
+              value: t.name,
+              label: t.name,
+            })),
+          ];
+        })();
+
+  const filteredTopics = topics.filter((t) => {
+    const q = search.toLowerCase();
+    const matchesSearch =
+      t.title.toLowerCase().includes(q) ||
+      t.description.toLowerCase().includes(q) ||
+      t.category.toLowerCase().includes(q);
+
+    const tDomainSlug = (t as any).domainSlug || normalizeDomain(t.category);
+    const matchesDomain =
+      selectedDomain === "ALL" ||
+      tDomainSlug === selectedDomain ||
+      t.category.toLowerCase() === selectedDomain.toLowerCase() ||
+      domains.find((d) => d.slug === selectedDomain)?.name.toLowerCase() === t.category.toLowerCase();
+
+    const matchesTopic =
+      selectedTopic === "ALL" ||
+      t.title.toLowerCase().includes(selectedTopic.toLowerCase()) ||
+      t.description.toLowerCase().includes(selectedTopic.toLowerCase()) ||
+      t.category.toLowerCase().includes(selectedTopic.toLowerCase());
+
+    return matchesSearch && matchesDomain && matchesTopic;
+  });
 
   const startQuiz = async (topic: QuizTopic) => {
     setActiveTopic(topic);
@@ -90,7 +165,7 @@ export const Quiz: React.FC = () => {
     return score;
   };
 
-  if (loading) return <CardSkeleton />;
+  if (loading && !activeTopic) return <CardSkeleton />;
 
   // TOPIC SELECT VIEW
   if (!activeTopic) {
@@ -98,32 +173,94 @@ export const Quiz: React.FC = () => {
       <div className="space-y-6 animate-fade-in">
         <div>
           <h2 className="font-serif text-3xl font-medium text-text-primary">MCQ Practice Quizzes</h2>
-          <p className="text-xs text-text-secondary">Quick 10-minute multiple choice tests to evaluate core CS concepts.</p>
+          <p className="text-xs text-text-secondary">
+            Quick 15-minute conceptual tests to evaluate multi-domain CS and engineering mastery.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {topics.map((t) => (
-            <Card key={t.id} className="p-6 space-y-4 hover:border-cyan-400/50 transition-colors flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="p-2.5 bg-surface-raised border border-border rounded-xl text-cyan-400 inline-block">
-                  <HelpCircle className="w-5 h-5" />
-                </div>
-                <h3 className="font-serif text-xl font-medium text-text-primary">{t.title}</h3>
-                <p className="text-xs text-text-secondary">{t.description}</p>
-              </div>
+        {/* Filter Bar */}
+        <Card className="p-4 bg-surface border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search quizzes by title or topic..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+              />
+            </div>
 
-              <div className="space-y-3 pt-4 border-t border-border">
-                <div className="flex justify-between text-xs font-mono text-text-muted">
-                  <span>{t.questionCount} Questions</span>
-                  <span>⏱ {t.timeLimitMinutes} Mins</span>
+            <div>
+              <TaxonomySelect
+                options={domainOptions}
+                value={selectedDomain}
+                onChange={handleDomainChange}
+                placeholder="Filter by Domain"
+                ariaLabel="Filter quizzes by domain"
+              />
+            </div>
+
+            <div>
+              <TaxonomySelect
+                options={topicOptions}
+                value={selectedTopic}
+                onChange={(val) => setSelectedTopic(val)}
+                placeholder="Filter by Topic"
+                ariaLabel="Filter quizzes by topic"
+                grouped={selectedDomain === "ALL"}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {filteredTopics.length === 0 ? (
+          <EmptyState
+            title="No quizzes match your filters"
+            description="Try selecting a different domain or clearing your search query."
+            actionText="Reset Filters"
+            onAction={() => {
+              setSearch("");
+              setSelectedDomain("ALL");
+              setSelectedTopic("ALL");
+            }}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {filteredTopics.map((t) => (
+              <Card
+                key={t.id}
+                className="p-6 space-y-4 hover:border-cyan-400/50 transition-colors flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2.5 bg-surface-raised border border-border rounded-xl text-cyan-400 inline-block">
+                      <HelpCircle className="w-5 h-5" />
+                    </div>
+                    <Badge variant="accent" className="font-mono text-[10px]">
+                      {t.category}
+                    </Badge>
+                  </div>
+                  <h3 className="font-serif text-xl font-medium text-text-primary">{t.title}</h3>
+                  <p className="text-xs text-text-secondary line-clamp-3 leading-relaxed">
+                    {t.description}
+                  </p>
                 </div>
-                <Button variant="primary" size="sm" className="w-full" onClick={() => startQuiz(t)}>
-                  Start Quiz <ArrowRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <div className="flex justify-between text-xs font-mono text-text-muted">
+                    <span>{t.questionCount} Questions</span>
+                    <span>⏱ {t.timeLimitMinutes} Mins</span>
+                  </div>
+                  <Button variant="primary" size="sm" className="w-full" onClick={() => startQuiz(t)}>
+                    Start Quiz <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

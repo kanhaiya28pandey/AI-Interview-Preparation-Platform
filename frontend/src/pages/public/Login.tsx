@@ -62,7 +62,7 @@ export const Login: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="p-6 sm:p-8 bg-surface border border-border shadow-soft space-y-6 w-full">
+      <Card className="p-6 sm:p-8 glass border-beam-card border border-border shadow-soft space-y-6 w-full relative">
         <div className="text-left space-y-2">
           <span className="font-mono text-xs uppercase tracking-widest text-cyan-400">Student / Admin Access</span>
           <h1 className="font-serif text-3xl font-medium text-text-primary">Welcome Back</h1>

@@ -1,282 +1,307 @@
 import React, { useState, useEffect } from "react";
 import { adminService } from "@/services/adminService";
-import { AdminMockInterviewConfig } from "@/mocks/adminData";
+import { AdminMockInterviewConfig, TopicConfig } from "@/mocks/adminData";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { TableSkeleton } from "@/components/common/Skeletons";
-import { CreateMockInterviewWizard, MockInterviewWizardData } from "@/components/admin/CreateMockInterviewWizard";
-import {
-  Plus,
-  Edit2,
-  Video,
-  Search,
-  Copy,
-  Archive,
-  Trash2,
-  Sparkles,
-  Brain,
-} from "lucide-react";
+import { TopicManager } from "@/components/admin/TopicManager";
+import { Plus, Edit2, Video, Tag, Ban, RotateCw, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export const AdminMockInterviews: React.FC = () => {
   const [interviews, setInterviews] = useState<AdminMockInterviewConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<{ message: string; is403: boolean; isNetworkError: boolean } | null>(null);
 
-  // Filters & Search
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Partial<AdminMockInterviewConfig>>({});
+  const [saving, setSaving] = useState(false);
+  const [topicError, setTopicError] = useState<string | null>(null);
 
-  // Wizard state
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [editing, setEditing] = useState<Partial<MockInterviewWizardData> | null>(null);
-
-  // Delete confirm state
-  const [deleteTarget, setDeleteTarget] = useState<AdminMockInterviewConfig | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const loadInterviews = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await adminService.getMockInterviews();
+      setInterviews(data);
+    } catch (err: any) {
+      console.error("Failed to load mock interviews:", err);
+      const is403 = err?.response?.status === 403;
+      const isNetworkError = !err?.response || err?.code === "ERR_NETWORK";
+      let message = "An error occurred while loading mock interview tracks.";
+      if (isNetworkError) {
+        message = "Could not reach the server. Make sure the backend is running.";
+      } else if (is403) {
+        message = "You do not have permission to view this page.";
+      } else if (err?.response?.data?.message) {
+        message = err.response.data.message;
+      }
+      setError({ message, is403, isNetworkError });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    adminService.getMockInterviews().then((data) => {
-      setInterviews(data);
-      setLoading(false);
-    });
+    loadInterviews();
   }, []);
 
-  const handleOpenCreate = () => {
-    setEditing(null);
-    setWizardOpen(true);
-  };
-
-  const handleOpenEdit = (item: AdminMockInterviewConfig) => {
+  const handleCreate = () => {
     setEditing({
-      id: item.id,
-      title: item.roleTitle,
-      targetRole: item.roleTitle,
-      subject: item.category,
-      questionsCount: item.questionsCount,
-      timePerQuestionSeconds: Math.round((item.durationMinutes * 60) / item.questionsCount),
-      status: item.status === "ACTIVE" ? "PUBLISHED" : "DRAFT",
+      roleTitle: "",
+      domain: "Frontend",
+      category: "Frontend",
+      topics: [
+        { name: "React Architecture", questionCount: 2, weightage: 50 },
+        { name: "Performance Optimization", questionCount: 2, weightage: 50 },
+      ],
+      questionsCount: 4,
+      durationMinutes: 25,
+      status: "ACTIVE",
     });
-    setWizardOpen(true);
+    setTopicError(null);
+    setModalOpen(true);
   };
 
-  const handleSaveWizard = async (wizardData: MockInterviewWizardData) => {
-    const totalMins = Math.round((wizardData.questionsCount * wizardData.timePerQuestionSeconds) / 60) || 25;
-    const apiPayload: Partial<AdminMockInterviewConfig> = {
-      id: wizardData.id,
-      roleTitle: wizardData.targetRole || wizardData.title,
-      category: wizardData.subject || "Technical",
-      questionsCount: wizardData.questionsCount,
-      durationMinutes: totalMins,
-      status: wizardData.status === "PUBLISHED" ? "ACTIVE" : "INACTIVE",
-    };
-    const saved = await adminService.saveMockInterview(apiPayload);
-    setInterviews((prev) => {
-      const exists = prev.some((i) => i.id === saved.id);
-      return exists ? prev.map((i) => (i.id === saved.id ? saved : i)) : [saved, ...prev];
-    });
+  const handleEdit = (item: AdminMockInterviewConfig) => {
+    setEditing({ ...item });
+    setTopicError(null);
+    setModalOpen(true);
   };
 
-  const handleDuplicate = async (item: AdminMockInterviewConfig, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const dup: Partial<AdminMockInterviewConfig> = {
-        roleTitle: `${item.roleTitle} (Copy)`,
-        category: item.category,
-        questionsCount: item.questionsCount,
-        durationMinutes: item.durationMinutes,
-        status: "INACTIVE",
-      };
-      const saved = await adminService.saveMockInterview(dup);
-      setInterviews((prev) => [saved, ...prev]);
-      toast.success(`Duplicated track: ${saved.roleTitle}`);
-    } catch {
-      toast.error("Failed to duplicate track.");
+  const handleSave = async () => {
+    if (!editing.roleTitle?.trim()) {
+      toast.error("Please enter a role title.");
+      return;
     }
-  };
-
-  const handleArchive = async (item: AdminMockInterviewConfig, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const newStatus = item.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE";
-      const updated = await adminService.saveMockInterview({ ...item, status: newStatus as any });
-      setInterviews((prev) => prev.map((i) => (i.id === item.id ? updated : i)));
-      toast.success(`Status changed to ${newStatus}`);
-    } catch {
-      toast.error("Failed to update status.");
+    if (!editing.topics || editing.topics.length === 0) {
+      setTopicError("At least one topic must be selected.");
+      toast.error("Please configure at least one topic.");
+      return;
     }
-  };
 
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    setIsDeleting(true);
+    setSaving(true);
     try {
-      setInterviews((prev) => prev.filter((i) => i.id !== deleteTarget.id));
-      toast.success(`Deleted track: ${deleteTarget.roleTitle}`);
-      setDeleteTarget(null);
-    } catch {
-      toast.error("Failed to delete track.");
+      const saved = await adminService.saveMockInterview(editing);
+      setInterviews((prev) => {
+        const exists = prev.some((i) => i.id === saved.id);
+        return exists ? prev.map((i) => (i.id === saved.id ? saved : i)) : [...prev, saved];
+      });
+      toast.success("Mock interview track saved successfully!");
+      setModalOpen(false);
+    } catch (e) {
+      toast.error("Error saving track.");
     } finally {
-      setIsDeleting(false);
+      setSaving(false);
     }
   };
-
-  const filteredInterviews = interviews.filter((item) => {
-    const q = search.toLowerCase();
-    const matchesSearch = item.roleTitle.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
-    const matchesCat = categoryFilter === "ALL" || item.category.toUpperCase() === categoryFilter;
-    const matchesStatus = statusFilter === "ALL" || item.status === statusFilter;
-    return matchesSearch && matchesCat && matchesStatus;
-  });
-
-  if (loading) return <TableSkeleton rows={4} />;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="font-mono text-xs uppercase tracking-widest text-indigo-400 font-semibold">
-            Interview Prep Management
-          </span>
-          <h2 className="font-serif text-3xl font-medium text-text-primary">Mock Interview Configurations</h2>
-          <p className="text-xs text-text-secondary">Configure domain role tracks, Gemini AI question generation, and grading rubrics.</p>
+          <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
+            Mock Interview Track Configurations
+          </h2>
+          <p className="text-xs text-text-secondary">
+            Configure domain roles, topics, question weightages, and time limits for simulated interview rounds.
+          </p>
         </div>
 
-        <Button variant="teal-cyan" size="sm" onClick={handleOpenCreate} className="gap-1.5 shadow-glow">
-          <Sparkles className="w-4 h-4" /> Create Track Wizard
+        <Button variant="primary" size="sm" onClick={handleCreate} className="shrink-0 font-semibold">
+          <Plus className="w-4 h-4" /> Create New Track
         </Button>
       </div>
 
-      {/* FILTER CHIPS & SEARCH BAR */}
-      <Card className="p-4 bg-surface border border-border shadow-soft space-y-3">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-text-muted" />
-            <Input
-              placeholder="Search role title, domain..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 text-xs"
-            />
+      {/* Error Banner */}
+      {error && (
+        <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-200 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <div>
+              <p className="font-semibold text-sm text-red-300">
+                {error.isNetworkError
+                  ? "Could not reach the server. Make sure the backend is running."
+                  : error.is403
+                  ? "You do not have permission to view this page."
+                  : error.message}
+              </p>
+              <p className="text-xs text-red-400/80">
+                {error.isNetworkError
+                  ? "Backend service at http://localhost:8080 is unreachable. Verify that backend is running with ./mvnw.cmd spring-boot:run"
+                  : error.is403
+                  ? "Administrator privileges required to access mock interview management."
+                  : "Please check your network connection and retry."}
+              </p>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto font-mono text-[11px]">
-            <span className="text-text-muted uppercase text-[10px] mr-1">Category:</span>
-            {["ALL", "FRONTEND", "BACKEND", "DATA", "FULLSTACK"].map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-2.5 py-1 rounded-lg border transition-all ${
-                  categoryFilter === cat
-                    ? "bg-cyan-400/15 text-cyan-400 border-cyan-400/40 font-bold"
-                    : "bg-surface-raised border-border text-text-muted hover:text-text-primary"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-
-            <span className="text-text-muted uppercase text-[10px] ml-2 mr-1">Status:</span>
-            {["ALL", "ACTIVE", "DRAFT", "ARCHIVED"].map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 rounded-lg border transition-all ${
-                  statusFilter === st
-                    ? "bg-cyan-400/15 text-cyan-400 border-cyan-400/40 font-bold"
-                    : "bg-surface-raised border-border text-text-muted hover:text-text-primary"
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={loadInterviews}
+            className="border-red-500/40 text-red-300 hover:bg-red-500/20 text-xs shrink-0 flex items-center gap-1.5"
+          >
+            <RotateCw className="w-3.5 h-3.5" /> Retry
+          </Button>
         </div>
-      </Card>
-
-      {/* TABLE */}
-      <Card className="p-0 overflow-hidden bg-surface border-border shadow-soft">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left font-sans text-xs">
-            <thead className="bg-surface-raised border-b border-border text-text-muted font-mono uppercase text-[11px] sticky top-0 z-10 shadow-sm">
-              <tr>
-                <th className="p-4 bg-surface-raised">Role Title</th>
-                <th className="p-4 bg-surface-raised">Category</th>
-                <th className="p-4 bg-surface-raised">Questions</th>
-                <th className="p-4 bg-surface-raised">Duration</th>
-                <th className="p-4 bg-surface-raised">Status</th>
-                <th className="p-4 bg-surface-raised text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredInterviews.map((item) => (
-                <tr key={item.id} className="hover:bg-surface-raised/40 transition-colors">
-                  <td className="p-4">
-                    <div className="font-semibold text-text-primary flex items-center gap-2">
-                      <Video className="w-4 h-4 text-cyan-400 shrink-0" />
-                      <span>{item.roleTitle}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <Badge variant="accent">{item.category}</Badge>
-                  </td>
-                  <td className="p-4 font-mono text-text-secondary">{item.questionsCount} Qs</td>
-                  <td className="p-4 font-mono text-cyan-400">{item.durationMinutes} Mins</td>
-                  <td className="p-4">
-                    <Badge variant={item.status === "ACTIVE" ? "active" : "outline"}>
-                      {item.status}
-                    </Badge>
-                  </td>
-                  <td className="p-4 text-right space-x-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(item)} title="Edit Track Wizard">
-                      <Edit2 className="w-3.5 h-3.5 text-cyan-400" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={(e) => handleDuplicate(item, e)} title="Duplicate Track">
-                      <Copy className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={(e) => handleArchive(item, e)} title="Archive / Unarchive">
-                      <Archive className="w-3.5 h-3.5 text-amber-400" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(item)} title="Delete Track">
-                      <Trash2 className="w-3.5 h-3.5 text-danger" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* WIZARD DIALOG */}
-      {wizardOpen && (
-        <CreateMockInterviewWizard
-          isOpen={wizardOpen}
-          onClose={() => setWizardOpen(false)}
-          onSave={handleSaveWizard}
-          initialData={editing || undefined}
-        />
       )}
 
-      {/* DELETE DIALOG */}
-      {deleteTarget && (
-        <Dialog isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Mock Track" description={`Track: ${deleteTarget.roleTitle}`}>
-          <div className="space-y-4 text-xs">
-            <p className="text-text-secondary">Are you sure you want to delete this mock interview configuration track?</p>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+      <Card className="p-0 overflow-hidden bg-surface border-border">
+        {loading ? (
+          <div className="p-4">
+            <TableSkeleton rows={4} />
+          </div>
+        ) : error ? (
+          <div className="py-12 text-center space-y-3">
+            <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
+            <p className="text-sm font-semibold text-text-primary">
+              {error.isNetworkError
+                ? "Could not reach the server. Make sure the backend is running."
+                : error.is403
+                ? "You do not have permission to view this page."
+                : error.message}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={loadInterviews}
+              className="text-xs mx-auto border-border hover:bg-surface-raised flex items-center gap-1.5"
+            >
+              <RotateCw className="w-3.5 h-3.5" /> Retry Loading Tracks
+            </Button>
+          </div>
+        ) : interviews.length === 0 ? (
+          <div className="py-12 text-center space-y-3">
+            <Video className="w-10 h-10 text-text-muted mx-auto" />
+            <p className="text-sm font-medium text-text-secondary">No mock interview tracks configured yet.</p>
+            <Button size="sm" variant="primary" onClick={handleCreate} className="text-xs mx-auto">
+              <Plus className="w-3.5 h-3.5" /> Create New Track
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-sans text-xs">
+              <thead className="bg-surface-raised border-b border-border text-text-muted font-mono uppercase text-[11px] sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="p-4 bg-surface-raised">Role Title & Domain</th>
+                  <th className="p-4 bg-surface-raised">Configured Topics</th>
+                  <th className="p-4 bg-surface-raised">Questions Count</th>
+                  <th className="p-4 bg-surface-raised">Duration</th>
+                  <th className="p-4 bg-surface-raised">Status</th>
+                  <th className="p-4 bg-surface-raised text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {interviews.map((item) => (
+                  <tr key={item.id} className="hover:bg-surface-raised/40 transition-colors">
+                    <td className="p-4 font-semibold text-text-primary space-y-1 max-w-xs">
+                      <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block">
+                        {item.domain || item.category || "General"}
+                      </span>
+                      <span className="block font-medium truncate">{item.roleTitle}</span>
+                    </td>
+
+                    <td className="p-4 max-w-md">
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.topics && item.topics.length > 0 ? (
+                          item.topics.map((tp, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full flex items-center gap-1"
+                            >
+                              <Tag className="w-2.5 h-2.5 text-cyan-400" />
+                              <span>{tp.name}</span>
+                            </span>
+                          ))
+                        ) : (
+                          <Badge variant="accent">{item.category}</Badge>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="p-4 font-mono text-text-secondary">
+                      {item.questionsCount || (item.topics ? item.topics.reduce((a, b) => a + b.questionCount, 0) : 4)} Qs
+                    </td>
+                    <td className="p-4 font-mono text-cyan-400 font-semibold">{item.durationMinutes} Mins</td>
+
+                    <td className="p-4">
+                      <Badge variant={item.status === "ACTIVE" ? "active" : "outline"}>{item.status}</Badge>
+                    </td>
+
+                    <td className="p-4 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(item)} className="text-xs h-8">
+                        <Edit2 className="w-3.5 h-3.5 text-cyan-400" /> Edit
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* Dialog Modal */}
+      {modalOpen && (
+        <Dialog
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing.id ? "Edit Mock Interview Track" : "Create New Mock Interview Track"}
+          footer={
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setModalOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="danger" size="sm" onClick={handleDeleteConfirm} isLoading={isDeleting}>
-                Delete Track
+              <Button variant="primary" size="sm" onClick={handleSave} isLoading={saving}>
+                Save Track
               </Button>
+            </>
+          }
+        >
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <Input
+              label="Role Title"
+              value={editing.roleTitle || ""}
+              onChange={(e) => setEditing({ ...editing, roleTitle: e.target.value })}
+              placeholder="e.g. Senior Frontend Engineer (React/TypeScript)"
+              required
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Duration (Minutes)"
+                type="number"
+                value={editing.durationMinutes || 25}
+                onChange={(e) => setEditing({ ...editing, durationMinutes: parseInt(e.target.value) || 25 })}
+              />
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Track Status</label>
+                <select
+                  value={editing.status || "ACTIVE"}
+                  onChange={(e) => setEditing({ ...editing, status: e.target.value as any })}
+                  className="w-full bg-surface-raised border border-border rounded-lg p-2.5 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </div>
             </div>
+
+            {/* Topic Manager */}
+            <TopicManager
+              domain={editing.domain || editing.category || "Frontend"}
+              onChangeDomain={(d) => setEditing({ ...editing, domain: d, category: d })}
+              topics={editing.topics || []}
+              onChangeTopics={(topList) => {
+                setTopicError(null);
+                const qCount = topList.reduce((acc, t) => acc + (t.questionCount || 0), 0);
+                setEditing({ ...editing, topics: topList, questionsCount: qCount || 4 });
+              }}
+              error={topicError}
+            />
           </div>
         </Dialog>
       )}

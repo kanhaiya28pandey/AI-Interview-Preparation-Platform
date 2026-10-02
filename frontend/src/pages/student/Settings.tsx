@@ -6,6 +6,7 @@ import { RoleBadge } from "@/components/common/RoleBadge";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { Lock, Bell, Shield, KeyRound } from "lucide-react";
+import { AppearanceSettingsCard } from "@/components/common/AppearanceSettingsCard";
 
 export const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -57,6 +58,9 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {/* Appearance Settings */}
+      <AppearanceSettingsCard />
 
       {/* Password Change Form */}
       <Card className="p-6 space-y-4 bg-surface border-border">

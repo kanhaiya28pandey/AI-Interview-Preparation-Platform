@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export interface RoleBadgeProps {
   role?: string | null;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
   showIconOnly?: boolean;
   iconOnly?: boolean;
   className?: string;
@@ -24,9 +24,11 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({
   const sizeClasses =
     size === "md"
       ? "px-2.5 py-1 text-xs gap-1.5"
+      : size === "xs"
+      ? "px-1.5 py-0.2 text-[10px] gap-1"
       : "px-2 py-0.5 text-[11px] gap-1";
 
-  const iconSize = size === "md" ? "w-3.5 h-3.5" : "w-3 h-3";
+  const iconSize = size === "md" ? "w-3.5 h-3.5" : size === "xs" ? "w-2.5 h-2.5" : "w-3 h-3";
 
   if (isOnlyIcon) {
     return (

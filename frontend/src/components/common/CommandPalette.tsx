@@ -4,7 +4,27 @@ import { Dialog } from "@/components/ui/Dialog";
 import { useAuth } from "@/context/AuthContext";
 import { getRoleMeta } from "@/lib/roles";
 import { toast } from "sonner";
-import { Search, LayoutDashboard, BookOpen, Code2, Video, HelpCircle, FileText, Trophy, User, Settings, Shield, PanelLeftClose, GraduationCap, Sun, Moon, Keyboard } from "lucide-react";
+import {
+  Search,
+  LayoutDashboard,
+  BookOpen,
+  Code2,
+  Video,
+  HelpCircle,
+  FileText,
+  Trophy,
+  User,
+  Settings,
+  Shield,
+  PanelLeftClose,
+  GraduationCap,
+  Sun,
+  Keyboard,
+  Compass,
+  FolderTree,
+  Tag,
+} from "lucide-react";
+import { useTaxonomy } from "@/hooks/useTaxonomy";
 
 interface CommandItem {
   label: string;
@@ -16,6 +36,7 @@ interface CommandItem {
 }
 
 export const CommandPalette: React.FC = () => {
+  const { domains } = useTaxonomy();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
@@ -29,12 +50,15 @@ export const CommandPalette: React.FC = () => {
         setIsOpen((prev) => !prev);
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
+
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const toggleTheme = () => {
     const root = document.documentElement;
+
     if (root.classList.contains("dark")) {
       root.classList.remove("dark");
       root.classList.add("light");
@@ -44,7 +68,7 @@ export const CommandPalette: React.FC = () => {
     }
   };
 
-  const commands: CommandItem[] = [
+  const baseCommands: CommandItem[] = [
     {
       label: "Start AI Mock Interview",
       path: "/mock-interview",
@@ -60,7 +84,10 @@ export const CommandPalette: React.FC = () => {
     },
     {
       label: `View My Role: ${userRoleMeta.label}`,
-      action: () => toast.info(`Current assigned role: ${userRoleMeta.label} (${userRoleMeta.key})`),
+      action: () =>
+        toast.info(
+          `Current assigned role: ${userRoleMeta.label} (${userRoleMeta.key})`
+        ),
       icon: userRoleMeta.icon,
       category: "Quick Action",
       badge: userRoleMeta.key,
@@ -68,7 +95,10 @@ export const CommandPalette: React.FC = () => {
     {
       label: "Keyboard Shortcuts Help",
       action: () => {
-        const event = new KeyboardEvent("keydown", { key: "?", bubbles: true });
+        const event = new KeyboardEvent("keydown", {
+          key: "?",
+          bubbles: true,
+        });
         window.dispatchEvent(event);
       },
       icon: Keyboard,
@@ -77,26 +107,169 @@ export const CommandPalette: React.FC = () => {
     },
     {
       label: "Toggle sidebar",
-      action: () => window.dispatchEvent(new CustomEvent("toggle-sidebar")),
+      action: () =>
+        window.dispatchEvent(new CustomEvent("toggle-sidebar")),
       icon: PanelLeftClose,
       category: "Quick Action",
       badge: "Ctrl+B",
     },
+
     { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, category: "Student" },
-    { label: "Practice Tracks", path: "/practice", icon: BookOpen, category: "Student" },
-    { label: "Resume Analyzer (AI ATS)", path: "/resume-analyzer", icon: FileText, category: "Student" },
-    { label: "Coding Arena", path: "/coding", icon: Code2, category: "Student" },
-    { label: "MCQ Quizzes", path: "/quiz", icon: HelpCircle, category: "Student" },
-    { label: "Placement Guides & Articles", path: "/articles", icon: FileText, category: "Student" },
-    { label: "Campus Leaderboard", path: "/leaderboard", icon: Trophy, category: "Student" },
-    { label: "My Profile", path: "/profile", icon: User, category: "Student" },
-    { label: "Settings", path: "/settings", icon: Settings, category: "Student" },
-    { label: "Help & Support Center", path: "/help", icon: HelpCircle, category: "Student" },
-    { label: "Admin Overview", path: "/admin", icon: Shield, category: "Admin" },
-    { label: "Admin Student Progress Roster", path: "/admin/students", icon: GraduationCap, category: "Admin" },
-    { label: "Admin User Management", path: "/admin/users", icon: User, category: "Admin" },
-    { label: "Admin ID Verifications", path: "/admin/verifications", icon: Shield, category: "Admin" },
-    { label: "Admin Help Center", path: "/admin/help", icon: HelpCircle, category: "Admin" },
+    {
+      label: "Prep Roadmaps (Curriculum)",
+      path: "/preparation",
+      icon: Compass,
+      category: "Student",
+      badge: "Roadmap",
+    },
+    {
+      label: "Practice Tracks",
+      path: "/practice",
+      icon: BookOpen,
+      category: "Student",
+    },
+    {
+      label: "Resume Analyzer (AI ATS)",
+      path: "/resume-analyzer",
+      icon: FileText,
+      category: "Student",
+    },
+    {
+      label: "Coding Arena",
+      path: "/coding",
+      icon: Code2,
+      category: "Student",
+    },
+    {
+      label: "MCQ Quizzes",
+      path: "/quiz",
+      icon: HelpCircle,
+      category: "Student",
+    },
+    {
+      label: "Placement Guides & Articles",
+      path: "/articles",
+      icon: FileText,
+      category: "Student",
+    },
+    {
+      label: "Campus Leaderboard",
+      path: "/leaderboard",
+      icon: Trophy,
+      category: "Student",
+    },
+    {
+      label: "My Profile",
+      path: "/profile",
+      icon: User,
+      category: "Student",
+    },
+    {
+      label: "Settings",
+      path: "/settings",
+      icon: Settings,
+      category: "Student",
+    },
+    {
+      label: "Help & Support Center",
+      path: "/help",
+      icon: HelpCircle,
+      category: "Student",
+    },
+    {
+      label: "Submit Support Ticket",
+      path: "/help?tab=contact",
+      icon: HelpCircle,
+      category: "Student",
+    },
+
+    {
+      label: "Admin Overview",
+      path: "/admin",
+      icon: Shield,
+      category: "Admin",
+    },
+    {
+      label: "Admin Student Progress Roster",
+      path: "/admin/students",
+      icon: GraduationCap,
+      category: "Admin",
+    },
+    {
+      label: "Admin User Management",
+      path: "/admin/users",
+      icon: User,
+      category: "Admin",
+    },
+    {
+      label: "Admin ID Verifications",
+      path: "/admin/verifications",
+      icon: Shield,
+      category: "Admin",
+    },
+    {
+      label: "Admin Help Center",
+      path: "/admin/help",
+      icon: HelpCircle,
+      category: "Admin",
+    },
+    {
+      label: "Admin Coding Tests Management",
+      path: "/admin/coding-tests",
+      icon: Code2,
+      category: "Admin",
+    },
+    {
+      label: "Admin Domains & Topics Taxonomy",
+      path: "/admin/taxonomy",
+      icon: FolderTree,
+      category: "Admin",
+      badge: "Taxonomy",
+    },
+    {
+      label: "Admin Live Tests Monitor Dashboard",
+      path: "/admin/live-tests",
+      icon: Video,
+      category: "Admin",
+      badge: "Live",
+    },
+    {
+      label: "Admin Mock Interview Configs",
+      path: "/admin/mock-interviews",
+      icon: Video,
+      category: "Admin",
+    },
+    {
+      label: "Admin Analytics & Reports Suite",
+      path: "/admin/reports",
+      icon: Shield,
+      category: "Admin",
+    },
+  ];
+
+  // Dynamic taxonomy items for instant search jump
+  const domainCommands: CommandItem[] = domains.map((d) => ({
+    label: `Domain: ${d.name}`,
+    path: `/practice?domain=${d.slug}`,
+    icon: Compass,
+    category: "Curriculum Domain",
+    badge: `${d.topics.length} topics`,
+  }));
+
+  const topicCommands: CommandItem[] = domains.flatMap((d) =>
+    d.topics.map((t) => ({
+      label: `Topic: ${t.name}`,
+      path: `/practice?search=${encodeURIComponent(t.name)}`,
+      icon: Tag,
+      category: "Curriculum Topic",
+      badge: d.name,
+    }))
+  );
+
+  const commands: CommandItem[] = [
+    ...baseCommands,
+    ...domainCommands,
+    ...topicCommands,
   ];
 
   const isUserAdmin = userRoleMeta.key === "ADMIN";
@@ -105,6 +278,7 @@ export const CommandPalette: React.FC = () => {
     if (r.category === "Admin" && !isUserAdmin) {
       return false;
     }
+
     return (
       r.label.toLowerCase().includes(query.toLowerCase()) ||
       (r.path && r.path.toLowerCase().includes(query.toLowerCase())) ||
@@ -115,6 +289,7 @@ export const CommandPalette: React.FC = () => {
   const handleSelect = (item: CommandItem) => {
     setIsOpen(false);
     setQuery("");
+
     if (item.action) {
       item.action();
     } else if (item.path) {
@@ -123,10 +298,16 @@ export const CommandPalette: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Quick Jump (Command Palette)" zIndexClass="z-[80]">
+    <Dialog
+      isOpen={isOpen}
+      onClose={() => setIsOpen(false)}
+      title="Quick Jump (Command Palette)"
+      zIndexClass="z-[80]"
+    >
       <div className="space-y-4">
         <div className="relative sticky top-0 z-10 bg-surface pb-2">
           <Search className="w-4 h-4 text-cyan-400 absolute left-3 top-1/2 -translate-y-1/2" />
+
           <input
             type="text"
             placeholder="Type a command or jump to page... (e.g. Toggle sidebar, Coding, Admin)"
@@ -139,10 +320,13 @@ export const CommandPalette: React.FC = () => {
 
         <div className="max-h-64 overflow-y-auto space-y-1 pr-1 font-mono text-xs">
           {filtered.length === 0 ? (
-            <p className="text-center py-6 text-text-muted">No matching commands found.</p>
+            <p className="text-center py-6 text-text-muted">
+              No matching commands found.
+            </p>
           ) : (
             filtered.map((item, idx) => {
               const Icon = item.icon;
+
               return (
                 <button
                   key={item.path || item.label || idx}
@@ -153,6 +337,7 @@ export const CommandPalette: React.FC = () => {
                     <Icon className="w-4 h-4 text-text-muted group-hover:text-cyan-400" />
                     <span>{item.label}</span>
                   </div>
+
                   {item.badge ? (
                     <span className="text-[10px] text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/30">
                       {item.badge}
@@ -172,3 +357,4 @@ export const CommandPalette: React.FC = () => {
   );
 };
 
+export default CommandPalette;

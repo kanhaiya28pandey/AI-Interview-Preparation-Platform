@@ -9,6 +9,7 @@ import { Sparkles, Code2, Video, Award, ArrowRight, CheckCircle2, Terminal, Chev
 import { useAuth } from "@/context/AuthContext";
 import { CompanyMarquee } from "@/components/common/CompanyMarquee";
 import { TestimonialsCarousel } from "@/components/common/TestimonialsCarousel";
+import { GradientMesh, FloatingOrbs, Typewriter, AnimatedCounter, Reveal, TiltCard } from "@/components/fx";
 
 export const LandingPage: React.FC = () => {
   const { isAuthenticated, user, loginDemoStudent, loginDemoAdmin } = useAuth();
@@ -104,19 +105,62 @@ export const LandingPage: React.FC = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative max-w-7xl mx-auto px-6 py-12 lg:py-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center w-full">
-        {/* Glowing Spotlight Background */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-400/10 opacity-30 dark:opacity-100 rounded-full blur-[120px] pointer-events-none" />
+      <section className="relative max-w-7xl mx-auto px-6 py-12 lg:py-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center w-full overflow-hidden">
+        {/* Ambient Gradient Mesh and Floating Orbs */}
+        <GradientMesh variant="aurora" />
+        <FloatingOrbs count={3} />
 
-        <div className="lg:col-span-7 space-y-6 text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 text-xs font-mono uppercase tracking-wider">
+        {/* Floating Tech Badges */}
+        <div className="hidden xl:block pointer-events-none select-none">
+          <motion.div
+            animate={{ y: [0, -12, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-12 left-4 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 text-cyan-300 border border-cyan-500/30 backdrop-blur-md shadow-sm"
+          >
+            ⚛ React 19
+          </motion.div>
+          <motion.div
+            animate={{ y: [0, 14, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            className="absolute bottom-20 left-6 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-emerald-500/20 to-emerald-500/5 text-emerald-300 border border-emerald-500/30 backdrop-blur-md shadow-sm"
+          >
+            ☕ Spring Boot 4
+          </motion.div>
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+            className="absolute top-10 right-8 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-amber-500/20 to-amber-500/5 text-amber-300 border border-amber-500/30 backdrop-blur-md shadow-sm"
+          >
+            🐍 Python & AI
+          </motion.div>
+          <motion.div
+            animate={{ y: [0, 12, 0] }}
+            transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+            className="absolute bottom-24 right-6 px-3 py-1 rounded-full text-[11px] font-mono font-semibold bg-gradient-to-r from-violet-500/20 to-violet-500/5 text-violet-300 border border-violet-500/30 backdrop-blur-md shadow-sm"
+          >
+            🏛 System Design
+          </motion.div>
+        </div>
+
+        <div className="lg:col-span-7 space-y-6 text-left relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 text-xs font-mono uppercase tracking-wider shadow-[0_0_12px_rgba(34,211,238,0.2)]">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-            AI Placement Preparation Platform for Colleges
+            AI Placement Preparation Platform
           </div>
 
           <h1 className="font-serif text-4xl sm:text-6xl font-medium tracking-tight leading-[1.08]">
-            Walk into your interview <br />
-            already <em className="not-italic text-cyan-400 italic font-normal">prepared for every question.</em>
+            Master every placement round for <br />
+            <Typewriter
+              phrases={[
+                "Frontend Engineers",
+                "Backend Developers",
+                "Full-Stack Architects",
+                "AI & ML Engineers",
+                "System Designers",
+                "Cloud & DevOps SREs",
+              ]}
+              className="text-cyan-400 font-serif italic font-normal"
+            />
           </h1>
 
           <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-2xl font-sans">
@@ -129,17 +173,18 @@ export const LandingPage: React.FC = () => {
                 variant="teal-cyan"
                 size="lg"
                 onClick={() => navigate(user?.role === "ADMIN" ? "/admin" : "/dashboard")}
+                className="shadow-[0_0_20px_var(--accent-glow)]"
               >
                 <span>Go to Dashboard</span>
                 <ArrowRight className="w-5 h-5 text-[#0d1321] transition-transform duration-200 group-hover:translate-x-1" />
               </Button>
             ) : (
               <>
-                <Button variant="primary" size="lg" onClick={handleDemoStudent}>
+                <Button variant="primary" size="lg" onClick={handleDemoStudent} className="shadow-[0_0_20px_var(--accent-glow)]">
                   <Sparkles className="w-5 h-5" /> Try Instant Demo
                 </Button>
                 <Link to="/register">
-                  <Button variant="outline" size="lg">
+                  <Button variant="outline" size="lg" className="hover:border-cyan-400/60">
                     Create Account
                   </Button>
                 </Link>
@@ -150,163 +195,192 @@ export const LandingPage: React.FC = () => {
           {/* Count-up Statistics Row */}
           <div className="grid grid-cols-3 gap-6 pt-8 border-t border-border/80">
             <div>
-              <b className="font-serif text-3xl sm:text-4xl font-semibold text-text-primary block">{studentsCount}+</b>
+              <b className="font-serif text-3xl sm:text-4xl font-semibold text-text-primary block">
+                <AnimatedCounter value={1250} suffix="+" />
+              </b>
               <span className="text-xs text-text-muted font-mono uppercase">Verified Students</span>
             </div>
             <div>
-              <b className="font-serif text-3xl sm:text-4xl font-semibold text-cyan-400 block">{mockCount}+</b>
-              <span className="text-xs text-text-muted font-mono uppercase">Mock Interviews Done</span>
+              <b className="font-serif text-3xl sm:text-4xl font-semibold text-cyan-400 block">
+                <AnimatedCounter value={2150} suffix="+" />
+              </b>
+              <span className="text-xs text-text-muted font-mono uppercase">Mock Interviews</span>
             </div>
             <div>
-              <b className="font-serif text-3xl sm:text-4xl font-semibold text-live block">94%</b>
+              <b className="font-serif text-3xl sm:text-4xl font-semibold text-live block">
+                <AnimatedCounter value={94} suffix="%" />
+              </b>
               <span className="text-xs text-text-muted font-mono uppercase">Placement Success</span>
             </div>
           </div>
         </div>
 
         {/* Live Session Terminal Card */}
-        <div className="lg:col-span-5 w-full">
-          <Card className="p-0 overflow-hidden bg-surface border-cyan-400/40 shadow-soft relative group">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-raised">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-live animate-pulse-live" />
-                <span className="font-mono text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-                  <Terminal className="w-3.5 h-3.5 text-cyan-400" /> Mock Session #104
-                </span>
-              </div>
-              <span className="font-mono text-xs text-text-muted">{formatClock(sessionSeconds)}</span>
-            </div>
-
-            <div className="p-5 h-[340px] overflow-y-auto font-mono text-xs space-y-4 bg-surface divider-fade">
-              <div className="p-3 bg-surface-raised border border-border rounded-lg space-y-1">
-                <span className="text-cyan-400 font-semibold block">AI Evaluator:</span>
-                <p className="text-text-primary leading-relaxed">
-                  "Explain how React 19 concurrent rendering and Fiber engine prevent main-thread UI lag during complex updates."
-                </p>
+        <div className="lg:col-span-5 w-full relative z-10">
+          <TiltCard intensity={12} className="shadow-2xl">
+            <Card className="p-0 overflow-hidden bg-surface/90 backdrop-blur-md border-cyan-400/40 shadow-soft relative group">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-raised">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-live animate-pulse-live" />
+                  <span className="font-mono text-xs font-semibold text-text-secondary flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-cyan-400" /> Mock Session #104
+                  </span>
+                </div>
+                <span className="font-mono text-xs text-text-muted">{formatClock(sessionSeconds)}</span>
               </div>
 
-              <div className="p-3 bg-ink border border-cyan-400/30 rounded-lg space-y-1">
-                <span className="text-live font-semibold block">Candidate Answer:</span>
-                <p className="text-text-primary leading-relaxed">
-                  "Fiber breaks work into units. useTransition marks state updates as non-urgent so urgent user input renders immediately..."
-                </p>
+              <div className="p-5 h-[340px] overflow-y-auto font-mono text-xs space-y-4 bg-surface divider-fade">
+                <div className="p-3 bg-surface-raised border border-border rounded-lg space-y-1">
+                  <span className="text-cyan-400 font-semibold block">AI Evaluator:</span>
+                  <p className="text-text-primary leading-relaxed">
+                    "Explain how React 19 concurrent rendering and Fiber engine prevent main-thread UI lag during complex updates."
+                  </p>
+                </div>
+
+                <div className="p-3 bg-ink border border-cyan-400/30 rounded-lg space-y-1">
+                  <span className="text-live font-semibold block">Candidate Answer:</span>
+                  <p className="text-text-primary leading-relaxed">
+                    "Fiber breaks work into units. useTransition marks state updates as non-urgent so urgent user input renders immediately..."
+                  </p>
+                </div>
+
+                <div className="p-3 bg-surface-raised border border-live/30 rounded-lg space-y-1">
+                  <span className="text-live font-semibold block">Instant Scorecard: 92/100</span>
+                  <p className="text-text-muted text-[11px]">
+                    ✓ Articulated reconciliation accurately. <br />
+                    💡 Tip: Mention requestAnimationFrame for animation frames.
+                  </p>
+                </div>
               </div>
 
-              <div className="p-3 bg-surface-raised border border-live/30 rounded-lg space-y-1">
-                <span className="text-live font-semibold block">Instant Scorecard: 92/100</span>
-                <p className="text-text-muted text-[11px]">
-                  ✓ Articulated reconciliation accurately. <br />
-                  💡 Tip: Mention requestAnimationFrame for animation frames.
-                </p>
+              <div className="p-3 bg-surface-raised border-t border-border flex justify-between items-center text-xs font-mono text-text-muted">
+                <span>Status: <strong className="text-live">Live Evaluator Active</strong></span>
+                <button onClick={handleDemoAdmin} className="text-cyan-400 hover:underline">
+                  Try Admin View →
+                </button>
               </div>
-            </div>
-
-            <div className="p-3 bg-surface-raised border-t border-border flex justify-between items-center text-xs font-mono text-text-muted">
-              <span>Status: <strong className="text-live">Live Evaluator Active</strong></span>
-              <button onClick={handleDemoAdmin} className="text-cyan-400 hover:underline">
-                Try Admin View →
-              </button>
-            </div>
-          </Card>
+            </Card>
+          </TiltCard>
         </div>
       </section>
 
       {/* Company Logos Marquee */}
-      <CompanyMarquee />
+      <Reveal direction="up">
+        <CompanyMarquee />
+      </Reveal>
 
       {/* 3 Step Workflow */}
       <section className="max-w-7xl mx-auto px-6 py-20 w-full">
-        <div className="text-center max-w-xl mx-auto mb-16 space-y-2">
+        <Reveal direction="up" className="text-center max-w-xl mx-auto mb-16 space-y-2">
           <p className="font-mono text-xs uppercase tracking-widest text-accent">The Preparation Method</p>
           <h2 className="font-serif text-3xl sm:text-4xl font-medium text-text-primary">Three steps to placement mastery</h2>
-        </div>
+        </Reveal>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="bg-surface border-border hover:border-accent/50 hover:shadow-card transition-all duration-300 p-8 space-y-4 group">
-            <div className="w-10 h-10 rounded-xl bg-accent/15 text-accent border border-accent/30 flex items-center justify-center font-mono font-bold">
-              01
-            </div>
-            <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-accent transition-colors">Practice a Round</h3>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Pick a domain track — MERN, Java Spring Boot, System Design, or STAR Behavioral — and enter the simulated interview room.
-            </p>
-          </Card>
+          <Reveal direction="up" delay={0.1}>
+            <TiltCard intensity={10}>
+              <Card className="glass border-border hover:border-cyan-400/50 hover:shadow-card transition-all duration-300 p-8 space-y-4 group h-full">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-mono font-bold">
+                  01
+                </div>
+                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-cyan-400 transition-colors">Practice a Round</h3>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Pick a domain track — MERN, Java Spring Boot, System Design, or STAR Behavioral — and enter the simulated interview room.
+                </p>
+              </Card>
+            </TiltCard>
+          </Reveal>
 
-          <Card className="bg-surface border-border hover:border-accent/50 hover:shadow-card transition-all duration-300 p-8 space-y-4 group">
-            <div className="w-10 h-10 rounded-xl bg-live/15 text-live border border-live/30 flex items-center justify-center font-mono font-bold">
-              02
-            </div>
-            <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-accent transition-colors">Get Detailed Feedback</h3>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              No generic fluff. Feedback pinpoints technical depth, architectural trade-offs, and communication clarity with exact scores.
-            </p>
-          </Card>
+          <Reveal direction="up" delay={0.2}>
+            <TiltCard intensity={10}>
+              <Card className="glass border-border hover:border-emerald-400/50 hover:shadow-card transition-all duration-300 p-8 space-y-4 group h-full">
+                <div className="w-10 h-10 rounded-xl bg-live/15 text-live border border-live/30 flex items-center justify-center font-mono font-bold">
+                  02
+                </div>
+                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-live transition-colors">Get Detailed Feedback</h3>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  No generic fluff. Feedback pinpoints technical depth, architectural trade-offs, and communication clarity with exact scores.
+                </p>
+              </Card>
+            </TiltCard>
+          </Reveal>
 
-          <Card className="bg-surface border-border hover:border-accent/50 hover:shadow-card transition-all duration-300 p-8 space-y-4 group">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-mono font-bold">
-              03
-            </div>
-            <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-accent transition-colors">Interview Summary & Progress</h3>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Track your daily practice streaks, solve coding benchmarks, and watch your campus rank rise.
-            </p>
-          </Card>
+          <Reveal direction="up" delay={0.3}>
+            <TiltCard intensity={10}>
+              <Card className="glass border-border hover:border-violet-400/50 hover:shadow-card transition-all duration-300 p-8 space-y-4 group h-full">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/15 text-violet-400 border border-violet-500/30 flex items-center justify-center font-mono font-bold">
+                  03
+                </div>
+                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-violet-400 transition-colors">Interview Summary & Progress</h3>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Track your daily practice streaks, solve coding benchmarks, and watch your campus rank rise.
+                </p>
+              </Card>
+            </TiltCard>
+          </Reveal>
         </div>
       </section>
 
       {/* Testimonials Carousel */}
       <section className="bg-surface-raised/40 border-y border-border/60 py-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-12">
-          <div className="text-center max-w-xl mx-auto space-y-2">
+          <Reveal direction="up" className="text-center max-w-xl mx-auto space-y-2">
             <p className="font-mono text-xs uppercase tracking-widest text-accent">Student Testimonials</p>
             <h2 className="font-serif text-3xl font-medium text-text-primary">Hear from students who nailed placement day</h2>
-          </div>
+          </Reveal>
 
-          <TestimonialsCarousel />
+          <Reveal direction="up" delay={0.2}>
+            <TestimonialsCarousel />
+          </Reveal>
         </div>
       </section>
 
       {/* FAQ Accordion */}
       <section className="max-w-4xl mx-auto px-6 py-20 w-full space-y-8">
-        <div className="text-center space-y-2">
+        <Reveal direction="up" className="text-center space-y-2">
           <p className="font-mono text-xs uppercase tracking-widest text-accent">Frequently Asked Questions</p>
           <h2 className="font-serif text-3xl font-medium text-text-primary">Everything you need to know</h2>
-        </div>
+        </Reveal>
 
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <Card
-              key={index}
-              className="p-5 bg-surface border-border cursor-pointer transition-colors hover:border-accent/40 hover:shadow-card"
-              onClick={() => setActiveFaq(activeFaq === index ? null : index)}
-            >
-              <div className="flex justify-between items-center">
-                <h3 className="font-serif text-base font-medium text-text-primary">{faq.q}</h3>
-                <ChevronDown className={`w-4 h-4 text-accent transition-transform duration-200 ${activeFaq === index ? "rotate-180" : ""}`} />
-              </div>
-              {activeFaq === index && (
-                <p className="text-xs text-text-secondary mt-3 pt-3 border-t border-border leading-relaxed font-sans">
-                  {faq.a}
-                </p>
-              )}
-            </Card>
-          ))}
-        </div>
+        <Reveal direction="up" delay={0.15}>
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <Card
+                key={index}
+                className="p-5 glass border-border cursor-pointer transition-all hover:border-cyan-400/40 hover:shadow-card"
+                onClick={() => setActiveFaq(activeFaq === index ? null : index)}
+              >
+                <div className="flex justify-between items-center">
+                  <h3 className="font-serif text-base font-medium text-text-primary">{faq.q}</h3>
+                  <ChevronDown className={`w-4 h-4 text-accent transition-transform duration-200 ${activeFaq === index ? "rotate-180" : ""}`} />
+                </div>
+                {activeFaq === index && (
+                  <p className="text-xs text-text-secondary mt-3 pt-3 border-t border-border leading-relaxed font-sans">
+                    {faq.a}
+                  </p>
+                )}
+              </Card>
+            ))}
+          </div>
+        </Reveal>
       </section>
 
       {/* Final CTA Banner */}
       <section className="max-w-5xl mx-auto px-6 mb-20 w-full">
-        <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-accent/40 p-10 rounded-2xl text-center space-y-6 shadow-soft relative overflow-hidden">
-          <div className="space-y-2 max-w-xl mx-auto z-10 relative">
-            <h2 className="font-serif text-3xl sm:text-4xl font-medium text-text-primary">Ready for your mock interview?</h2>
-            <p className="text-sm text-text-secondary">Start practicing on AI Interview Preparation today and master your placement rounds.</p>
+        <Reveal direction="up">
+          <div className="border-beam-card bg-gradient-to-r from-surface via-surface-raised to-surface border border-accent/40 p-10 rounded-2xl text-center space-y-6 shadow-soft relative overflow-hidden">
+            <GradientMesh variant="sunset" />
+            <div className="space-y-2 max-w-xl mx-auto z-10 relative">
+              <h2 className="font-serif text-3xl sm:text-4xl font-medium text-text-primary">Ready for your mock interview?</h2>
+              <p className="text-sm text-text-secondary">Start practicing on AI Interview Preparation today and master your placement rounds.</p>
+            </div>
+            <div className="flex justify-center gap-4 z-10 relative">
+              <Button variant="primary" size="lg" onClick={handleDemoStudent} className="shadow-[0_0_20px_var(--accent-glow)]">
+                <Sparkles className="w-5 h-5" /> Launch Instant Demo
+              </Button>
+            </div>
           </div>
-          <div className="flex justify-center gap-4 z-10 relative">
-            <Button variant="primary" size="lg" onClick={handleDemoStudent}>
-              <Sparkles className="w-5 h-5" /> Launch Instant Demo
-            </Button>
-          </div>
-        </div>
+        </Reveal>
       </section>
 
       <Footer />
