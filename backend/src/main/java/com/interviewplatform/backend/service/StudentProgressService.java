@@ -18,20 +18,31 @@ import com.interviewplatform.backend.dto.StudentProgressDto;
 import com.interviewplatform.backend.model.InterviewSession;
 import com.interviewplatform.backend.model.TeacherNote;
 import com.interviewplatform.backend.model.UserProfile;
+import com.interviewplatform.backend.repository.CodingSubmissionRepository;
 import com.interviewplatform.backend.repository.InterviewSessionRepository;
+import com.interviewplatform.backend.repository.ResumeAnalysisRepository;
 import com.interviewplatform.backend.repository.UserProfileRepository;
+import com.interviewplatform.backend.repository.UserRepository;
 
 @Service
-@SuppressWarnings("null")
 public class StudentProgressService {
 
     private final UserProfileRepository userProfileRepository;
+    private final UserRepository userRepository;
     private final InterviewSessionRepository interviewSessionRepository;
+    private final CodingSubmissionRepository codingSubmissionRepository;
+    private final ResumeAnalysisRepository resumeAnalysisRepository;
 
     public StudentProgressService(UserProfileRepository userProfileRepository,
-                                  InterviewSessionRepository interviewSessionRepository) {
+                                  UserRepository userRepository,
+                                  InterviewSessionRepository interviewSessionRepository,
+                                  CodingSubmissionRepository codingSubmissionRepository,
+                                  ResumeAnalysisRepository resumeAnalysisRepository) {
         this.userProfileRepository = userProfileRepository;
+        this.userRepository = userRepository;
         this.interviewSessionRepository = interviewSessionRepository;
+        this.codingSubmissionRepository = codingSubmissionRepository;
+        this.resumeAnalysisRepository = resumeAnalysisRepository;
     }
 
     public List<StudentProgressDto> getStudents() {

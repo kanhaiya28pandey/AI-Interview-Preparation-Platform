@@ -39,9 +39,10 @@ import {
   Building2,
   Lock,
 } from "lucide-react";
-import { authService } from "@/services/authService";
+import { authService, AuthResponse } from "@/services/authService";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { isMockMode } from "@/lib/dataMode";
 
 const DRAFT_STORAGE_KEY = "ai_interview_prep_register_draft";
 
@@ -357,16 +358,32 @@ export const Register: React.FC = () => {
   const executeRegistration = async () => {
     setServerError(null);
     setIsSubmitting(true);
+    let createdAuthRes: AuthResponse | null = null;
 
     try {
       // 1. Call Auth API register endpoint
-      const authRes = await registerAuth({
+      createdAuthRes = await registerAuth({
         name: nameVal.trim(),
         email: emailVal.trim(),
         password: passwordVal,
       });
 
-      // 2. Save extended student profile details to profileService
+      // 2. Submit Verification Request via POST /api/v1/verification/submit
+      await verificationService.submitVerification({
+        userId: createdAuthRes.userId,
+        studentName: step3Data.nameOnId || nameVal.trim(),
+        email: emailVal.trim(),
+        collegeName: step3Data.collegeNameOnId || collegeNameVal.trim(),
+        rollNumber: step3Data.rollNumberOnId || rollNumberVal.trim(),
+        courseBranch: `${courseVal} - ${branchVal}`.trim(),
+        yearSemester: watchStep2("yearSemester"),
+        idCardFrontUrl:
+          step3Data.idFrontPreview ||
+          "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+        selfieUrl: step3Data.selfiePreview || undefined,
+      });
+
+      // 3. Save extended student profile details to profileService
       await profileService.updateProfile({
         name: nameVal.trim(),
         email: emailVal.trim(),
@@ -393,49 +410,38 @@ export const Register: React.FC = () => {
         verificationStatus: "Pending Verification",
       });
 
-      // 3. Submit Verification Request & Add to Central Store
-      await verificationService.submitVerification({
-        userId: authRes.userId,
-        studentName: step3Data.nameOnId || nameVal,
-        email: emailVal.trim(),
-        collegeName: step3Data.collegeNameOnId || collegeNameVal,
-        rollNumber: step3Data.rollNumberOnId || rollNumberVal,
-        courseBranch: `${courseVal} - ${branchVal}`,
-        yearSemester: watchStep2("yearSemester"),
-        idCardFrontUrl:
-          step3Data.idFrontPreview ||
-          "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
-        selfieUrl: step3Data.selfiePreview || undefined,
-      });
-
-      // 4. Sync new student registration to shared AdminStore
-      try {
-        addStudent({
-          userId: authRes.userId,
-          name: nameVal.trim(),
-          email: emailVal.trim(),
-          phone: phoneVal.trim(),
-          college: collegeNameVal.trim(),
-          course: courseVal,
-          branch: branchVal,
-          yearSemester: watchStep2("yearSemester"),
-          year: `${watchStep2("graduationYear")} Grad`,
-          rollNumber: rollNumberVal.trim(),
-          idCardFrontUrl: step3Data.idFrontPreview || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
-          selfieUrl: step3Data.selfiePreview || undefined,
-          registeredAt: new Date().toISOString(),
-          verificationStatus: "Pending Verification",
-          role: "STUDENT",
-          status: "PENDING",
-          profileCompletion: 0,
-        });
-      } catch (e) {
-        console.warn("Could not sync to admin store:", e);
+      // 4. In mock mode only, sync to local AdminStore
+      if (isMockMode()) {
+        try {
+          addStudent({
+            userId: createdAuthRes.userId,
+            name: nameVal.trim(),
+            email: emailVal.trim(),
+            phone: phoneVal.trim(),
+            college: collegeNameVal.trim(),
+            course: courseVal,
+            branch: branchVal,
+            yearSemester: watchStep2("yearSemester"),
+            year: `${watchStep2("graduationYear")} Grad`,
+            rollNumber: rollNumberVal.trim(),
+            idCardFrontUrl:
+              step3Data.idFrontPreview ||
+              "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+            selfieUrl: step3Data.selfiePreview || undefined,
+            registeredAt: new Date().toISOString(),
+            verificationStatus: "Pending Verification",
+            role: "STUDENT",
+            status: "PENDING",
+            profileCompletion: 0,
+          });
+        } catch (e) {
+          console.warn("Could not sync to admin store in mock mode:", e);
+        }
       }
 
       // 5. Create notifications for student and admin
       try {
-        await notificationService.notifyUser(authRes.userId, {
+        await notificationService.notifyUser(createdAuthRes.userId, {
           audience: "STUDENT",
           type: "system",
           title: "Welcome to AI Interview Prep",
@@ -455,12 +461,12 @@ export const Register: React.FC = () => {
         console.warn("Could not dispatch registration notifications:", notifErr);
       }
 
-      // Clear draft storage
+      // Clear draft storage only on absolute success
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       setIsSuccess(true);
 
       setTimeout(() => {
-        const role = authRes.role ? authRes.role.toUpperCase() : "STUDENT";
+        const role = createdAuthRes?.role ? createdAuthRes.role.toUpperCase() : "STUDENT";
         if (role === "ADMIN" || role === "ROLE_ADMIN") {
           navigate("/admin", { replace: true });
         } else {
@@ -468,10 +474,52 @@ export const Register: React.FC = () => {
         }
       }, 900);
     } catch (err: any) {
-      setServerError(
-        err.message || "Registration failed. That email might already be in use."
-      );
+      let rawMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "";
+
+      const status = err?.response?.status;
+
+      let mappedMsg = "Registration failed. Please try again.";
+
+      if (status === 409 || rawMsg.toLowerCase().includes("already exists")) {
+        mappedMsg = "An account with this email already exists. Sign in instead.";
+      } else if (status === 413 || rawMsg.toLowerCase().includes("too large")) {
+        mappedMsg = "Uploaded file is too large. Maximum allowed file size is 15MB.";
+      } else if (status === 400 || status === 422) {
+        mappedMsg = rawMsg || "Validation error: Please check all required fields.";
+      } else if (status === 500) {
+        mappedMsg = "Server error, please try again.";
+      } else if (err.code === "ERR_NETWORK" || err.message === "Network Error" || !err.response) {
+        mappedMsg = "Cannot reach the server. Please make sure the backend is running.";
+      } else if (rawMsg) {
+        mappedMsg = rawMsg;
+      }
+
+      setServerError(mappedMsg);
       setIsSubmitting(false);
+
+      // If account creation succeeded on backend but verification submission failed:
+      // Keep student logged in and redirect to /verify-identity so user doesn't lose account
+      if (createdAuthRes) {
+        toast.error(`Account created, but ID verification submission failed: ${mappedMsg}`);
+        setTimeout(() => {
+          navigate("/verify-identity", {
+            replace: true,
+            state: {
+              failedSubmission: {
+                nameOnId: step3Data.nameOnId || nameVal,
+                collegeNameOnId: step3Data.collegeNameOnId || collegeNameVal,
+                rollNumberOnId: step3Data.rollNumberOnId || rollNumberVal,
+                courseBranch: `${courseVal} - ${branchVal}`,
+                yearSemester: watchStep2("yearSemester"),
+              },
+            },
+          });
+        }, 1200);
+      }
     }
   };
 

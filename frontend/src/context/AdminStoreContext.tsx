@@ -3,10 +3,12 @@ import { INITIAL_MOCK_VERIFICATIONS, VerificationSubmission } from "@/mocks/veri
 import { mockStudentsProgress, StudentProgress } from "@/mocks/studentProgressData";
 import { mockAdminUsers, AdminUser } from "@/mocks/adminData";
 import { verificationService } from "@/services/verificationService";
+import { isMockMode } from "@/lib/dataMode";
 
 export interface MasterStudent {
   id: string;
   userId: string;
+  verificationId?: string;
   name: string;
   email: string;
   phone: string;
@@ -193,6 +195,65 @@ const SEED_STUDENTS: MasterStudent[] = [
   },
 ];
 
+export const mapSubmissionToMasterStudent = (
+  sub: VerificationSubmission,
+  existing?: MasterStudent
+): MasterStudent => {
+  const courseParts = (sub.courseBranch || "").split(/[-–—/]/).map((s) => s.trim());
+  const course = courseParts[0] || existing?.course || "B.Tech";
+  const branch = courseParts.slice(1).join(" - ") || existing?.branch || sub.courseBranch || "CSE";
+  const yearParts = (sub.yearSemester || "").split(/[/,]/).map((s) => s.trim());
+  const year = yearParts[0] || existing?.year || "1st Year";
+
+  const rawStatus = sub.status || "Pending Verification";
+  const verifStatus: MasterStudent["verificationStatus"] =
+    rawStatus === "Verified"
+      ? "Verified"
+      : rawStatus === "Rejected"
+      ? "Rejected"
+      : "Pending Verification";
+
+  const studentStatus: MasterStudent["status"] =
+    verifStatus === "Verified"
+      ? "ACTIVE"
+      : verifStatus === "Rejected"
+      ? "BLOCKED"
+      : "PENDING";
+
+  return {
+    id: sub.userId || sub.verificationId || existing?.id || `sub-${Date.now()}`,
+    userId: sub.userId || existing?.userId || sub.verificationId,
+    verificationId: sub.verificationId,
+    name: sub.studentName || existing?.name || "Student Candidate",
+    email: sub.email || existing?.email || "",
+    phone: existing?.phone || "+91 98765 00000",
+    college: sub.collegeName || existing?.college || "",
+    course,
+    branch,
+    yearSemester: sub.yearSemester || existing?.yearSemester || "Year 1 / Sem 1",
+    year,
+    rollNumber: sub.rollNumber || existing?.rollNumber || "",
+    idCardFrontUrl: sub.idCardFrontUrl || existing?.idCardFrontUrl || "",
+    selfieUrl: sub.selfieUrl || existing?.selfieUrl,
+    registeredAt: sub.submittedAt || existing?.registeredAt || new Date().toISOString(),
+    verificationStatus: verifStatus,
+    rejectionCategory: sub.rejectionCategory || (verifStatus === "Rejected" ? existing?.rejectionCategory : undefined),
+    rejectionNotes: sub.rejectionNotes || (verifStatus === "Rejected" ? existing?.rejectionNotes : undefined),
+    role: "STUDENT",
+    status: existing?.status && existing.status !== "PENDING" && verifStatus !== "Rejected" ? existing.status : studentStatus,
+    profileCompletion: existing?.profileCompletion ?? (verifStatus === "Verified" ? 85 : 50),
+    activityScore: existing?.activityScore ?? (verifStatus === "Verified" ? 75 : 40),
+    riskLevel: existing?.riskLevel || "On Track",
+    streakDays: existing?.streakDays ?? (verifStatus === "Verified" ? 5 : 0),
+    problemsSolved: existing?.problemsSolved ?? (verifStatus === "Verified" ? 12 : 0),
+    interviewsCompleted: existing?.interviewsCompleted ?? (verifStatus === "Verified" ? 2 : 0),
+    avgInterviewScore: existing?.avgInterviewScore ?? (verifStatus === "Verified" ? 78 : 0),
+    avgQuizScore: existing?.avgQuizScore ?? (verifStatus === "Verified" ? 80 : 0),
+    bestAtsScore: existing?.bestAtsScore ?? (verifStatus === "Verified" ? 82 : 0),
+    lastActive: existing?.lastActive || "Active recently",
+  };
+};
+
 export interface AdminAuditEntry {
   id: string;
   action: "DELETE_STUDENT" | "BULK_DELETE_STUDENTS" | "DEACTIVATE_STUDENT" | "REACTIVATE_STUDENT" | "APPROVE_VERIFICATION" | "REJECT_VERIFICATION";
@@ -207,6 +268,7 @@ export interface AdminAuditEntry {
 interface AdminStoreContextType {
   students: MasterStudent[];
   auditLogs: AdminAuditEntry[];
+  syncFromSubmissions: (submissions: VerificationSubmission[]) => void;
   addStudent: (studentData: Partial<MasterStudent>) => MasterStudent;
   updateStudent: (id: string, updates: Partial<MasterStudent>) => void;
   deleteStudent: (id: string) => void;
@@ -215,10 +277,10 @@ interface AdminStoreContextType {
   restoreStudents: (students: MasterStudent[]) => void;
   deactivateStudent: (id: string) => void;
   reactivateStudent: (id: string) => void;
-  approveVerification: (id: string) => void;
-  rejectVerification: (id: string, category: string, notes: string) => void;
-  bulkApproveVerifications: (ids: string[]) => void;
-  bulkRejectVerifications: (ids: string[], category: string, notes: string) => void;
+  approveVerification: (id: string) => Promise<void>;
+  rejectVerification: (id: string, category: string, notes: string) => Promise<void>;
+  bulkApproveVerifications: (ids: string[]) => Promise<void>;
+  bulkRejectVerifications: (ids: string[], category: string, notes: string) => Promise<void>;
   toggleBlockUser: (id: string) => void;
   addAuditLog: (entry: Omit<AdminAuditEntry, "id" | "timestamp">) => void;
   resetToDefault: () => void;
@@ -230,20 +292,57 @@ const AdminStoreContext = createContext<AdminStoreContextType | undefined>(undef
 
 export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [students, setStudents] = useState<MasterStudent[]>(() => {
+    if (isMockMode()) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse stored master students:", e);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_STUDENTS));
+      return SEED_STUDENTS;
+    }
+    // Real admin session: strictly start with empty list or real cached entries only (no seed mock rows)
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (s: MasterStudent) =>
+              !s.id?.startsWith("usr-student-") &&
+              !s.userId?.startsWith("usr-student-") &&
+              !s.id?.startsWith("demo-") &&
+              !s.userId?.startsWith("demo-")
+          );
         }
       }
-    } catch (e) {
-      console.error("Failed to parse stored master students:", e);
+    } catch {
+      // ignore
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_STUDENTS));
-    return SEED_STUDENTS;
+    return [];
   });
+
+  // Automatically sync real verifications from backend for real admin sessions
+  useEffect(() => {
+    if (!isMockMode()) {
+      verificationService
+        .getAllSubmissions()
+        .then((subs) => {
+          if (Array.isArray(subs)) {
+            syncFromSubmissions(subs);
+          }
+        })
+        .catch((err) => {
+          console.warn("[AdminStore] Could not fetch real submissions:", err);
+        });
+    }
+  }, []);
 
   const [auditLogs, setAuditLogs] = useState<AdminAuditEntry[]>(() => {
     try {
@@ -273,9 +372,18 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const saveToStorage = (items: MasterStudent[]) => {
-    setStudents(items);
+    const sanitized = isMockMode()
+      ? items
+      : items.filter(
+          (s) =>
+            !s.id?.startsWith("usr-student-") &&
+            !s.userId?.startsWith("usr-student-") &&
+            !s.id?.startsWith("demo-") &&
+            !s.userId?.startsWith("demo-")
+        );
+    setStudents(sanitized);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
     } catch (e) {
       console.error("Failed to save master students:", e);
     }
@@ -417,42 +525,121 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const approveVerification = (id: string) => {
-    const student = students.find((s) => s.id === id || s.userId === id);
+  const syncFromSubmissions = (submissions: VerificationSubmission[]) => {
+    if (isMockMode()) {
+      setStudents((prev) => {
+        const currentList = prev.length > 0 ? prev : SEED_STUDENTS;
+        const updated = [...currentList];
+
+        submissions.forEach((sub) => {
+          const subEmail = sub.email?.trim().toLowerCase();
+          const subUserId = sub.userId?.trim();
+          const subVerifId = sub.verificationId?.trim();
+
+          const matchIdx = updated.findIndex((s) => {
+            const matchEmail = subEmail && s.email?.trim().toLowerCase() === subEmail;
+            const matchUserId = subUserId && (s.userId === subUserId || s.id === subUserId);
+            const matchVerifId = subVerifId && s.verificationId === subVerifId;
+            return Boolean(matchEmail || matchUserId || matchVerifId);
+          });
+
+          if (matchIdx !== -1) {
+            updated[matchIdx] = mapSubmissionToMasterStudent(sub, updated[matchIdx]);
+          } else {
+            updated.unshift(mapSubmissionToMasterStudent(sub));
+          }
+        });
+
+        saveToStorage(updated);
+        return updated;
+      });
+    } else {
+      // Real admin session: map all submissions to MasterStudent list.
+      // If submissions is empty, the list is empty (clean empty state).
+      setStudents((prev) => {
+        const prevMap = new Map<string, MasterStudent>();
+        prev.forEach((s) => {
+          if (s.email) prevMap.set(s.email.toLowerCase(), s);
+          if (s.userId) prevMap.set(s.userId, s);
+          if (s.id) prevMap.set(s.id, s);
+          if (s.verificationId) prevMap.set(s.verificationId, s);
+        });
+
+        const newList = submissions.map((sub) => {
+          const existing =
+            (sub.email ? prevMap.get(sub.email.toLowerCase()) : undefined) ||
+            (sub.userId ? prevMap.get(sub.userId) : undefined) ||
+            (sub.verificationId ? prevMap.get(sub.verificationId) : undefined);
+          return mapSubmissionToMasterStudent(sub, existing);
+        });
+
+        saveToStorage(newList);
+        return newList;
+      });
+    }
+  };
+
+  const approveVerification = async (id: string) => {
+    const student = students.find((s) => s.id === id || s.userId === id || s.verificationId === id);
+    const targetVerificationId = student?.verificationId || student?.id || id;
+
     updateStudent(id, {
       verificationStatus: "Verified",
       status: "ACTIVE",
       rejectionCategory: undefined,
       rejectionNotes: undefined,
     });
-    if (student) {
-      verificationService
-        .reviewVerificationByStudent(student.userId || student.id, student.email, "APPROVE")
-        .catch((e) => console.warn("Sync verification error on approve:", e));
+
+    try {
+      if (student?.verificationId) {
+        await verificationService.reviewVerification(student.verificationId, "APPROVE");
+      } else if (student?.userId || student?.email) {
+        await verificationService.reviewVerificationByStudent(
+          student.userId || student.id,
+          student.email || "",
+          "APPROVE"
+        );
+      } else {
+        await verificationService.reviewVerification(targetVerificationId, "APPROVE");
+      }
+    } catch (e) {
+      console.warn("Sync verification error on approve:", e);
     }
   };
 
-  const rejectVerification = (id: string, category: string, notes: string) => {
-    const student = students.find((s) => s.id === id || s.userId === id);
+  const rejectVerification = async (id: string, category: string, notes: string) => {
+    const student = students.find((s) => s.id === id || s.userId === id || s.verificationId === id);
+    const targetVerificationId = student?.verificationId || student?.id || id;
+
     updateStudent(id, {
       verificationStatus: "Rejected",
       status: "BLOCKED",
       rejectionCategory: category,
       rejectionNotes: notes,
     });
-    if (student) {
-      verificationService
-        .reviewVerificationByStudent(student.userId || student.id, student.email, "REJECT", category, notes)
-        .catch((e) => console.warn("Sync verification error on reject:", e));
+
+    try {
+      if (student?.verificationId) {
+        await verificationService.reviewVerification(student.verificationId, "REJECT", category, notes);
+      } else if (student?.userId || student?.email) {
+        await verificationService.reviewVerificationByStudent(
+          student.userId || student.id,
+          student.email || "",
+          "REJECT",
+          category,
+          notes
+        );
+      } else {
+        await verificationService.reviewVerification(targetVerificationId, "REJECT", category, notes);
+      }
+    } catch (e) {
+      console.warn("Sync verification error on reject:", e);
     }
   };
 
-  const bulkApproveVerifications = (ids: string[]) => {
+  const bulkApproveVerifications = async (ids: string[]) => {
     const updatedList = students.map((s) => {
-      if (ids.includes(s.id) || ids.includes(s.userId)) {
-        verificationService
-          .reviewVerificationByStudent(s.userId || s.id, s.email, "APPROVE")
-          .catch((e) => console.warn("Sync verification error on bulk approve:", e));
+      if (ids.includes(s.id) || ids.includes(s.userId) || (s.verificationId && ids.includes(s.verificationId))) {
         return {
           ...s,
           verificationStatus: "Verified" as const,
@@ -464,14 +651,20 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return s;
     });
     saveToStorage(updatedList);
+
+    for (const id of ids) {
+      const s = students.find((item) => item.id === id || item.userId === id || item.verificationId === id);
+      if (s?.verificationId) {
+        await verificationService.reviewVerification(s.verificationId, "APPROVE").catch(console.warn);
+      } else if (s?.userId || s?.email) {
+        await verificationService.reviewVerificationByStudent(s.userId || s.id, s.email || "", "APPROVE").catch(console.warn);
+      }
+    }
   };
 
-  const bulkRejectVerifications = (ids: string[], category: string, notes: string) => {
+  const bulkRejectVerifications = async (ids: string[], category: string, notes: string) => {
     const updatedList = students.map((s) => {
-      if (ids.includes(s.id) || ids.includes(s.userId)) {
-        verificationService
-          .reviewVerificationByStudent(s.userId || s.id, s.email, "REJECT", category, notes)
-          .catch((e) => console.warn("Sync verification error on bulk reject:", e));
+      if (ids.includes(s.id) || ids.includes(s.userId) || (s.verificationId && ids.includes(s.verificationId))) {
         return {
           ...s,
           verificationStatus: "Rejected" as const,
@@ -483,6 +676,15 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return s;
     });
     saveToStorage(updatedList);
+
+    for (const id of ids) {
+      const s = students.find((item) => item.id === id || item.userId === id || item.verificationId === id);
+      if (s?.verificationId) {
+        await verificationService.reviewVerification(s.verificationId, "REJECT", category, notes).catch(console.warn);
+      } else if (s?.userId || s?.email) {
+        await verificationService.reviewVerificationByStudent(s.userId || s.id, s.email || "", "REJECT", category, notes).catch(console.warn);
+      }
+    }
   };
 
   const toggleBlockUser = (id: string) => {
@@ -494,7 +696,18 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const resetToDefault = () => {
-    saveToStorage(SEED_STUDENTS);
+    if (isMockMode()) {
+      saveToStorage(SEED_STUDENTS);
+    } else {
+      verificationService
+        .getAllSubmissions()
+        .then((subs) => {
+          syncFromSubmissions(subs);
+        })
+        .catch(() => {
+          saveToStorage([]);
+        });
+    }
   };
 
   return (
@@ -502,6 +715,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       value={{
         students,
         auditLogs,
+        syncFromSubmissions,
         addStudent,
         updateStudent,
         deleteStudent,

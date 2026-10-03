@@ -23,22 +23,10 @@ api.interceptors.request.use(
   }
 );
 
+import { isMockMode } from "./dataMode";
+
 export function isDemoSession(): boolean {
-  if (localStorage.getItem("ai_interview_prep_demo") === "true") {
-    return true;
-  }
-  try {
-    const userStr = localStorage.getItem("ai_interview_prep_user");
-    if (userStr) {
-      const u = JSON.parse(userStr);
-      if (u && typeof u.userId === "string" && u.userId.startsWith("demo-usr-")) {
-        return true;
-      }
-    }
-  } catch {
-    // Ignore JSON parse error
-  }
-  return false;
+  return isMockMode();
 }
 
 // Response Interceptor

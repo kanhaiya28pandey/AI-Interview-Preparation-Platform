@@ -112,7 +112,7 @@ export const migrateSampleDataForRealUsers = (
     if (!raw) {
       const cleanProfile = createEmptyProfile({
         userId,
-        name: activeUser?.name || "Student User",
+        name: activeUser?.name || "",
         email: activeUser?.email || "",
         role: activeUser?.role || "STUDENT",
         college: activeUser?.college || "",

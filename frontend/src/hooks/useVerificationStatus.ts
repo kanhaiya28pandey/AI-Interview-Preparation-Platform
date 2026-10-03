@@ -5,6 +5,8 @@ import { VerificationStatus, VerificationSubmission } from "@/mocks/verification
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 
+import { isMockMode } from "@/lib/dataMode";
+
 export interface UseVerificationStatusResult {
   status: VerificationStatus;
   submission?: VerificationSubmission;
@@ -20,13 +22,19 @@ export const useVerificationStatus = (): UseVerificationStatusResult => {
   const [status, setStatus] = useState<VerificationStatus>(() => {
     if (isAdmin() || isDemoMode) return "Verified";
     if (!user) return "Unverified";
-    const initial = verificationService.resolveStatus(user.userId, user.email);
-    return initial.status;
+    if (isMockMode()) {
+      const initial = verificationService.resolveStatus(user.userId, user.email);
+      return initial.status;
+    }
+    return user.verificationStatus || "Unverified";
   });
 
   const [submission, setSubmission] = useState<VerificationSubmission | undefined>(() => {
     if (!user) return undefined;
-    return verificationService.resolveStatus(user.userId, user.email).submission;
+    if (isMockMode()) {
+      return verificationService.resolveStatus(user.userId, user.email).submission;
+    }
+    return undefined;
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -46,7 +54,7 @@ export const useVerificationStatus = (): UseVerificationStatusResult => {
       return;
     }
 
-    const res = verificationService.resolveStatus(user.userId, user.email);
+    const res = await verificationService.getVerificationStatus(user.userId, user.email);
     const prevStatus = previousStatusRef.current;
 
     setStatus(res.status);

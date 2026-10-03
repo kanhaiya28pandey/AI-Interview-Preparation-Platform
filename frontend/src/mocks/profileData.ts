@@ -299,7 +299,7 @@ export const createEmptyProfile = (
 ): UserProfile => {
   return {
     userId: user?.userId || `user-${Date.now()}`,
-    name: user?.name || "Student User",
+    name: user?.name || "",
     preferredName: "",
     email: user?.email || "",
     role: user?.role || "STUDENT",

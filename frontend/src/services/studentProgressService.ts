@@ -1,6 +1,6 @@
 import { mockStudentsProgress, StudentProgress, CohortAnalytics, TeacherNote } from "@/mocks/studentProgressData";
+import { isMockMode } from "@/lib/dataMode";
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 const getMasterStudents = (): StudentProgress[] => {
@@ -10,7 +10,17 @@ const getMasterStudents = (): StudentProgress[] => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        masterList = parsed.map((m: any) => ({
+        const filtered = isMockMode()
+          ? parsed
+          : parsed.filter(
+              (m: any) =>
+                !m.id?.startsWith("usr-student-") &&
+                !m.userId?.startsWith("usr-student-") &&
+                !m.id?.startsWith("demo-") &&
+                !m.userId?.startsWith("demo-")
+            );
+
+        masterList = filtered.map((m: any) => ({
           id: m.id || m.userId,
           name: m.name,
           rollNumber: m.rollNumber || "",
@@ -60,7 +70,7 @@ const getMasterStudents = (): StudentProgress[] => {
     // ignore
   }
 
-  const baseList = [...mockStudentsProgress];
+  const baseList = isMockMode() ? [...mockStudentsProgress] : [];
   const seenIds = new Set(baseList.map((s) => s.id));
   masterList.forEach((m) => {
     if (!seenIds.has(m.id)) {
@@ -97,7 +107,7 @@ export const studentProgressService = {
   },
 
   async addTeacherNote(studentId: string, noteText: string, authorName = "Admin Teacher"): Promise<TeacherNote> {
-    if (USE_MOCKS) {
+    if (isMockMode()) {
       await delay(300);
       const allStudents = await this.getStudents();
       const student = allStudents.find((s) => s.id === studentId);

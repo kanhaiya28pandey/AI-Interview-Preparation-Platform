@@ -1,44 +1,35 @@
-package com.interviewplatform.backend.model;
+package com.interviewplatform.backend.dto;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+import jakarta.validation.constraints.NotBlank;
 
-@Document(collection = "content_items")
-public class ContentItem {
+public class ContentItemRequest {
 
-    @Id
-    private String id;
-
+    @NotBlank(message = "Title is required")
     private String title;
+
     private String description;
-    private String type; // "QUIZ", "MOCK_TEST", "CODING_TEST", "CODING_PROBLEM", "MOCK_INTERVIEW", "PRACTICE_TOPIC", "ARTICLE"
-    private String subject; // "DSA", "DBMS", "OS", "Networks", "System Design", "Web Dev", "OOP", "AI/ML", "Aptitude", "HR"
+
+    @NotBlank(message = "Content type is required")
+    private String type; // QUIZ, MOCK_TEST, CODING_TEST, CODING_PROBLEM, MOCK_INTERVIEW, PRACTICE_TOPIC, ARTICLE
+
+    @NotBlank(message = "Subject/Domain is required")
+    private String subject;
+
     private List<String> topics = new ArrayList<>();
     private List<String> tags = new ArrayList<>();
-    private String difficulty = "Medium"; // "Easy", "Medium", "Hard", "Mixed"
-    private Map<String, Integer> difficultySplit = new HashMap<>(); // e.g. {"Easy": 40, "Medium": 40, "Hard": 20}
-    private String status = "DRAFT"; // "DRAFT", "PUBLISHED", "ARCHIVED"
-    private String createdBy = "Admin";
-    private Instant createdAt = Instant.now();
-    private Instant updatedAt = Instant.now();
-    private int studentAttempts = 0;
+    private String difficulty = "Medium";
+    private Map<String, Integer> difficultySplit = new HashMap<>();
+    private String status = "DRAFT";
 
     private Map<String, Object> settings = new HashMap<>();
     private Map<String, Object> contentData = new HashMap<>();
 
-    private int version = 1;
-    private List<Map<String, Object>> versions = new ArrayList<>();
-
-    public ContentItem() {}
-
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public ContentItemRequest() {}
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -67,27 +58,9 @@ public class ContentItem {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public String getCreatedBy() { return createdBy; }
-    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
-
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
-
-    public int getStudentAttempts() { return studentAttempts; }
-    public void setStudentAttempts(int studentAttempts) { this.studentAttempts = studentAttempts; }
-
     public Map<String, Object> getSettings() { return settings; }
     public void setSettings(Map<String, Object> settings) { this.settings = settings != null ? settings : new HashMap<>(); }
 
     public Map<String, Object> getContentData() { return contentData; }
     public void setContentData(Map<String, Object> contentData) { this.contentData = contentData != null ? contentData : new HashMap<>(); }
-
-    public int getVersion() { return version; }
-    public void setVersion(int version) { this.version = version; }
-
-    public List<Map<String, Object>> getVersions() { return versions; }
-    public void setVersions(List<Map<String, Object>> versions) { this.versions = versions != null ? versions : new ArrayList<>(); }
 }
