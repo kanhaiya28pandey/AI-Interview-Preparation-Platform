@@ -216,79 +216,10 @@ export const mockUserProfile: UserProfile = {
   },
 };
 
-export const createEmptyProfile = (base: {
-  userId: string;
-  name: string;
-  email: string;
-  role: string;
-}): UserProfile => ({
-  userId: base.userId,
-  name: base.name,
-  preferredName: "",
-  email: base.email,
-  role: base.role,
-  avatar: "",
-  isCustomAvatar: false,
-  photoChecklist: {
-    clearFace: false,
-    plainBackground: false,
-    noGlasses: false,
-    goodLighting: false,
-  },
-  headline: "",
-  bio: "",
-  phone: "",
-  dateOfBirth: "",
-  gender: "",
-  location: "",
-  languages: [],
-  college: "",
-  graduationYear: "",
-  degree: "",
-  educationEntries: [],
-  schoolEducation: {
-    board10th: "",
-    school10th: "",
-    year10th: "",
-    percentage10th: "",
-    board12th: "",
-    school12th: "",
-    year12th: "",
-    percentage12th: "",
-  },
-  skillsList: [],
-  skills: [],
-  workExperience: [],
-  projects: [],
-  certifications: [],
-  targetRoles: [],
-  preferredLocation: "",
-  openToRelocation: false,
-  employmentType: "Both",
-  githubUrl: "",
-  linkedinUrl: "",
-  portfolioUrl: "",
-  codingPlatformHandle: "",
-  resumeUrl: "",
-  onboardingComplete: false,
-  verificationStatus: "Unverified",
-  updatedAt: undefined,
-  stats: {
-    totalPracticeSessions: 0,
-    codingProblemsSolved: 0,
-    mockInterviewsCompleted: 0,
-    quizzesCompleted: 0,
-    overallRating: 0,
-    currentStreak: 0,
-    totalXP: 0,
-  },
-});
-
-export function getProfileVerdict(score: number): { label: "Incomplete" | "Good" | "Great" | "Excellent"; colorClass: string; hex: string } {
-  if (score >= 90) return { label: "Excellent", colorClass: "text-[#4ade80]", hex: "#4ade80" };
-  if (score >= 75) return { label: "Great", colorClass: "text-[#22d3ee]", hex: "#22d3ee" };
-  if (score >= 40) return { label: "Good", colorClass: "text-[#f59e0b]", hex: "#f59e0b" };
-  return { label: "Incomplete", colorClass: "text-[#f2867b]", hex: "#f2867b" };
+export function getProfileVerdict(score: number): { label: "Just getting started" | "Good progress" | "Excellent"; colorClass: string; hex: string } {
+  if (score >= 80) return { label: "Excellent", colorClass: "text-emerald-600 dark:text-[#4ade80]", hex: "#4ade80" };
+  if (score >= 40) return { label: "Good progress", colorClass: "text-amber-700 dark:text-[#f59e0b]", hex: "#f59e0b" };
+  return { label: "Just getting started", colorClass: "text-cyan-600 dark:text-[#22d3ee]", hex: "#22d3ee" };
 }
 
 export function getProfileNudge(profile: Partial<UserProfile>): string {
@@ -307,8 +238,16 @@ export const calculateProfileCompletion = (profile: Partial<UserProfile>): numbe
   let score = 0;
 
   // Section 1: Photo & Checklist (20%)
-  if (profile.isCustomAvatar || (profile.avatar && profile.avatar.trim() !== "" && !profile.avatar.includes("default"))) score += 10;
-  const checklistCount = profile.photoChecklist
+  const hasRealAvatar =
+    Boolean(profile.isCustomAvatar) &&
+    Boolean(
+      profile.avatar &&
+      profile.avatar.trim().length > 0 &&
+      !profile.avatar.includes("default") &&
+      !profile.avatar.includes("photo-1534528741775-53994a69daeb")
+    );
+  if (hasRealAvatar) score += 10;
+  const checklistCount = hasRealAvatar && profile.photoChecklist
     ? Object.values(profile.photoChecklist).filter(Boolean).length
     : 0;
   if (checklistCount >= 2) score += 10;
@@ -344,4 +283,81 @@ export const calculateProfileCompletion = (profile: Partial<UserProfile>): numbe
     score += 8;
 
   return Math.min(100, score);
+};
+
+export const createEmptyProfile = (
+  user?: {
+    userId?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    college?: string;
+    phone?: string;
+    verificationStatus?: "Pending Verification" | "Verified" | "Rejected" | "Resubmission Required" | "Unverified";
+    verificationId?: string;
+  } | null
+): UserProfile => {
+  return {
+    userId: user?.userId || `user-${Date.now()}`,
+    name: user?.name || "Student User",
+    preferredName: "",
+    email: user?.email || "",
+    role: user?.role || "STUDENT",
+    avatar: "",
+    isCustomAvatar: false,
+    photoChecklist: {
+      clearFace: false,
+      plainBackground: false,
+      noGlasses: false,
+      goodLighting: false,
+    },
+    headline: "",
+    bio: "",
+    phone: user?.phone || "",
+    dateOfBirth: "",
+    gender: "",
+    location: "",
+    languages: [],
+    college: user?.college || "",
+    graduationYear: "",
+    degree: "",
+    educationEntries: [],
+    schoolEducation: {
+      board10th: "",
+      school10th: "",
+      year10th: "",
+      percentage10th: "",
+      board12th: "",
+      school12th: "",
+      year12th: "",
+      percentage12th: "",
+    },
+    skillsList: [],
+    skills: [],
+    workExperience: [],
+    projects: [],
+    certifications: [],
+    targetRoles: [],
+    preferredLocation: "",
+    openToRelocation: true,
+    employmentType: "Both",
+    githubUrl: "",
+    linkedinUrl: "",
+    portfolioUrl: "",
+    codingPlatformHandle: "",
+    resumeUrl: "",
+    onboardingComplete: false,
+    verificationStatus: user?.verificationStatus || "Unverified",
+    verificationId: user?.verificationId,
+    updatedAt: undefined,
+    stats: {
+      totalPracticeSessions: 0,
+      codingProblemsSolved: 0,
+      mockInterviewsCompleted: 0,
+      quizzesCompleted: 0,
+      overallRating: 0,
+      currentStreak: 0,
+      totalXP: 0,
+    },
+  };
 };

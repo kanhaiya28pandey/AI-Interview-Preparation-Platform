@@ -26,8 +26,6 @@ import {
   Cell,
 } from "recharts";
 
-import { AtRiskStudents } from "@/components/admin/AtRiskStudents";
-
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [reports, setReports] = useState<AdminReportData | null>(null);
@@ -93,15 +91,15 @@ export const AdminDashboard: React.FC = () => {
               <AreaChart data={reports.userGrowth}>
                 <defs>
                   <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--accent-bright)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--accent-bright)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="date" stroke="var(--chart-text)" fontSize={11} />
                 <YAxis stroke="var(--chart-text)" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
-                <Area type="monotone" dataKey="users" stroke="#22d3ee" fillOpacity={1} fill="url(#colorUsers)" />
+                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "#ffffff", borderRadius: "8px" }} />
+                <Area type="monotone" dataKey="users" stroke="var(--accent-bright)" fillOpacity={1} fill="url(#colorUsers)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -119,8 +117,8 @@ export const AdminDashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="category" stroke="var(--chart-text)" fontSize={10} />
                 <YAxis stroke="var(--chart-text)" fontSize={11} />
-                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "var(--text-primary)", borderRadius: "8px" }} />
-                <Bar dataKey="count" fill="#4ade80" radius={[4, 4, 0, 0]} />
+                <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "#ffffff", borderRadius: "8px" }} />
+                <Bar dataKey="count" fill="var(--live)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -185,13 +183,13 @@ export const AdminDashboard: React.FC = () => {
                     contentStyle={{
                       backgroundColor: "var(--tooltip-bg)",
                       borderColor: "var(--tooltip-border)",
-                      color: "var(--text-primary)",
+                      color: "#ffffff",
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
                     formatter={(value: any) => [`${value}% of submissions missing`, "Deficit Rate"]}
                   />
-                  <Bar dataKey="percentage" fill="#f2867b" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="percentage" fill="var(--danger)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -228,7 +226,7 @@ export const AdminDashboard: React.FC = () => {
                     contentStyle={{
                       backgroundColor: "var(--tooltip-bg)",
                       borderColor: "var(--tooltip-border)",
-                      color: "var(--text-primary)",
+                      color: "#ffffff",
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}

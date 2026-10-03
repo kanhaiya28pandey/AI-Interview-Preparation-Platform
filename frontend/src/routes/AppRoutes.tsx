@@ -12,9 +12,9 @@ import { NotFound } from "@/pages/NotFound";
 // Layouts & Route Guards
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RoleRoute } from "./RoleRoute";
+import { VerifiedRoute } from "./VerifiedRoute";
 import { StudentLayout } from "@/components/layout/StudentLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { VerificationGate } from "@/components/common/VerificationGate";
 
 // Student Pages
 import { StudentDashboard } from "@/pages/student/Dashboard";
@@ -68,55 +68,23 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<StudentDashboard />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/practice" element={<Practice />} />
-        <Route path="/preparation" element={<PreparationRoadmaps />} />
-        <Route
-          path="/resume-analyzer"
-          element={
-            <VerificationGate featureName="Resume Analyzer">
-              <ResumeAnalyzer />
-            </VerificationGate>
-          }
-        />
-        <Route
-          path="/coding"
-          element={
-            <VerificationGate featureName="Coding Arena">
-              <Coding />
-            </VerificationGate>
-          }
-        />
-        <Route
-          path="/mock-interview"
-          element={
-            <VerificationGate featureName="Mock Interview">
-              <MockInterview />
-            </VerificationGate>
-          }
-        />
-        <Route
-          path="/quiz"
-          element={
-            <VerificationGate featureName="MCQ Quizzes">
-              <Quiz />
-            </VerificationGate>
-          }
-        />
-        <Route path="/articles" element={<Articles />} />
-        <Route
-          path="/leaderboard"
-          element={
-            <VerificationGate featureName="Leaderboard">
-              <Leaderboard />
-            </VerificationGate>
-          }
-        />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/help" element={<HelpCenter />} />
+        {/* Unrestricted Student Routes */}
         <Route path="/verify-identity" element={<VerifyIdentity />} />
+        <Route path="/help" element={<HelpCenter />} />
+
+        {/* Verified-Only Student Routes */}
+        <Route path="/dashboard" element={<VerifiedRoute><StudentDashboard /></VerifiedRoute>} />
+        <Route path="/onboarding" element={<VerifiedRoute><Onboarding /></VerifiedRoute>} />
+        <Route path="/practice" element={<VerifiedRoute><Practice /></VerifiedRoute>} />
+        <Route path="/preparation" element={<VerifiedRoute><PreparationRoadmaps /></VerifiedRoute>} />
+        <Route path="/resume-analyzer" element={<VerifiedRoute><ResumeAnalyzer /></VerifiedRoute>} />
+        <Route path="/coding" element={<VerifiedRoute><Coding /></VerifiedRoute>} />
+        <Route path="/mock-interview" element={<VerifiedRoute><MockInterview /></VerifiedRoute>} />
+        <Route path="/quiz" element={<VerifiedRoute><Quiz /></VerifiedRoute>} />
+        <Route path="/articles" element={<VerifiedRoute><Articles /></VerifiedRoute>} />
+        <Route path="/leaderboard" element={<VerifiedRoute><Leaderboard /></VerifiedRoute>} />
+        <Route path="/profile" element={<VerifiedRoute><Profile /></VerifiedRoute>} />
+        <Route path="/settings" element={<VerifiedRoute><Settings /></VerifiedRoute>} />
       </Route>
 
       {/* Protected Admin Routes */}

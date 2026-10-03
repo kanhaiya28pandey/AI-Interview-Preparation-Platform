@@ -1,5 +1,5 @@
 export function formatRelativeTime(dateString?: string): string {
-  if (!dateString) return "just now";
+  if (!dateString) return "Not updated yet";
   const date = new Date(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);

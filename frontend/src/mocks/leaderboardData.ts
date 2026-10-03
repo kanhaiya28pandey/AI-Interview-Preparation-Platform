@@ -78,7 +78,6 @@ export const mockLeaderboardData: LeaderboardUser[] = [
     mockInterviewsCount: 11,
     avgInterviewScore: 86,
     badge: "Pro",
-    isCurrentUser: true,
   },
   {
     rank: 6,

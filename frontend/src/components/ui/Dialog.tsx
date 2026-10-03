@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "./Button";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 export interface DialogProps {
   isOpen: boolean;
@@ -23,18 +25,18 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
   footer,
   maxWidthClass = "max-w-2xl",
-  zIndexClass = "z-[70]",
+  zIndexClass = "z-[100]",
 }) => {
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     if (isOpen) {
-      document.body.style.overflow = "hidden";
       window.addEventListener("keydown", handleKeyDown);
     }
     return () => {
-      document.body.style.overflow = "unset";
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose]);
@@ -106,7 +108,9 @@ export const Dialog: React.FC<DialogProps> = ({
               }}
               className="p-6 custom-scrollbar text-text-primary modal-body"
             >
-              {children}
+              <ErrorBoundary isModal onReset={onClose}>
+                {children}
+              </ErrorBoundary>
             </div>
 
             {/* Modal Footer: Fixed optional (flex-shrink: 0) */}

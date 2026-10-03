@@ -1,6 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Clock, Award, ShieldAlert, CheckCircle2, ChevronRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { ContentItem } from "@/services/contentManagerService";
 
 interface StudentPreviewModalProps {
@@ -17,17 +20,33 @@ export const StudentPreviewModal: React.FC<StudentPreviewModalProps> = ({
   const [activeQuestionIdx, setActiveQuestionIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
 
-  if (!isOpen || !item) return null;
+  useBodyScrollLock(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !item || typeof document === "undefined") return null;
 
   const questions: any[] = item.contentData?.questions || [];
   const duration = item.settings?.durationMinutes || 30;
   const currentQ = questions[activeQuestionIdx];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-surface border border-border rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="student-preview-modal-title"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in"
+    >
+      <div className="bg-surface border border-border rounded-none sm:rounded-2xl w-full max-w-4xl h-dvh sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Topbar / Student Preview Badge */}
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-raised">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border flex items-center justify-between bg-surface-raised shrink-0">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
               <Eye className="w-3.5 h-3.5" /> Student Simulation Mode
@@ -36,7 +55,9 @@ export const StudentPreviewModal: React.FC<StudentPreviewModalProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close simulation preview"
             className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface transition-colors"
           >
             <X className="w-5 h-5" />
@@ -44,9 +65,9 @@ export const StudentPreviewModal: React.FC<StudentPreviewModalProps> = ({
         </div>
 
         {/* Assessment Banner Header */}
-        <div className="p-6 border-b border-border bg-ink/40 space-y-2">
+        <div className="p-4 sm:p-6 border-b border-border bg-ink/40 space-y-2 shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold text-text-primary">{item.title}</h2>
+            <h2 id="student-preview-modal-title" className="text-lg font-bold text-text-primary">{item.title}</h2>
             <div className="flex items-center gap-3 text-xs">
               <span className="flex items-center gap-1 text-cyan-400 font-mono font-medium">
                 <Clock className="w-3.5 h-3.5" /> {duration} Mins
@@ -60,7 +81,8 @@ export const StudentPreviewModal: React.FC<StudentPreviewModalProps> = ({
         </div>
 
         {/* Content Body Based on Type */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
+          <ErrorBoundary isModal onReset={onClose}>
           {item.type === "QUIZ" && questions.length > 0 && (
             <div className="space-y-5">
               <div className="flex items-center justify-between text-xs text-text-muted border-b border-border/50 pb-2">
@@ -225,10 +247,11 @@ export const StudentPreviewModal: React.FC<StudentPreviewModalProps> = ({
               </div>
             </div>
           )}
+          </ErrorBoundary>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-surface-raised flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-surface-raised flex items-center justify-between shrink-0">
           <span className="text-xs text-text-muted">
             Preview is read-only. Student responses are not saved during preview.
           </span>
@@ -237,6 +260,7 @@ export const StudentPreviewModal: React.FC<StudentPreviewModalProps> = ({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

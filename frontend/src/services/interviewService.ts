@@ -129,15 +129,6 @@ export const interviewService = {
         idealKeyPoints: ["Clear problem statement", "Trade-off analysis", "Measurable result"],
         followUpPrompt: "What would you change if you had to re-architect it for 10x traffic?",
       },
-      {
-        id: "q-default-2",
-        roleId,
-        questionNumber: 2,
-        question: "How do you handle disagreement with a senior team member or product manager regarding technical debt?",
-        category: "Behavioral & Leadership",
-        idealKeyPoints: ["Data-driven reasoning", "Empathy and business impact", "Compromise and alignment"],
-        followUpPrompt: "Can you give a specific example from your past project?",
-      },
     ];
   },
 
@@ -146,55 +137,36 @@ export const interviewService = {
 
     try {
       const response = await axios.post(`${AI_URL}/api/ai/interview/evaluate-answer`, {
-        questionText: questionId || "Technical software engineering problem",
+        roleId,
+        questionId,
         answerText,
-        roleTitle: roleId || "Software Engineer",
-      }, { timeout: 7000 });
+      });
 
-      if (response.data && response.data.score) {
+      if (response.data) {
         return {
-          aiFeedback: response.data.aiFeedback || "Solid answer with clear technical vocabulary.",
-          score: response.data.score,
+          aiFeedback: response.data.feedback || "Good response addressing core points.",
+          score: response.data.score || 82,
         };
       }
     } catch (err) {
-      console.warn("Real AI answer evaluation failed, using local model:", err);
+      console.warn("AI service not reachable, falling back to heuristic evaluation", err);
     }
 
-    await delay(600);
+    await delay(800);
+    const score = Math.min(95, Math.max(65, Math.round(answerText.length / 5)));
     return {
-      aiFeedback: "Strong response! You effectively articulated key architectural trade-offs and performance implications. To make it exceptional, consider quantifying metrics and edge case handling.",
-      score: Math.floor(Math.random() * 15) + 82,
+      aiFeedback:
+        "Strong structural clarity. Demonstrates practical engineering reasoning and trade-off awareness.",
+      score,
     };
   },
 
   async getFeedback(sessionId: string): Promise<InterviewFeedback> {
-    await delay(300);
+    await delay(400);
     return {
+      ...fallbackFeedback,
       sessionId,
-      roleTitle: "Software Engineer",
-      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      overallScore: 86,
-      scores: {
-        technicalAccuracy: 88,
-        communicationClarity: 85,
-        problemSolving: 84,
-        confidence: 87,
-      },
-      strengths: [
-        "Structured thought process using concrete architectural examples",
-        "Clear conceptual grasp of modern web and backend patterns",
-        "Well-articulated edge cases and trade-offs",
-      ],
-      areasForImprovement: [
-        "Include production monitoring metrics (latency p99, APM telemetry)",
-        "Quantify business impact and performance optimization with percentages",
-      ],
-      detailedFeedback: "Candidate demonstrated strong core competency with solid communication. Ready for top campus placement rounds.",
-      transcripts: [
-        { speaker: "interviewer", text: "Tell me about your architectural approach to state management.", timestamp: "00:15" },
-        { speaker: "candidate", text: "I structure services around clear domain boundaries and avoid prop drilling via context or redux toolkit.", timestamp: "00:45" },
-      ],
+      date: new Date().toLocaleDateString(),
     };
   },
 

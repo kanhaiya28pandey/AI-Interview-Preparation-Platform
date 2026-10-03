@@ -133,7 +133,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
                   zIndex: 9999,
                   pointerEvents: "none",
                 }}
-                className="bg-[var(--tooltip-bg)] border border-[var(--tooltip-border)] text-text-primary rounded-lg px-2.5 py-1.5 text-xs font-medium shadow-xl whitespace-nowrap max-w-[200px]"
+                className="bg-[var(--tooltip-bg)] border border-[var(--tooltip-border)] text-white rounded-lg px-2.5 py-1.5 text-xs font-medium shadow-xl whitespace-nowrap max-w-[200px]"
               >
                 {content}
                 <span aria-hidden="true" style={arrowStyle} />

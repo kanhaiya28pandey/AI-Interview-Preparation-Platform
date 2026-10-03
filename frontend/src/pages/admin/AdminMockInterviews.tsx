@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { TableSkeleton } from "@/components/common/Skeletons";
+import { RowActions } from "@/components/common/RowActions";
 import { TopicManager } from "@/components/admin/TopicManager";
 import { Plus, Edit2, Video, Tag, Ban, RotateCw, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -189,9 +190,9 @@ export const AdminMockInterviews: React.FC = () => {
                   <th className="p-4 bg-surface-raised">Role Title & Domain</th>
                   <th className="p-4 bg-surface-raised">Configured Topics</th>
                   <th className="p-4 bg-surface-raised">Questions Count</th>
-                  <th className="p-4 bg-surface-raised">Duration</th>
-                  <th className="p-4 bg-surface-raised">Status</th>
-                  <th className="p-4 bg-surface-raised text-right">Action</th>
+                  <th className="p-4 bg-surface-raised whitespace-nowrap">Duration</th>
+                  <th className="p-4 bg-surface-raised whitespace-nowrap">Status</th>
+                  <th className="p-4 bg-surface-raised text-right w-[140px] min-w-[140px] whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -231,10 +232,20 @@ export const AdminMockInterviews: React.FC = () => {
                       <Badge variant={item.status === "ACTIVE" ? "active" : "outline"}>{item.status}</Badge>
                     </td>
 
-                    <td className="p-4 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(item)} className="text-xs h-8">
-                        <Edit2 className="w-3.5 h-3.5 text-cyan-400" /> Edit
-                      </Button>
+                    <td className="p-4 text-right w-[140px] min-w-[140px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <RowActions>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(item)}
+                          className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm text-cyan-400 border border-cyan-400/30 hover:bg-cyan-500/10 hover:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none transition-colors"
+                          title="Edit Mock Interview Track"
+                          aria-label="Edit Mock Interview Track"
+                        >
+                          <Edit2 className="w-4 h-4 shrink-0" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </Button>
+                      </RowActions>
                     </td>
                   </tr>
                 ))}

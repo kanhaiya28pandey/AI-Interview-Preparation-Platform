@@ -4,7 +4,7 @@ import { getScopedItem, setScopedItem } from "@/lib/userScope";
 
 export type ThemeMode = "dark" | "light" | "system";
 export type AccentPreset = "cyan" | "violet" | "emerald" | "amber" | "rose";
-export type BackgroundStyle = "mesh" | "orbs" | "particles" | "none";
+export type BackgroundStyle = "mesh" | "orbs" | "particles" | "coderain" | "none";
 
 interface AccentConfig {
   name: string;

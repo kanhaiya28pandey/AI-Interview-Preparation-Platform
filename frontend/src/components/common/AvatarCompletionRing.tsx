@@ -70,7 +70,7 @@ export interface AvatarCompletionRingProps {
 export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
   profile,
   percentage,
-  name = "User",
+  name = "Student User",
   avatarUrl,
   size = "md",
   showLabel = false,
@@ -91,6 +91,14 @@ export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
   const animatedScore = useAnimatedScore(targetCompletion);
   const imageSrc = avatarUrl || profile?.avatar;
   const verdict = getProfileVerdict(animatedScore);
+
+  const showAvatarImage = Boolean(
+    imageSrc &&
+    imageSrc.trim() !== "" &&
+    (profile?.isCustomAvatar || imageSrc.startsWith("data:") || imageSrc.startsWith("blob:")) &&
+    !imageSrc.includes("default") &&
+    !imageSrc.includes("unsplash.com/photo-1534528741775-53994a69daeb")
+  );
 
   // Geometry configuration per size variant
   const sizeMap = {
@@ -217,7 +225,7 @@ export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
         <div
           className={`${currentSize.photoSize} rounded-full overflow-hidden bg-surface-raised border border-border/80 flex items-center justify-center text-cyan-400 font-serif font-bold z-20 transition-transform duration-200 group-hover:scale-105 shadow-inner`}
         >
-          {imageSrc && !imageSrc.includes("default") ? (
+          {showAvatarImage ? (
             <img src={imageSrc} alt={name} className="w-full h-full object-cover" />
           ) : (
             <span className={currentSize.fontSize}>{initials}</span>
@@ -262,7 +270,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({
   compact = false,
 }) => {
   const navigate = useNavigate();
-  const completion = profile ? calculateProfileCompletion(profile) : 0;
+  const completion = profile ? calculateProfileCompletion(profile) : 60;
   const updatedAgo = formatRelativeTime(profile?.updatedAt);
   const nudge = getProfileNudge(profile || {});
 
@@ -275,7 +283,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({
         <div className="space-y-1">
           <VerdictHeadline prefix="Your Profile is " score={completion} size="lg" />
           <p className="text-xs text-text-muted font-mono">
-            {profile?.updatedAt ? `Updated ${updatedAgo} • ` : ""}Score: <span className="font-bold text-text-primary">{completion}%</span>
+            Updated {updatedAgo} &bull; Score: <span className="font-bold text-text-primary">{completion}%</span>
           </p>
           {completion < 100 && (
             <p className="text-xs text-cyan-400 font-medium flex items-center justify-center sm:justify-start gap-1 pt-0.5">

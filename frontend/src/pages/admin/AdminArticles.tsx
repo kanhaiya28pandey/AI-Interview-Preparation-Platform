@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { TableSkeleton } from "@/components/common/Skeletons";
+import { RowActions } from "@/components/common/RowActions";
 import { Plus, Edit2, FileText } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,9 +64,9 @@ export const AdminArticles: React.FC = () => {
                 <th className="p-4 bg-surface-raised">Title</th>
                 <th className="p-4 bg-surface-raised">Category</th>
                 <th className="p-4 bg-surface-raised">Author</th>
-                <th className="p-4 bg-surface-raised">Views</th>
-                <th className="p-4 bg-surface-raised">Likes</th>
-                <th className="p-4 bg-surface-raised text-right">Action</th>
+                <th className="p-4 bg-surface-raised whitespace-nowrap">Views</th>
+                <th className="p-4 bg-surface-raised whitespace-nowrap">Likes</th>
+                <th className="p-4 bg-surface-raised text-right w-[140px] min-w-[140px] whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -78,10 +79,20 @@ export const AdminArticles: React.FC = () => {
                   <td className="p-4 text-text-secondary">{art.author.name}</td>
                   <td className="p-4 font-mono text-text-muted">{art.viewsCount}</td>
                   <td className="p-4 font-mono text-live">{art.likesCount}</td>
-                  <td className="p-4 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(art)}>
-                      <Edit2 className="w-3.5 h-3.5 text-cyan-400" /> Edit
-                    </Button>
+                  <td className="p-4 text-right w-[140px] min-w-[140px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <RowActions>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(art)}
+                        className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm text-cyan-400 border border-cyan-400/30 hover:bg-cyan-500/10 hover:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none transition-colors"
+                        title="Edit Article"
+                        aria-label="Edit Article"
+                      >
+                        <Edit2 className="w-4 h-4 shrink-0" />
+                        <span className="hidden sm:inline">Edit</span>
+                      </Button>
+                    </RowActions>
                   </td>
                 </tr>
               ))}

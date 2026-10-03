@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   Search,
@@ -26,6 +27,7 @@ import {
   RotateCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import {
   ContentItem,
   ContentType,
@@ -37,6 +39,7 @@ import {
 import { SharedContentWizard } from "@/components/admin/content/SharedContentWizard";
 import { StudentPreviewModal } from "@/components/admin/content/StudentPreviewModal";
 import { VersionHistoryModal } from "@/components/admin/content/VersionHistoryModal";
+import { RowActions } from "@/components/common/RowActions";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 
 export const ContentManagerHub: React.FC = () => {
@@ -534,7 +537,7 @@ export const ContentManagerHub: React.FC = () => {
                     >
                       Last Updated
                     </th>
-                    <th className="p-4 text-right font-semibold">Actions</th>
+                    <th className="p-4 text-right font-semibold w-[240px] min-w-[240px] whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
 
@@ -669,12 +672,12 @@ export const ContentManagerHub: React.FC = () => {
                             </span>
                           </td>
 
-                          <td className="p-4 text-text-muted font-mono text-[11px]">
+                          <td className="p-4 text-text-muted font-mono text-[11px] whitespace-nowrap">
                             {new Date(item.updatedAt).toLocaleDateString()}
                           </td>
 
-                          <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="p-4 text-right w-[240px] min-w-[240px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <RowActions className="gap-1">
                               {/* Preview as Student */}
                               <button
                                 onClick={() => setPreviewItem(item)}
@@ -744,7 +747,7 @@ export const ContentManagerHub: React.FC = () => {
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
-                            </div>
+                            </RowActions>
                           </td>
                         </tr>
                       );
@@ -837,9 +840,13 @@ export const ContentManagerHub: React.FC = () => {
       />
 
       {/* DELETE CONFIRMATION MODAL WITH ATTEMPTS GUARD */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+      {deleteTarget && typeof document !== "undefined" && createPortal(
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+        >
+          <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-scale-in">
             <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-red-400" />
               Confirm Content Deletion
@@ -904,7 +911,8 @@ export const ContentManagerHub: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

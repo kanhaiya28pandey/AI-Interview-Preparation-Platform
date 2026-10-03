@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   ChevronRight,
@@ -17,6 +18,8 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { ContentItem, ContentType, ContentStatus, contentManagerService } from "@/services/contentManagerService";
 
 // Type specific editors
@@ -130,6 +133,9 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
     }
   }, [editingItem, initialType]);
 
+  // Body scroll lock hook
+  useBodyScrollLock(isOpen);
+
   // Draft autosave to localStorage
   useEffect(() => {
     if (!editingItem && title) {
@@ -152,10 +158,24 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
     }
   }, [title, description, selectedTopics, difficulty, contentData]);
 
-  if (!isOpen) return null;
+  // Keyboard shortcut handler
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showExitWarning) {
+          setShowExitWarning(false);
+        } else {
+          handleAttemptClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, showExitWarning, hasUnsavedChanges]);
 
-  const activeSubject = subject === "Custom" ? customSubject : subject;
-  const taxonomyTopics = getTopicsForDomain(subject).map((t) => t.name);
+  const activeSubject = subject === "Custom" ? customSubject : (subject || "DSA");
+  const taxonomyTopics = (getTopicsForDomain(activeSubject) || []).map((t) => t.name);
   const availableTopics =
     subject === "Custom"
       ? []
@@ -272,26 +292,35 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="bg-surface border border-border rounded-2xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+  if (!isOpen || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="wizard-modal-title"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
+    >
+      <div className="bg-surface border border-border rounded-none sm:rounded-2xl w-full max-w-6xl h-dvh sm:h-auto sm:max-h-[92dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* WIZARD HEADER */}
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-raised">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-border flex items-center justify-between bg-surface-raised shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
               <Layers className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-text-primary">
+            <div className="min-w-0">
+              <h2 id="wizard-modal-title" className="text-sm font-bold text-text-primary truncate">
                 {editingItem ? `Edit Content: ${editingItem.title}` : `Create New ${contentType.replace("_", " ")}`}
               </h2>
-              <p className="text-xs text-text-muted">Multi-step Authoring Wizard • Autosaved locally</p>
+              <p className="text-xs text-text-muted truncate">Multi-step Authoring Wizard • Autosaved locally</p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={handleAttemptClose}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface transition-colors"
+            aria-label="Close authoring wizard"
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -342,9 +371,10 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
         </div>
 
         {/* MAIN BODY (TWO COLUMN: WIZARD WORKSPACE + LIVE SUMMARY CARD) */}
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 custom-scrollbar">
           {/* LEFT 2 COLUMNS: ACTIVE STEP WORKSPACE */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 min-h-0">
+            <ErrorBoundary isModal fallbackTitle="Error in Authoring Step" onReset={() => setCurrentStep(1)}>
             {/* STEP 1: BASICS */}
             {currentStep === 1 && (
               <div className="space-y-4 animate-fade-in">
@@ -836,11 +866,12 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
                 </div>
               </div>
             )}
+            </ErrorBoundary>
           </div>
 
           {/* RIGHT 1 COLUMN: LIVE SUMMARY CARD */}
-          <div className="space-y-4">
-            <div className="bg-surface-raised border border-border rounded-2xl p-5 sticky top-2 space-y-4">
+          <div className="space-y-4 min-h-0">
+            <div className="bg-surface-raised border border-border rounded-2xl p-4 sm:p-5 lg:sticky lg:top-0 space-y-4 shadow-sm">
               <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400 block">
                 Live Specification Summary
               </span>
@@ -938,7 +969,7 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
         </div>
 
         {/* WIZARD FOOTER NAVIGATION */}
-        <div className="px-6 py-4 border-t border-border bg-surface-raised flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-surface-raised flex items-center justify-between shrink-0">
           <Button
             type="button"
             variant="outline"
@@ -980,8 +1011,12 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
 
       {/* UNSAVED CHANGES WARNING MODAL */}
       {showExitWarning && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-surface border border-border rounded-xl p-5 max-w-md w-full space-y-3">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm"
+        >
+          <div className="bg-surface border border-border rounded-xl p-5 max-w-md w-full space-y-3 shadow-2xl animate-scale-in">
             <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-400" />
               Discard Unsaved Changes?
@@ -1012,6 +1047,7 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -6,6 +6,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  verificationStatus?: "Pending Verification" | "Verified" | "Rejected" | "Resubmission Required" | "Unverified";
 }
 
 interface AuthContextType {
@@ -23,6 +24,7 @@ interface AuthContextType {
   logout: () => void;
   hasRole: (requiredRole: string) => boolean;
   isAdmin: () => boolean;
+  setVerificationStatus: (status: User["verificationStatus"]) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,8 +57,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const saveAuth = (authData: AuthResponse, isDemo = false) => {
-    const { token: authToken, userId, name, email, role } = authData;
-    const userData: User = { userId, name, email, role };
+    const { token: authToken, userId, name, email, role, verificationStatus } = authData;
+    const isExplicitAdmin = role?.toUpperCase().includes("ADMIN");
+    const resolvedStatus = isDemo || isExplicitAdmin
+      ? "Verified"
+      : (verificationStatus || "Unverified");
+
+    const userData: User = {
+      userId,
+      name,
+      email,
+      role,
+      verificationStatus: resolvedStatus,
+    };
     
     setToken(authToken);
     setUser(userData);
@@ -75,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (credentials: RegisterCredentials): Promise<AuthResponse> => {
     const res = await authService.register(credentials);
-    saveAuth(res, false);
+    saveAuth({ ...res, verificationStatus: "Unverified" }, false);
     return res;
   };
 
@@ -87,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: "kanhaiya.student@srmist.edu.in",
       role: "STUDENT",
       message: "Demo student session activated",
+      verificationStatus: "Verified",
     };
     saveAuth(demoData, true);
   };
@@ -99,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: "ananya.admin@aiinterviewprep.com",
       role: "ADMIN",
       message: "Demo admin session activated",
+      verificationStatus: "Verified",
     };
     saveAuth(demoData, true);
   };
@@ -118,7 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("ai_interview_prep_token");
     localStorage.removeItem("ai_interview_prep_user");
     localStorage.removeItem("ai_interview_prep_demo");
-    localStorage.removeItem("ai_interview_prep_profile");
   };
 
   const hasRole = (requiredRole: string): boolean => {
@@ -139,6 +153,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return hasRole("ADMIN");
   };
 
+  const setVerificationStatus = (newStatus: User["verificationStatus"]) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated: User = { ...prev, verificationStatus: newStatus };
+      try {
+        localStorage.setItem("ai_interview_prep_user", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to update stored auth user verificationStatus:", e);
+      }
+      return updated;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -156,6 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         hasRole,
         isAdmin,
+        setVerificationStatus,
       }}
     >
       {children}

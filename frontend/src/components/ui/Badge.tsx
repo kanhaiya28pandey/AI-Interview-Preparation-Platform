@@ -9,18 +9,18 @@ export const Badge: React.FC<BadgeProps> = ({ children, className, variant = "ou
   const base = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-medium tracking-wide uppercase";
 
   const variants = {
-    easy: "bg-[#4ade80]/12 text-[#4ade80] border border-[#4ade80]/30",
-    medium: "bg-[#22d3ee]/12 text-[#22d3ee] border border-[#22d3ee]/30",
-    hard: "bg-[#f2867b]/12 text-[#f2867b] border border-[#f2867b]/30",
-    gold: "bg-[#22d3ee]/12 text-[#22d3ee] border border-[#22d3ee]/30",
-    accent: "bg-[#14b8a6]/12 text-[#22d3ee] border border-[#22d3ee]/30",
-    active: "bg-[#4ade80]/12 text-[#4ade80] border border-[#4ade80]/30",
-    blocked: "bg-[#f2867b]/12 text-[#f2867b] border border-[#f2867b]/30",
-    admin: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30",
-    student: "bg-[#22d3ee]/12 text-[#22d3ee] border border-[#22d3ee]/30",
-    outline: "bg-surface-raised text-text-secondary border border-border",
-    live: "bg-[#4ade80]/20 text-[#4ade80] border border-[#4ade80]/40 font-bold",
-    danger: "bg-[#f2867b]/15 text-[#f2867b] border border-[#f2867b]/30",
+    easy: "bg-emerald-500/15 text-emerald-700 dark:text-[#4ade80] dark:bg-[#4ade80]/12 border border-emerald-500/30 dark:border-[#4ade80]/30 font-semibold dark:font-medium",
+    medium: "bg-cyan-500/15 text-cyan-800 dark:text-[#22d3ee] dark:bg-[#22d3ee]/12 border border-cyan-500/30 dark:border-[#22d3ee]/30 font-semibold dark:font-medium",
+    hard: "bg-rose-500/15 text-rose-700 dark:text-[#f2867b] dark:bg-[#f2867b]/12 border border-rose-500/30 dark:border-[#f2867b]/30 font-semibold dark:font-medium",
+    gold: "bg-cyan-500/15 text-cyan-800 dark:text-[#22d3ee] dark:bg-[#22d3ee]/12 border border-cyan-500/30 dark:border-[#22d3ee]/30 font-semibold dark:font-medium",
+    accent: "bg-teal-500/15 text-teal-800 dark:text-[#22d3ee] dark:bg-[#14b8a6]/12 border border-teal-500/30 dark:border-[#22d3ee]/30 font-semibold dark:font-medium",
+    active: "bg-emerald-500/15 text-emerald-700 dark:text-[#4ade80] dark:bg-[#4ade80]/12 border border-emerald-500/30 dark:border-[#4ade80]/30 font-semibold dark:font-medium",
+    blocked: "bg-rose-500/15 text-rose-700 dark:text-[#f2867b] dark:bg-[#f2867b]/12 border border-rose-500/30 dark:border-[#f2867b]/30 font-semibold dark:font-medium",
+    admin: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500/30 font-semibold dark:font-medium",
+    student: "bg-cyan-500/15 text-cyan-800 dark:text-[#22d3ee] dark:bg-[#22d3ee]/12 border border-cyan-500/30 dark:border-[#22d3ee]/30 font-semibold dark:font-medium",
+    outline: "bg-surface-raised text-text-secondary border border-border font-semibold dark:font-medium",
+    live: "bg-emerald-500/20 text-emerald-700 dark:text-[#4ade80] dark:bg-[#4ade80]/20 border border-emerald-500/40 dark:border-[#4ade80]/40 font-bold",
+    danger: "bg-rose-500/15 text-rose-700 dark:text-[#f2867b] dark:bg-[#f2867b]/15 border border-rose-500/30 dark:border-[#f2867b]/30 font-semibold dark:font-medium",
   };
 
   return (

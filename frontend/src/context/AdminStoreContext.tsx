@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { INITIAL_MOCK_VERIFICATIONS, VerificationSubmission } from "@/mocks/verifications";
 import { mockStudentsProgress, StudentProgress } from "@/mocks/studentProgressData";
 import { mockAdminUsers, AdminUser } from "@/mocks/adminData";
+import { verificationService } from "@/services/verificationService";
 
 export interface MasterStudent {
   id: string;
@@ -22,7 +23,7 @@ export interface MasterStudent {
   rejectionCategory?: string;
   rejectionNotes?: string;
   role: "STUDENT" | "ADMIN";
-  status: "ACTIVE" | "BLOCKED" | "PENDING";
+  status: "ACTIVE" | "BLOCKED" | "PENDING" | "INACTIVE";
   profileCompletion: number;
   activityScore: number;
   riskLevel: "On Track" | "Needs Attention" | "At Risk" | "Inactive";
@@ -192,19 +193,38 @@ const SEED_STUDENTS: MasterStudent[] = [
   },
 ];
 
+export interface AdminAuditEntry {
+  id: string;
+  action: "DELETE_STUDENT" | "BULK_DELETE_STUDENTS" | "DEACTIVATE_STUDENT" | "REACTIVATE_STUDENT" | "APPROVE_VERIFICATION" | "REJECT_VERIFICATION";
+  adminName: string;
+  adminEmail: string;
+  targetCount: number;
+  targets: string[];
+  timestamp: string;
+  details: string;
+}
+
 interface AdminStoreContextType {
   students: MasterStudent[];
+  auditLogs: AdminAuditEntry[];
   addStudent: (studentData: Partial<MasterStudent>) => MasterStudent;
   updateStudent: (id: string, updates: Partial<MasterStudent>) => void;
   deleteStudent: (id: string) => void;
   bulkDeleteStudents: (ids: string[]) => void;
+  restoreStudent: (student: MasterStudent) => void;
+  restoreStudents: (students: MasterStudent[]) => void;
+  deactivateStudent: (id: string) => void;
+  reactivateStudent: (id: string) => void;
   approveVerification: (id: string) => void;
   rejectVerification: (id: string, category: string, notes: string) => void;
   bulkApproveVerifications: (ids: string[]) => void;
   bulkRejectVerifications: (ids: string[], category: string, notes: string) => void;
   toggleBlockUser: (id: string) => void;
+  addAuditLog: (entry: Omit<AdminAuditEntry, "id" | "timestamp">) => void;
   resetToDefault: () => void;
 }
+
+const AUDIT_STORAGE_KEY = "ai_interview_prep_admin_audit_logs";
 
 const AdminStoreContext = createContext<AdminStoreContextType | undefined>(undefined);
 
@@ -224,6 +244,33 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_STUDENTS));
     return SEED_STUDENTS;
   });
+
+  const [auditLogs, setAuditLogs] = useState<AdminAuditEntry[]>(() => {
+    try {
+      const raw = localStorage.getItem(AUDIT_STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
+  const addAuditLog = (entry: Omit<AdminAuditEntry, "id" | "timestamp">) => {
+    const newEntry: AdminAuditEntry = {
+      ...entry,
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: new Date().toISOString(),
+    };
+    setAuditLogs((prev) => {
+      const next = [newEntry, ...prev].slice(0, 100);
+      try {
+        localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
 
   const saveToStorage = (items: MasterStudent[]) => {
     setStudents(items);
@@ -254,10 +301,10 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       verificationStatus: studentData.verificationStatus || "Pending Verification",
       role: studentData.role || "STUDENT",
       status: studentData.status || "PENDING",
-      profileCompletion: studentData.profileCompletion || 75,
-      activityScore: studentData.activityScore || 50,
+      profileCompletion: studentData.profileCompletion !== undefined ? studentData.profileCompletion : 0,
+      activityScore: studentData.activityScore !== undefined ? studentData.activityScore : 0,
       riskLevel: studentData.riskLevel || "On Track",
-      streakDays: studentData.streakDays || 1,
+      streakDays: studentData.streakDays !== undefined ? studentData.streakDays : 0,
       problemsSolved: studentData.problemsSolved || 0,
       interviewsCompleted: studentData.interviewsCompleted || 0,
       avgInterviewScore: studentData.avgInterviewScore || 0,
@@ -288,60 +335,153 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const deleteStudent = (id: string) => {
+    const target = students.find((s) => s.id === id || s.userId === id);
     const updatedList = students.filter((s) => s.id !== id && s.userId !== id);
     saveToStorage(updatedList);
+    if (target) {
+      addAuditLog({
+        action: "DELETE_STUDENT",
+        adminName: "Administrator",
+        adminEmail: "admin@aiprep.com",
+        targetCount: 1,
+        targets: [target.name || target.email],
+        details: `Deleted candidate record for ${target.name} (${target.email})`,
+      });
+    }
   };
 
   const bulkDeleteStudents = (ids: string[]) => {
+    const targets = students.filter((s) => ids.includes(s.id) || ids.includes(s.userId));
     const updatedList = students.filter((s) => !ids.includes(s.id) && !ids.includes(s.userId));
     saveToStorage(updatedList);
+    if (targets.length > 0) {
+      addAuditLog({
+        action: "BULK_DELETE_STUDENTS",
+        adminName: "Administrator",
+        adminEmail: "admin@aiprep.com",
+        targetCount: targets.length,
+        targets: targets.map((t) => t.name || t.email),
+        details: `Bulk deleted ${targets.length} candidate account(s)`,
+      });
+    }
+  };
+
+  const restoreStudent = (student: MasterStudent) => {
+    setStudents((prev) => {
+      if (prev.some((s) => s.id === student.id || s.userId === student.userId)) {
+        return prev;
+      }
+      const next = [student, ...prev];
+      saveToStorage(next);
+      return next;
+    });
+  };
+
+  const restoreStudents = (restoredList: MasterStudent[]) => {
+    setStudents((prev) => {
+      const existingIds = new Set(prev.map((s) => s.id));
+      const toAdd = restoredList.filter((s) => !existingIds.has(s.id));
+      const next = [...toAdd, ...prev];
+      saveToStorage(next);
+      return next;
+    });
+  };
+
+  const deactivateStudent = (id: string) => {
+    const student = students.find((s) => s.id === id || s.userId === id);
+    updateStudent(id, { status: "BLOCKED", riskLevel: "Inactive" });
+    if (student) {
+      addAuditLog({
+        action: "DEACTIVATE_STUDENT",
+        adminName: "Administrator",
+        adminEmail: "admin@aiprep.com",
+        targetCount: 1,
+        targets: [student.name || student.email],
+        details: `Deactivated candidate account for ${student.name} (${student.email})`,
+      });
+    }
+  };
+
+  const reactivateStudent = (id: string) => {
+    const student = students.find((s) => s.id === id || s.userId === id);
+    updateStudent(id, { status: "ACTIVE", riskLevel: "On Track" });
+    if (student) {
+      addAuditLog({
+        action: "REACTIVATE_STUDENT",
+        adminName: "Administrator",
+        adminEmail: "admin@aiprep.com",
+        targetCount: 1,
+        targets: [student.name || student.email],
+        details: `Reactivated candidate account for ${student.name} (${student.email})`,
+      });
+    }
   };
 
   const approveVerification = (id: string) => {
+    const student = students.find((s) => s.id === id || s.userId === id);
     updateStudent(id, {
       verificationStatus: "Verified",
       status: "ACTIVE",
       rejectionCategory: undefined,
       rejectionNotes: undefined,
     });
+    if (student) {
+      verificationService
+        .reviewVerificationByStudent(student.userId || student.id, student.email, "APPROVE")
+        .catch((e) => console.warn("Sync verification error on approve:", e));
+    }
   };
 
   const rejectVerification = (id: string, category: string, notes: string) => {
+    const student = students.find((s) => s.id === id || s.userId === id);
     updateStudent(id, {
       verificationStatus: "Rejected",
       status: "BLOCKED",
       rejectionCategory: category,
       rejectionNotes: notes,
     });
+    if (student) {
+      verificationService
+        .reviewVerificationByStudent(student.userId || student.id, student.email, "REJECT", category, notes)
+        .catch((e) => console.warn("Sync verification error on reject:", e));
+    }
   };
 
   const bulkApproveVerifications = (ids: string[]) => {
-    const updatedList = students.map((s) =>
-      ids.includes(s.id) || ids.includes(s.userId)
-        ? {
-            ...s,
-            verificationStatus: "Verified" as const,
-            status: "ACTIVE" as const,
-            rejectionCategory: undefined,
-            rejectionNotes: undefined,
-          }
-        : s
-    );
+    const updatedList = students.map((s) => {
+      if (ids.includes(s.id) || ids.includes(s.userId)) {
+        verificationService
+          .reviewVerificationByStudent(s.userId || s.id, s.email, "APPROVE")
+          .catch((e) => console.warn("Sync verification error on bulk approve:", e));
+        return {
+          ...s,
+          verificationStatus: "Verified" as const,
+          status: "ACTIVE" as const,
+          rejectionCategory: undefined,
+          rejectionNotes: undefined,
+        };
+      }
+      return s;
+    });
     saveToStorage(updatedList);
   };
 
   const bulkRejectVerifications = (ids: string[], category: string, notes: string) => {
-    const updatedList = students.map((s) =>
-      ids.includes(s.id) || ids.includes(s.userId)
-        ? {
-            ...s,
-            verificationStatus: "Rejected" as const,
-            status: "BLOCKED" as const,
-            rejectionCategory: category,
-            rejectionNotes: notes,
-          }
-        : s
-    );
+    const updatedList = students.map((s) => {
+      if (ids.includes(s.id) || ids.includes(s.userId)) {
+        verificationService
+          .reviewVerificationByStudent(s.userId || s.id, s.email, "REJECT", category, notes)
+          .catch((e) => console.warn("Sync verification error on bulk reject:", e));
+        return {
+          ...s,
+          verificationStatus: "Rejected" as const,
+          status: "BLOCKED" as const,
+          rejectionCategory: category,
+          rejectionNotes: notes,
+        };
+      }
+      return s;
+    });
     saveToStorage(updatedList);
   };
 
@@ -361,15 +501,21 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     <AdminStoreContext.Provider
       value={{
         students,
+        auditLogs,
         addStudent,
         updateStudent,
         deleteStudent,
         bulkDeleteStudents,
+        restoreStudent,
+        restoreStudents,
+        deactivateStudent,
+        reactivateStudent,
         approveVerification,
         rejectVerification,
         bulkApproveVerifications,
         bulkRejectVerifications,
         toggleBlockUser,
+        addAuditLog,
         resetToDefault,
       }}
     >

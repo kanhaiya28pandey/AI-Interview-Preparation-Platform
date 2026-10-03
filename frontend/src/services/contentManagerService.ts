@@ -1,4 +1,5 @@
 import api, { isDemoSession } from "@/lib/api";
+import { notificationService } from "./notificationService";
 
 export type ContentType =
   | "QUIZ"
@@ -7,9 +8,15 @@ export type ContentType =
   | "CODING_PROBLEM"
   | "MOCK_INTERVIEW"
   | "PRACTICE_TOPIC"
-  | "ARTICLE";
+  | "ARTICLE"
+  | "MCQ Quiz"
+  | "Mock Test"
+  | "Coding Test"
+  | "Mock Interview"
+  | "Practice Track"
+  | "Article";
 
-export type ContentStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+export type ContentStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED" | "Draft" | "Published" | "Archived";
 
 export interface ContentItem {
   id: string;
@@ -30,6 +37,20 @@ export interface ContentItem {
   contentData: Record<string, any>;
   version: number;
   versions?: Array<Record<string, any>>;
+  durationMinutes?: number;
+  passMarkPercent?: number;
+  negativeMarking?: boolean;
+  shuffleOptions?: boolean;
+  showAnswers?: boolean;
+  visibility?: string;
+  questionsCount?: number;
+  payload?: {
+    mcqQuestions?: McqQuestionItem[];
+    codingProblems?: CodingProblemItem[];
+    articleMarkdown?: string;
+    mixedDifficultySplit?: { easy: number; medium: number; hard: number };
+    [key: string]: any;
+  };
 }
 
 export interface ContentTypeStats {
@@ -56,6 +77,26 @@ export interface ContentAuditLog {
   performedBy: string;
   timestamp: string;
   details: string;
+}
+
+export interface McqQuestionItem {
+  id: string;
+  questionText: string;
+  codeSnippet?: string;
+  options: string[];
+  correctOptionIndex: number;
+  explanation?: string;
+}
+
+export interface CodingProblemItem {
+  id: string;
+  title: string;
+  statement: string;
+  inputFormat?: string;
+  outputFormat?: string;
+  sampleInput?: string;
+  sampleOutput?: string;
+  difficulty?: string;
 }
 
 export interface QuizQuestionItem {
@@ -318,6 +359,35 @@ function saveDemoStore(items: ContentItem[]) {
 
 export const contentManagerService = {
   // Get all content items with filtering & sorting
+  async saveContent(item: Partial<ContentItem>): Promise<ContentItem> {
+    if (item.id) {
+      return this.updateContent(item.id, item);
+    }
+    return this.createContent(item);
+  },
+
+  async generateMcqQuestions(
+    subject: string,
+    topic: string,
+    difficulty: string,
+    questionCount = 3
+  ): Promise<McqQuestionItem[]> {
+    const res = await this.generateQuizQuestions({
+      subject,
+      topic,
+      difficulty,
+      questionCount,
+    });
+    return res.questions.map((q, idx) => ({
+      id: q.id || `ai-mcq-${Date.now()}-${idx}`,
+      questionText: q.question,
+      codeSnippet: q.codeSnippet,
+      options: q.options,
+      correctOptionIndex: q.correctIndex,
+      explanation: q.explanation,
+    }));
+  },
+
   async listContent(params: FilterParams = {}): Promise<ContentItem[]> {
     if (isDemoSession()) {
       let items = getDemoStore();
@@ -505,11 +575,43 @@ export const contentManagerService = {
   },
 
   async publishContent(id: string): Promise<ContentItem> {
+    let result: ContentItem;
     if (isDemoSession()) {
-      return this.updateContent(id, { status: "PUBLISHED" });
+      result = await this.updateContent(id, { status: "PUBLISHED" });
+    } else {
+      const res = await api.patch(`/admin/content/${id}/publish`);
+      result = res.data;
     }
-    const res = await api.patch(`/admin/content/${id}/publish`);
-    return res.data;
+
+    try {
+      const linkMap: Partial<Record<ContentType, string>> = {
+        ARTICLE: "/articles",
+        Article: "/articles",
+        QUIZ: "/quiz",
+        "MCQ Quiz": "/quiz",
+        MOCK_TEST: "/quiz",
+        "Mock Test": "/quiz",
+        CODING_PROBLEM: "/coding",
+        CODING_TEST: "/coding",
+        "Coding Test": "/coding",
+        MOCK_INTERVIEW: "/mock-interview",
+        "Mock Interview": "/mock-interview",
+        PRACTICE_TOPIC: "/practice",
+        "Practice Track": "/practice",
+      };
+
+      await notificationService.notifyAllStudents({
+        type: "content",
+        title: `New Content: ${result.title}`,
+        message: `A new ${result.type.toLowerCase().replace(/_/g, " ")} is now available in ${result.subject || "library"}.`,
+        link: linkMap[result.type] || "/dashboard",
+        priority: "info",
+      });
+    } catch (e) {
+      console.warn("Failed to broadcast content notification:", e);
+    }
+
+    return result;
   },
 
   async unpublishContent(id: string): Promise<ContentItem> {

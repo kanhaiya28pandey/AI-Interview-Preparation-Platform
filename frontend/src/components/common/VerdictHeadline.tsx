@@ -55,7 +55,7 @@ export function getVerdictConfig(
   if (scoreVal >= 90) {
     return {
       defaultWord: "Excellent",
-      colorClass: "text-[#4ade80] dark:text-[#4ade80]",
+      colorClass: "text-emerald-600 dark:text-[#4ade80]",
       hex: "#4ade80",
       darkGlow: "0 0 16px rgba(74, 222, 128, 0.55)",
       lightGlow: "0 0 8px rgba(22, 163, 74, 0.3)",
@@ -65,7 +65,7 @@ export function getVerdictConfig(
   if (scoreVal >= 75) {
     return {
       defaultWord: "Great",
-      colorClass: "text-[#22d3ee] dark:text-[#22d3ee]",
+      colorClass: "text-cyan-700 dark:text-[#22d3ee]",
       hex: "#22d3ee",
       darkGlow: "0 0 16px rgba(34, 211, 238, 0.55)",
       lightGlow: "0 0 8px rgba(8, 145, 178, 0.3)",
@@ -75,7 +75,7 @@ export function getVerdictConfig(
   if (scoreVal >= 40) {
     return {
       defaultWord: "Good",
-      colorClass: "text-[#f59e0b] dark:text-[#f59e0b]",
+      colorClass: "text-amber-700 dark:text-[#f59e0b]",
       hex: "#f59e0b",
       darkGlow: "0 0 16px rgba(245, 158, 11, 0.55)",
       lightGlow: "0 0 8px rgba(217, 119, 6, 0.3)",
@@ -84,7 +84,7 @@ export function getVerdictConfig(
   // 0-39% -> "Poor"/"Needs Work" in --danger / red
   return {
     defaultWord: "Needs Work",
-    colorClass: "text-[#f2867b] dark:text-[#f2867b]",
+    colorClass: "text-rose-600 dark:text-[#f2867b]",
     hex: "#f2867b",
     darkGlow: "0 0 16px rgba(242, 134, 123, 0.55)",
     lightGlow: "0 0 8px rgba(220, 38, 38, 0.3)",

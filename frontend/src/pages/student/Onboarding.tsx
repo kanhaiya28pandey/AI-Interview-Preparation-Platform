@@ -307,7 +307,7 @@ export const Onboarding: React.FC = () => {
                 <span
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
                     isActive
-                      ? "bg-cyan-400 text-[#0d1321]"
+                      ? "bg-cyan-400 text-white dark:text-[#0d1321]"
                       : isDone
                       ? "bg-teal-400/20 text-teal-400"
                       : "bg-surface-raised text-text-muted"

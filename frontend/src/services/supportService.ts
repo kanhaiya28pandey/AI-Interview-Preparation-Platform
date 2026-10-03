@@ -1,4 +1,4 @@
-import { isDemoUser, scopedKey, getActiveUserId } from "@/lib/userScope";
+import { notificationService } from "./notificationService";
 
 export interface SupportTicket {
   id: string;
@@ -9,6 +9,7 @@ export interface SupportTicket {
   attachmentDataUrl?: string;
   status: "Open" | "In Review" | "Resolved";
   createdAt: string;
+  userId?: string;
   userName?: string;
   userEmail?: string;
 }
@@ -21,8 +22,8 @@ export interface CreateTicketPayload {
   attachmentDataUrl?: string;
 }
 
-const STORAGE_KEY_BASE = "ai_interview_prep_tickets";
-const VOTES_STORAGE_KEY_BASE = "ai_interview_prep_faq_votes";
+const STORAGE_KEY = "ai_interview_prep_tickets";
+const VOTES_STORAGE_KEY = "ai_interview_prep_faq_votes";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -52,20 +53,16 @@ const INITIAL_TICKETS: SupportTicket[] = [
 ];
 
 const getStoredTickets = (): SupportTicket[] => {
-  const userId = getActiveUserId();
-  const storageKey = scopedKey(STORAGE_KEY_BASE, userId);
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       return JSON.parse(raw);
     }
   } catch (e) {
     console.error("Failed to parse stored support tickets:", e);
   }
-
-  const initial = isDemoUser() ? INITIAL_TICKETS : [];
-  localStorage.setItem(storageKey, JSON.stringify(initial));
-  return initial;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_TICKETS));
+  return INITIAL_TICKETS;
 };
 
 export const supportService = {
@@ -79,12 +76,14 @@ export const supportService = {
     const existing = getStoredTickets();
 
     // Get active user from localStorage if present
-    let userName = "Student";
-    let userEmail = "";
+    let userId = "";
+    let userName = "Student User";
+    let userEmail = "student@srmist.edu.in";
     try {
       const activeUserRaw = localStorage.getItem("ai_interview_prep_user");
       if (activeUserRaw) {
         const parsed = JSON.parse(activeUserRaw);
+        if (parsed.userId) userId = parsed.userId;
         if (parsed.name) userName = parsed.name;
         if (parsed.email) userEmail = parsed.email;
       }
@@ -102,20 +101,77 @@ export const supportService = {
       attachmentDataUrl: payload.attachmentDataUrl,
       status: "Open",
       createdAt: new Date().toISOString(),
+      userId: userId || undefined,
       userName,
       userEmail,
     };
 
     const updated = [newTicket, ...existing];
-    const storageKey = scopedKey(STORAGE_KEY_BASE, getActiveUserId());
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Notifications
+    try {
+      if (userId) {
+        await notificationService.notifyUser(userId, {
+          audience: "STUDENT",
+          type: "support",
+          title: "Support Ticket Submitted",
+          message: `Ticket ${newTicket.id} ("${payload.subject}") was received by our team.`,
+          link: "/help",
+          priority: "info",
+        });
+      }
+
+      await notificationService.notifyAdmins({
+        type: "support",
+        title: "New Support Ticket",
+        message: `${userName} opened ticket ${newTicket.id}: "${payload.subject}".`,
+        link: "/admin/help",
+        priority: "info",
+      });
+    } catch (e) {
+      console.warn("Could not dispatch ticket notifications:", e);
+    }
+
     return newTicket;
   },
 
+  async updateTicketStatus(ticketId: string, nextStatus: "Open" | "In Review" | "Resolved"): Promise<SupportTicket | null> {
+    await delay(100);
+    const existing = getStoredTickets();
+    let updatedTicket: SupportTicket | null = null;
+
+    const updated = existing.map((t) => {
+      if (t.id === ticketId) {
+        updatedTicket = { ...t, status: nextStatus };
+        return updatedTicket;
+      }
+      return t;
+    });
+
+    if (updatedTicket) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+      // Notify student
+      const t: SupportTicket = updatedTicket;
+      if (t.userId) {
+        notificationService.notifyUser(t.userId, {
+          audience: "STUDENT",
+          type: "support",
+          title: `Support Ticket ${nextStatus}`,
+          message: `Your ticket ${t.id} ("${t.subject}") is now marked as ${nextStatus}.`,
+          link: "/help",
+          priority: nextStatus === "Resolved" ? "success" : "info",
+        }).catch((e) => console.warn(e));
+      }
+    }
+
+    return updatedTicket;
+  },
+
   getFaqVotes(): Record<string, "up" | "down"> {
-    const votesKey = scopedKey(VOTES_STORAGE_KEY_BASE, getActiveUserId());
     try {
-      const raw = localStorage.getItem(votesKey);
+      const raw = localStorage.getItem(VOTES_STORAGE_KEY);
       if (raw) return JSON.parse(raw);
     } catch (e) {
       console.error("Failed to parse FAQ votes:", e);
@@ -124,10 +180,9 @@ export const supportService = {
   },
 
   saveFaqVote(faqId: string, vote: "up" | "down"): Record<string, "up" | "down"> {
-    const votesKey = scopedKey(VOTES_STORAGE_KEY_BASE, getActiveUserId());
     const votes = this.getFaqVotes();
     votes[faqId] = vote;
-    localStorage.setItem(votesKey, JSON.stringify(votes));
+    localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(votes));
     return votes;
   },
 };

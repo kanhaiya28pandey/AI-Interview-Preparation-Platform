@@ -4,9 +4,13 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { RoleBadge } from "@/components/common/RoleBadge";
 import { Dialog } from "@/components/ui/Dialog";
+import { RoleBadge } from "@/components/common/RoleBadge";
+import { RowActions } from "@/components/common/RowActions";
 import { useAdminStore, MasterStudent, isRegistrationNew } from "@/context/AdminStoreContext";
+import { useAuth } from "@/context/AuthContext";
+import { DeleteAccountDialog, isAccountProtected } from "@/components/admin/DeleteAccountDialog";
+import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import {
   Search,
   Ban,
@@ -23,13 +27,25 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldAlert,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 export const AdminUsers: React.FC = () => {
   const navigate = useNavigate();
-  const { students, toggleBlockUser, deleteStudent, bulkDeleteStudents } = useAdminStore();
+  const { user } = useAuth();
+  const {
+    students,
+    toggleBlockUser,
+    deleteStudent,
+    bulkDeleteStudents,
+    restoreStudent,
+    restoreStudents,
+    deactivateStudent,
+  } = useAdminStore();
+
+  const currentAdminEmail = user?.email || "admin@aiprep.com";
 
   // Search, Filters & Sorting
   const [search, setSearch] = useState("");
@@ -42,10 +58,13 @@ export const AdminUsers: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Selection & Modals
+  // Selection & Dialogs
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [userToRemove, setUserToRemove] = useState<MasterStudent | null>(null);
   const [selectedUserDetail, setSelectedUserDetail] = useState<MasterStudent | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState<MasterStudent | null>(null);
+  const [bulkStudentsToDelete, setBulkStudentsToDelete] = useState<MasterStudent[]>([]);
+  const [skippedProtectedCount, setSkippedProtectedCount] = useState(0);
 
   // Filtered and Sorted Users list
   const filteredUsers = students
@@ -77,11 +96,24 @@ export const AdminUsers: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const eligiblePaginatedUsers = paginatedUsers.filter((u) => !isAccountProtected(u, currentAdminEmail));
+  const allEligibleSelected =
+    eligiblePaginatedUsers.length > 0 &&
+    eligiblePaginatedUsers.every((u) => selectedIds.includes(u.id));
+
   const handleToggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(paginatedUsers.map((u) => u.id));
+      const eligibleIds = eligiblePaginatedUsers.map((u) => u.id);
+      const skipped = paginatedUsers.length - eligiblePaginatedUsers.length;
+      setSkippedProtectedCount(skipped);
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...eligibleIds])));
+      if (skipped > 0) {
+        toast.info(`${skipped} protected account${skipped > 1 ? "s were" : " was"} skipped from selection.`);
+      }
     } else {
-      setSelectedIds([]);
+      const pageIds = paginatedUsers.map((u) => u.id);
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+      setSkippedProtectedCount(0);
     }
   };
 
@@ -89,25 +121,77 @@ export const AdminUsers: React.FC = () => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
-  // Single User Remove Action
-  const handleConfirmRemove = () => {
-    if (!userToRemove) return;
-    deleteStudent(userToRemove.id);
-    toast.error(`Participant "${userToRemove.name}" has been removed.`);
-    setUserToRemove(null);
-    if (selectedUserDetail?.id === userToRemove.id) {
-      setSelectedUserDetail(null);
+  // Single User Remove Trigger
+  const handleOpenDeleteSingle = (usr: MasterStudent) => {
+    if (isAccountProtected(usr, currentAdminEmail)) {
+      toast.error("Admin and demo accounts cannot be deleted.");
+      return;
     }
+    setStudentToDelete(usr);
+    setBulkStudentsToDelete([]);
+    setDeleteDialogOpen(true);
   };
 
-  // Bulk Remove Action
-  const handleConfirmBulkRemove = () => {
-    if (selectedIds.length === 0) return;
-    if (window.confirm(`Are you sure you want to remove ${selectedIds.length} selected participant accounts?`)) {
-      bulkDeleteStudents(selectedIds);
-      toast.error(`Removed ${selectedIds.length} selected participants.`);
-      setSelectedIds([]);
+  // Bulk Remove Trigger
+  const handleOpenBulkDelete = () => {
+    const targets = students.filter((u) => selectedIds.includes(u.id) && !isAccountProtected(u, currentAdminEmail));
+    if (targets.length === 0) {
+      toast.error("No eligible non-protected accounts selected for deletion.");
+      return;
     }
+    setStudentToDelete(null);
+    setBulkStudentsToDelete(targets);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeactivateSelected = () => {
+    const targetIds = selectedIds.filter((id) => {
+      const s = students.find((item) => item.id === id);
+      return s && !isAccountProtected(s, currentAdminEmail);
+    });
+    if (targetIds.length === 0) return;
+
+    targetIds.forEach((id) => deactivateStudent(id));
+    toast.success(`Deactivated ${targetIds.length} user account(s).`);
+    setSelectedIds([]);
+  };
+
+  const handleDeleteSuccess = (deletedList: MasterStudent[]) => {
+    const count = deletedList.length;
+    setSelectedIds((prev) => prev.filter((id) => !deletedList.some((d) => d.id === id)));
+
+    toast.custom(
+      (t) => (
+        <div className="flex items-center justify-between gap-4 p-4 bg-surface-raised border border-cyan-500/40 rounded-xl shadow-2xl text-text-primary text-xs font-mono max-w-md w-full">
+          <div className="flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>
+              {count === 1
+                ? `Removed account "${deletedList[0].name}".`
+                : `Removed ${count} user accounts.`}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              if (count === 1) {
+                restoreStudent(deletedList[0]);
+              } else {
+                restoreStudents(deletedList);
+              }
+              toast.dismiss(t);
+              toast.success(
+                `Restored ${count === 1 ? deletedList[0].name : `${count} accounts`} successfully.`
+              );
+            }}
+            className="px-3 py-1.5 bg-cyan-400 text-slate-950 font-bold rounded-lg hover:bg-cyan-300 transition-colors flex items-center gap-1 shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Undo
+          </button>
+        </div>
+      ),
+      { duration: 8000 }
+    );
   };
 
   return (
@@ -202,19 +286,19 @@ export const AdminUsers: React.FC = () => {
           </div>
         </div>
 
-        {/* BULK SELECTION ACTIONS */}
+        {/* BULK SELECTION ACTIONS BAR */}
         {selectedIds.length > 0 && (
-          <div className="p-3 bg-cyan-400/10 border border-cyan-400/40 rounded-xl flex items-center justify-between gap-3 text-xs font-mono">
-            <span className="text-cyan-300 font-semibold">{selectedIds.length} Participants Selected</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleConfirmBulkRemove}
-              className="text-xs py-1 text-danger border-danger/40 hover:bg-danger-bg"
-            >
-              <UserX className="w-3.5 h-3.5" /> Remove Selected Participants ({selectedIds.length})
-            </Button>
-          </div>
+          <BulkActionBar
+            selectedCount={selectedIds.length}
+            onClearSelection={() => {
+              setSelectedIds([]);
+              setSkippedProtectedCount(0);
+            }}
+            onDeleteSelected={handleOpenBulkDelete}
+            onDeactivateSelected={handleDeactivateSelected}
+            skippedProtectedCount={skippedProtectedCount}
+            entityName="users"
+          />
         )}
       </Card>
 
@@ -239,23 +323,29 @@ export const AdminUsers: React.FC = () => {
                   <th className="p-4 w-10">
                     <input
                       type="checkbox"
-                      checked={selectedIds.length === paginatedUsers.length && paginatedUsers.length > 0}
+                      checked={allEligibleSelected}
                       onChange={handleToggleSelectAll}
+                      title={
+                        skippedProtectedCount > 0
+                          ? `${skippedProtectedCount} protected accounts skipped`
+                          : "Select all eligible rows"
+                      }
                       className="rounded border-border text-cyan-400 focus:ring-cyan-400"
                     />
                   </th>
                   <th className="p-4">Candidate & College</th>
                   <th className="p-4">Role Badge</th>
                   <th className="p-4">Status</th>
-                  <th className="p-4">Registration Date</th>
-                  <th className="p-4">Profile Completion</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4 whitespace-nowrap">Registration Date</th>
+                  <th className="p-4 whitespace-nowrap">Profile Completion</th>
+                  <th className="p-4 text-right w-[200px] min-w-[200px] whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {paginatedUsers.map((usr) => {
                   const isNew = isRegistrationNew(usr.registeredAt);
                   const isSelected = selectedIds.includes(usr.id);
+                  const isProtected = isAccountProtected(usr, currentAdminEmail);
 
                   return (
                     <tr
@@ -269,8 +359,12 @@ export const AdminUsers: React.FC = () => {
                         <input
                           type="checkbox"
                           checked={isSelected}
+                          disabled={isProtected}
                           onChange={() => handleToggleSelectOne(usr.id)}
-                          className="rounded border-border text-cyan-400 focus:ring-cyan-400"
+                          title={isProtected ? "Admin and demo accounts cannot be selected" : "Select row"}
+                          className={`rounded border-border text-cyan-400 focus:ring-cyan-400 ${
+                            isProtected ? "opacity-30 cursor-not-allowed" : ""
+                          }`}
                         />
                       </td>
 
@@ -306,40 +400,69 @@ export const AdminUsers: React.FC = () => {
                         <span className="text-cyan-400 font-bold">{usr.profileCompletion || 85}%</span>
                       </td>
 
-                      <td className="p-4 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/admin/students/${usr.id}`)}
-                          title="View Student Progress Details"
-                          className="h-8 p-1.5 text-cyan-400"
-                        >
-                          <GraduationCap className="w-4 h-4" />
-                        </Button>
+                      <td className="p-4 text-right w-[200px] min-w-[200px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <RowActions>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/admin/students/${usr.id}`)}
+                            title="View Student Progress Details"
+                            aria-label={`View Student Progress Details for ${usr.name}`}
+                            className="h-9 px-2.5 inline-flex items-center gap-1.5 text-cyan-400 hover:bg-cyan-500/10 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none transition-colors shrink-0"
+                          >
+                            <GraduationCap className="w-4 h-4 shrink-0" />
+                            <span className="hidden xl:inline text-xs">Progress</span>
+                          </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleBlockUser(usr.id)}
-                          title={usr.status === "ACTIVE" ? "Block Candidate" : "Unblock Candidate"}
-                          className="h-8 p-1.5"
-                        >
-                          {usr.status === "ACTIVE" ? (
-                            <Ban className="w-4 h-4 text-danger" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={isProtected}
+                            onClick={() => toggleBlockUser(usr.id)}
+                            title={isProtected ? "Admin cannot be blocked" : usr.status === "ACTIVE" ? "Block Candidate" : "Unblock Candidate"}
+                            aria-label={usr.status === "ACTIVE" ? "Block Candidate" : "Unblock Candidate"}
+                            className="h-9 px-2.5 inline-flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {usr.status === "ACTIVE" ? (
+                              <>
+                                <Ban className="w-4 h-4 text-danger shrink-0" />
+                                <span className="hidden xl:inline text-xs text-danger">Block</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 text-live shrink-0" />
+                                <span className="hidden xl:inline text-xs text-live">Unblock</span>
+                              </>
+                            )}
+                          </Button>
+
+                          {isProtected ? (
+                            <span title="Admin accounts cannot be deleted.">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled
+                                className="h-9 px-2.5 inline-flex items-center gap-1.5 opacity-40 cursor-not-allowed text-text-muted shrink-0"
+                                aria-label="Admin accounts cannot be deleted"
+                              >
+                                <Trash2 className="w-4 h-4 shrink-0" />
+                                <span className="hidden xl:inline text-xs">Delete</span>
+                              </Button>
+                            </span>
                           ) : (
-                            <CheckCircle2 className="w-4 h-4 text-live" />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenDeleteSingle(usr)}
+                              title={`Delete account for ${usr.name}`}
+                              aria-label={`Delete account for ${usr.name}`}
+                              className="h-9 px-2.5 inline-flex items-center gap-1.5 text-danger hover:bg-danger-bg/50 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none transition-colors shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4 shrink-0" />
+                              <span className="hidden xl:inline text-xs">Delete</span>
+                            </Button>
                           )}
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setUserToRemove(usr)}
-                          title="Remove Participant"
-                          className="h-8 p-1.5 text-danger hover:bg-danger-bg/50"
-                        >
-                          <UserX className="w-4 h-4" />
-                        </Button>
+                        </RowActions>
                       </td>
                     </tr>
                   );
@@ -427,6 +550,7 @@ export const AdminUsers: React.FC = () => {
                 variant={selectedUserDetail.status === "ACTIVE" ? "danger" : "teal-cyan"}
                 size="sm"
                 className="flex-1"
+                disabled={isAccountProtected(selectedUserDetail, currentAdminEmail)}
                 onClick={() => {
                   toggleBlockUser(selectedUserDetail.id);
                   setSelectedUserDetail(null);
@@ -439,33 +563,19 @@ export const AdminUsers: React.FC = () => {
         </Dialog>
       )}
 
-      {/* SINGLE REMOVE CONFIRMATION MODAL */}
-      {userToRemove && (
-        <Dialog
-          isOpen={!!userToRemove}
-          onClose={() => setUserToRemove(null)}
-          title={`Remove Participant: ${userToRemove.name}`}
-          footer={
-            <>
-              <Button variant="ghost" size="sm" onClick={() => setUserToRemove(null)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleConfirmRemove} className="bg-danger hover:bg-danger/80">
-                <UserX className="w-4 h-4" /> Confirm Remove Participant
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-3 text-xs">
-            <div className="p-3.5 bg-danger-bg border border-danger/40 rounded-xl text-danger space-y-1">
-              <span className="font-semibold block">⚠️ Confirm Participant Removal</span>
-              <p className="text-[11px] leading-relaxed">
-                This will remove <strong>{userToRemove.name}</strong> ({userToRemove.email}) from the platform roster.
-              </p>
-            </div>
-          </div>
-        </Dialog>
-      )}
+      {/* SHARED DELETE ACCOUNT CONFIRMATION DIALOG */}
+      <DeleteAccountDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setStudentToDelete(null);
+          setBulkStudentsToDelete([]);
+        }}
+        studentToDelete={studentToDelete}
+        bulkStudentsToDelete={bulkStudentsToDelete}
+        onSuccess={handleDeleteSuccess}
+        currentAdminEmail={currentAdminEmail}
+      />
     </div>
   );
 };
