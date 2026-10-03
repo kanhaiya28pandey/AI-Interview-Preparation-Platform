@@ -8,15 +8,9 @@ export type ContentType =
   | "CODING_PROBLEM"
   | "MOCK_INTERVIEW"
   | "PRACTICE_TOPIC"
-  | "ARTICLE"
-  | "MCQ Quiz"
-  | "Mock Test"
-  | "Coding Test"
-  | "Mock Interview"
-  | "Practice Track"
-  | "Article";
+  | "ARTICLE";
 
-export type ContentStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED" | "Draft" | "Published" | "Archived";
+export type ContentStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
 export interface ContentItem {
   id: string;
@@ -37,20 +31,6 @@ export interface ContentItem {
   contentData: Record<string, any>;
   version: number;
   versions?: Array<Record<string, any>>;
-  durationMinutes?: number;
-  passMarkPercent?: number;
-  negativeMarking?: boolean;
-  shuffleOptions?: boolean;
-  showAnswers?: boolean;
-  visibility?: string;
-  questionsCount?: number;
-  payload?: {
-    mcqQuestions?: McqQuestionItem[];
-    codingProblems?: CodingProblemItem[];
-    articleMarkdown?: string;
-    mixedDifficultySplit?: { easy: number; medium: number; hard: number };
-    [key: string]: any;
-  };
 }
 
 export interface ContentTypeStats {
@@ -77,26 +57,6 @@ export interface ContentAuditLog {
   performedBy: string;
   timestamp: string;
   details: string;
-}
-
-export interface McqQuestionItem {
-  id: string;
-  questionText: string;
-  codeSnippet?: string;
-  options: string[];
-  correctOptionIndex: number;
-  explanation?: string;
-}
-
-export interface CodingProblemItem {
-  id: string;
-  title: string;
-  statement: string;
-  inputFormat?: string;
-  outputFormat?: string;
-  sampleInput?: string;
-  sampleOutput?: string;
-  difficulty?: string;
 }
 
 export interface QuizQuestionItem {
@@ -359,35 +319,6 @@ function saveDemoStore(items: ContentItem[]) {
 
 export const contentManagerService = {
   // Get all content items with filtering & sorting
-  async saveContent(item: Partial<ContentItem>): Promise<ContentItem> {
-    if (item.id) {
-      return this.updateContent(item.id, item);
-    }
-    return this.createContent(item);
-  },
-
-  async generateMcqQuestions(
-    subject: string,
-    topic: string,
-    difficulty: string,
-    questionCount = 3
-  ): Promise<McqQuestionItem[]> {
-    const res = await this.generateQuizQuestions({
-      subject,
-      topic,
-      difficulty,
-      questionCount,
-    });
-    return res.questions.map((q, idx) => ({
-      id: q.id || `ai-mcq-${Date.now()}-${idx}`,
-      questionText: q.question,
-      codeSnippet: q.codeSnippet,
-      options: q.options,
-      correctOptionIndex: q.correctIndex,
-      explanation: q.explanation,
-    }));
-  },
-
   async listContent(params: FilterParams = {}): Promise<ContentItem[]> {
     if (isDemoSession()) {
       let items = getDemoStore();
@@ -584,20 +515,14 @@ export const contentManagerService = {
     }
 
     try {
-      const linkMap: Partial<Record<ContentType, string>> = {
+      const linkMap: Record<ContentType, string> = {
         ARTICLE: "/articles",
-        Article: "/articles",
         QUIZ: "/quiz",
-        "MCQ Quiz": "/quiz",
         MOCK_TEST: "/quiz",
-        "Mock Test": "/quiz",
         CODING_PROBLEM: "/coding",
         CODING_TEST: "/coding",
-        "Coding Test": "/coding",
         MOCK_INTERVIEW: "/mock-interview",
-        "Mock Interview": "/mock-interview",
         PRACTICE_TOPIC: "/practice",
-        "Practice Track": "/practice",
       };
 
       await notificationService.notifyAllStudents({

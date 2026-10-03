@@ -184,8 +184,4 @@ public class InterviewService {
         }
         return interviewRoleRepository.save(role);
     }
-
-    public void deleteRole(String roleId) {
-        interviewRoleRepository.deleteById(roleId);
-    }
 }

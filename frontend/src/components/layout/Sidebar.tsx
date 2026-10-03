@@ -33,6 +33,7 @@ import { RoleBadge } from "@/components/common/RoleBadge";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
 import { useVerificationStatus } from "@/hooks/useVerificationStatus";
+import { useAdminStore } from "@/context/AdminStoreContext";
 
 export interface SidebarProps {
   isAdmin?: boolean;
@@ -127,6 +128,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const { status: verifStatus } = useVerificationStatus();
+  const { students } = useAdminStore();
+
+  const pendingVerificationsCount = students.filter(
+    (s) => s.verificationStatus === "Pending Verification" || s.verificationStatus === "Pending"
+  ).length;
 
   useEffect(() => {
     profileService.getProfile().then((data) => {
@@ -183,7 +189,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: "/admin/content", label: "Content Manager", icon: Layers, badge: "Hub" },
     { to: "/admin/students", label: "Student Progress", icon: GraduationCap, badge: "Analytics" },
     { to: "/admin/users", label: "Manage Users", icon: Users },
-    { to: "/admin/verifications", label: "ID Verifications", icon: ShieldCheck, badge: "Review" },
+    {
+      to: "/admin/verifications",
+      label: "ID Verifications",
+      icon: ShieldCheck,
+      badge: pendingVerificationsCount > 0 ? `${pendingVerificationsCount} Pending` : undefined,
+    },
     { to: "/admin/coding-tests", label: "Coding Tests", icon: Code2 },
     { to: "/admin/taxonomy", label: "Domains & Topics", icon: FolderTree },
     { to: "/admin/live-tests", label: "Live Tests", icon: Radio, badge: "Live" },
@@ -361,12 +372,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 justify-between">
                     <p className="text-xs font-semibold text-text-primary group-hover:text-cyan-400 transition-colors truncate">
-                      {user?.name || profile?.name || "Student User"}
+                      {user?.name || profile?.name || "Student"}
                     </p>
                     <RoleBadge role={user?.role || (isAdmin ? "ADMIN" : "STUDENT")} size="xs" />
                   </div>
                   <p className="text-[11px] text-text-muted font-mono truncate">
-                    {user?.email || profile?.email || "student@srmist.edu.in"}
+                    {user?.email || profile?.email || ""}
                   </p>
                 </div>
               )}

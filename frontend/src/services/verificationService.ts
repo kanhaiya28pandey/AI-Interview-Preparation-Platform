@@ -6,11 +6,29 @@ import {
 import { profileService } from "@/services/profileService";
 import { notificationService } from "@/services/notificationService";
 import api from "@/lib/api";
+import { isMockMode } from "@/lib/dataMode";
 
 const STORAGE_KEY = "ai_interview_prep_verifications";
 const ADMIN_STUDENTS_KEY = "admin_master_students";
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+export interface VerificationRequestLog {
+  url: string;
+  method: string;
+  status: number | string;
+  timestamp: string;
+  details?: string;
+}
+
+let lastVerificationRequestLog: VerificationRequestLog | null = null;
+
+export const getLastVerificationRequest = (): VerificationRequestLog | null => {
+  return lastVerificationRequestLog;
+};
+
+export const setLastVerificationRequest = (log: VerificationRequestLog) => {
+  lastVerificationRequestLog = log;
+};
 
 /**
  * Idempotent normalization and deduplication of stored verification records.
@@ -278,17 +296,67 @@ export const verificationService = {
   },
 
   async getVerificationStatus(
-    userId: string,
+    userId?: string,
     email?: string
   ): Promise<{ status: VerificationStatus; submission?: VerificationSubmission }> {
-    await delay(50);
-    return this.resolveStatus(userId, email);
+    if (isMockMode()) {
+      await delay(50);
+      const res = this.resolveStatus(userId, email);
+      lastVerificationRequestLog = {
+        url: "/api/v1/verification/status (MOCK)",
+        method: "GET",
+        status: 200,
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Status: ${res.status}`,
+      };
+      return res;
+    }
+
+    try {
+      const res = await api.get("/api/v1/verification/status", {
+        params: {
+          userId: userId || undefined,
+          email: email || undefined,
+        },
+      });
+
+      const backendStatus = (res.data?.status || "Unverified") as VerificationStatus;
+      const backendSub = res.data?.submission as VerificationSubmission | undefined;
+
+      lastVerificationRequestLog = {
+        url: `/api/v1/verification/status?userId=${userId || ""}&email=${email || ""}`,
+        method: "GET",
+        status: res.status || 200,
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Status: ${backendStatus}`,
+      };
+
+      return {
+        status: backendStatus,
+        submission: backendSub,
+      };
+    } catch (err: any) {
+      const statusCode = err?.response?.status || "Network Error";
+      const errorMsg = err?.response?.data?.message || err?.message || "Cannot reach server";
+
+      lastVerificationRequestLog = {
+        url: `/api/v1/verification/status?userId=${userId || ""}&email=${email || ""}`,
+        method: "GET",
+        status: statusCode,
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Error: ${errorMsg}`,
+      };
+
+      console.warn("[verificationService] getVerificationStatus API error:", err);
+      // Real backend mode: strictly Unverified if not found / error
+      return { status: "Unverified" };
+    }
   },
 
   async submitVerification(
     data: Omit<VerificationSubmission, "verificationId" | "submittedAt" | "status">
   ): Promise<VerificationSubmission> {
-    if (USE_MOCKS) {
+    if (isMockMode()) {
       await delay(250);
       const submissions = getStoredSubmissions();
 
@@ -356,20 +424,97 @@ export const verificationService = {
         console.warn("Could not dispatch verification submit notifications:", e);
       }
 
+      lastVerificationRequestLog = {
+        url: "/api/v1/verification/submit (MOCK)",
+        method: "POST",
+        status: 200,
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Created Ref: ${newRefId}`,
+      };
+
       return newSubmission;
     }
 
-    const res = await api.post("/api/v1/verifications/submit", data);
-    return res.data;
+    // Backend submission: POST /api/v1/verification/submit (singular)
+    const payload = {
+      userId: data.userId,
+      studentName: data.studentName,
+      email: data.email,
+      collegeName: data.collegeName,
+      rollNumber: data.rollNumber,
+      courseBranch: data.courseBranch,
+      yearSemester: data.yearSemester,
+      idCardFrontUrl: data.idCardFrontUrl,
+      idCardBackUrl: data.idCardBackUrl,
+      selfieUrl: data.selfieUrl,
+    };
+
+    try {
+      const res = await api.post("/api/v1/verification/submit", payload);
+
+      lastVerificationRequestLog = {
+        url: "/api/v1/verification/submit",
+        method: "POST",
+        status: res.status || 200,
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Submitted successfully (Ref: ${res.data?.verificationId || "OK"})`,
+      };
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("verification-updated", {
+            detail: { userId: data.userId, status: res.data?.status || "Pending Verification" },
+          })
+        );
+      }
+
+      return res.data;
+    } catch (err: any) {
+      lastVerificationRequestLog = {
+        url: "/api/v1/verification/submit",
+        method: "POST",
+        status: err?.response?.status || "Network Error",
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Error: ${err?.response?.data?.message || err?.message || "Failed"}`,
+      };
+      throw err;
+    }
   },
 
   async getAllSubmissions(): Promise<VerificationSubmission[]> {
-    if (USE_MOCKS) {
+    if (isMockMode()) {
       await delay(100);
-      return getStoredSubmissions();
+      const list = getStoredSubmissions();
+      lastVerificationRequestLog = {
+        url: "/api/v1/admin/verifications (MOCK)",
+        method: "GET",
+        status: 200,
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Count: ${list.length}`,
+      };
+      return list;
     }
-    const res = await api.get("/api/v1/admin/verifications");
-    return res.data;
+
+    try {
+      const res = await api.get("/api/v1/admin/verifications");
+      lastVerificationRequestLog = {
+        url: "/api/v1/admin/verifications",
+        method: "GET",
+        status: res.status || 200,
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Count: ${Array.isArray(res.data) ? res.data.length : 0}`,
+      };
+      return res.data;
+    } catch (err: any) {
+      lastVerificationRequestLog = {
+        url: "/api/v1/admin/verifications",
+        method: "GET",
+        status: err?.response?.status || "Network Error",
+        timestamp: new Date().toLocaleTimeString(),
+        details: `Error: ${err?.response?.data?.message || err?.message || "Failed"}`,
+      };
+      throw err;
+    }
   },
 
   async reviewVerification(
@@ -378,7 +523,7 @@ export const verificationService = {
     rejectionCategory?: string,
     rejectionNotes?: string
   ): Promise<VerificationSubmission> {
-    if (USE_MOCKS) {
+    if (isMockMode()) {
       await delay(200);
       const submissions = getStoredSubmissions();
       const targetIndex = submissions.findIndex((s) => s.verificationId === verificationId);
@@ -485,11 +630,21 @@ export const verificationService = {
       return updatedItem;
     }
 
+    // Backend review call: POST /api/v1/admin/verifications/{verificationId}/review
     const res = await api.post(`/api/v1/admin/verifications/${verificationId}/review`, {
       action,
-      rejectionCategory,
-      rejectionNotes,
+      rejectionCategory: action === "REJECT" ? (rejectionCategory || "Details don't match ID card") : undefined,
+      rejectionNotes: action === "REJECT" ? (rejectionNotes || "Please submit a clear, valid college ID card.") : undefined,
     });
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("verification-updated", {
+          detail: { userId: res.data?.userId, status: res.data?.status },
+        })
+      );
+    }
+
     return res.data;
   },
 
@@ -500,7 +655,7 @@ export const verificationService = {
     rejectionCategory?: string,
     rejectionNotes?: string
   ): Promise<VerificationSubmission> {
-    if (USE_MOCKS) {
+    if (isMockMode()) {
       await delay(100);
       const submissions = getStoredSubmissions();
       const normalizedUserId = userId.trim();
@@ -623,11 +778,22 @@ export const verificationService = {
       return updatedItem;
     }
 
-    const res = await api.post(`/api/v1/admin/verifications/student/${userId}/review`, {
-      action,
-      rejectionCategory,
-      rejectionNotes,
-    });
-    return res.data;
+    // In backend mode, locate verification by student ID/email and call reviewVerification
+    const allSubs = await this.getAllSubmissions();
+    const normalizedUserId = userId?.trim();
+    const normalizedEmail = email?.trim().toLowerCase();
+
+    const matched = allSubs.find(
+      (s) =>
+        (normalizedUserId && (s.userId === normalizedUserId || s.verificationId === normalizedUserId)) ||
+        (normalizedEmail && s.email?.trim().toLowerCase() === normalizedEmail)
+    );
+
+    if (matched && matched.verificationId) {
+      return this.reviewVerification(matched.verificationId, action, rejectionCategory, rejectionNotes);
+    }
+
+    // Fallback if userId was directly the verificationId
+    return this.reviewVerification(userId, action, rejectionCategory, rejectionNotes);
   },
 };

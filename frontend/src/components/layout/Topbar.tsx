@@ -32,10 +32,12 @@ import {
   LifeBuoy,
   AlertTriangle,
   Inbox,
+  Bug,
 } from "lucide-react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { CommandPalette } from "@/components/common/CommandPalette";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
+import { DiagnosticsModal } from "@/components/common/DiagnosticsModal";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
 import { FAQ_CATEGORIES } from "@/mocks/faqs";
@@ -64,6 +66,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   const helpRef = useRef<HTMLDivElement>(null);
   const { isDark, toggleTheme } = useAppearance();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   useEffect(() => {
     profileService.getProfile().then((data) => setProfile(data));
@@ -448,6 +451,23 @@ export const Topbar: React.FC<TopbarProps> = ({
           </span>
         </NavLink>
 
+        {/* Diagnostics Debug Button (visible in dev or ?debug=1) */}
+        {(import.meta.env.DEV ||
+          (typeof window !== "undefined" &&
+            (window.location.search.includes("debug=1") ||
+              localStorage.getItem("debug_mode") === "1"))) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDiagnostics(true)}
+            title="Open System Diagnostics"
+            className="text-xs py-1 px-2.5 font-mono text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10 gap-1.5"
+          >
+            <Bug className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Debug</span>
+          </Button>
+        )}
+
         {/* Role switch pill if admin */}
         {user?.role === "ADMIN" && (
           <Button
@@ -474,6 +494,12 @@ export const Topbar: React.FC<TopbarProps> = ({
           <LogOut className="w-4 h-4" />
         </Button>
       </div>
+
+      {/* Diagnostics Modal */}
+      <DiagnosticsModal
+        isOpen={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+      />
     </header>
   );
 };
