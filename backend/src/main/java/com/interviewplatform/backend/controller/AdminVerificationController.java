@@ -23,7 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 
 @RestController
-@RequestMapping("/api/v1/admin/verifications")
+@RequestMapping({"/api/v1/admin/verifications", "/api/admin/verifications", "/admin/verifications"})
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminVerificationController {
 

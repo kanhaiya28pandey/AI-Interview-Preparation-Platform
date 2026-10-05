@@ -16,13 +16,19 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.http.MediaType;
+import com.interviewplatform.backend.model.User;
+import com.interviewplatform.backend.repository.UserRepository;
+
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -43,6 +49,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (jwtService.isTokenValid(token)) {
             String email = jwtService.extractEmail(token);
+
+            // Real-time active status enforcement
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null && user.isBlocked()) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.getWriter().write("{\"message\": \"Your account has been deactivated. Please contact support.\", \"status\": 403}");
+                return;
+            }
+
             String role = jwtService.extractRole(token);
 
             String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role.toUpperCase();

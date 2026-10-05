@@ -35,6 +35,18 @@ public class PracticeTopic {
         this.tags = tags != null ? tags : new ArrayList<>();
     }
 
+    public PracticeTopic(String id, String title, String description, String category, String difficulty, int questionsCount, String icon) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.category = category;
+        this.difficulty = difficulty;
+        this.questionsCount = questionsCount;
+        this.completedCount = 0;
+        this.icon = icon;
+        this.tags = new ArrayList<>();
+    }
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 

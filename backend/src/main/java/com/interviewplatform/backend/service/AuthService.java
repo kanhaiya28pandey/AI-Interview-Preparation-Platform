@@ -14,6 +14,8 @@ import com.interviewplatform.backend.dto.RegisterRequest;
 import com.interviewplatform.backend.dto.ResetPasswordRequest;
 import com.interviewplatform.backend.dto.UserSummaryResponse;
 import com.interviewplatform.backend.model.User;
+import com.interviewplatform.backend.model.UserProfile;
+import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
 import com.interviewplatform.backend.security.JwtService;
 
@@ -21,6 +23,7 @@ import com.interviewplatform.backend.security.JwtService;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
@@ -28,11 +31,13 @@ public class AuthService {
 
     public AuthService(
             UserRepository userRepository,
+            UserProfileRepository userProfileRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             EmailService emailService
     ) {
         this.userRepository = userRepository;
+        this.userProfileRepository = userProfileRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
@@ -57,10 +62,17 @@ public class AuthService {
         user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("STUDENT");
-        user.setVerificationStatus("Verified");
+        user.setVerificationStatus("Pending Verification");
         user.setBlocked(false);
 
         User savedUser = userRepository.save(user);
+
+        // Automatically initialize UserProfile
+        UserProfile profile = new UserProfile(savedUser.getId(), savedUser.getName(), savedUser.getEmail());
+        profile.setRole("STUDENT");
+        profile.setVerificationStatus("Pending Verification");
+        profile.setUpdatedAt(LocalDateTime.now().toString());
+        userProfileRepository.save(profile);
 
         String token = jwtService.generateToken(savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
 

@@ -1,5 +1,7 @@
 package com.interviewplatform.backend.dto;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,23 +20,30 @@ public class ContentItemDto {
     private String type; // MCQ Quiz, Mock Test, Coding Test, Mock Interview, Practice Track, Article
 
     private String subject;
-    private List<String> topics;
+    private List<String> topics = new ArrayList<>();
+    private List<String> tags = new ArrayList<>();
     private String difficulty; // Easy, Medium, Hard, Mixed
-    private String status; // Draft, Published, Archived
+    private Map<String, Integer> difficultySplit = new HashMap<>();
+    private String status = "Draft"; // Draft, Published, Archived
     private String createdBy;
     private String createdAt;
     private String updatedAt;
-    private int studentAttemptsCount;
-    private int questionsCount;
-    private int durationMinutes;
-    private int passMarkPercent;
-    private boolean negativeMarking;
-    private boolean shuffleOptions;
-    private boolean showAnswers;
+    private int studentAttemptsCount = 0;
+    private int studentAttempts = 0;
+    private int questionsCount = 0;
+    private int durationMinutes = 30;
+    private int passMarkPercent = 60;
+    private boolean negativeMarking = false;
+    private boolean shuffleOptions = true;
+    private boolean showAnswers = true;
     private String scheduleStart;
     private String scheduleEnd;
-    private String visibility;
-    private Map<String, Object> payload;
+    private String visibility = "ALL";
+    private int version = 1;
+    private List<Map<String, Object>> versions = new ArrayList<>();
+    private Map<String, Object> settings = new HashMap<>();
+    private Map<String, Object> contentData = new HashMap<>();
+    private Map<String, Object> payload = new HashMap<>();
 
     public ContentItemDto() {
     }
@@ -84,7 +93,15 @@ public class ContentItemDto {
     }
 
     public void setTopics(List<String> topics) {
-        this.topics = topics;
+        this.topics = topics != null ? topics : new ArrayList<>();
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags != null ? tags : new ArrayList<>();
     }
 
     public String getDifficulty() {
@@ -93,6 +110,14 @@ public class ContentItemDto {
 
     public void setDifficulty(String difficulty) {
         this.difficulty = difficulty;
+    }
+
+    public Map<String, Integer> getDifficultySplit() {
+        return difficultySplit;
+    }
+
+    public void setDifficultySplit(Map<String, Integer> difficultySplit) {
+        this.difficultySplit = difficultySplit != null ? difficultySplit : new HashMap<>();
     }
 
     public String getStatus() {
@@ -128,11 +153,21 @@ public class ContentItemDto {
     }
 
     public int getStudentAttemptsCount() {
-        return studentAttemptsCount;
+        return studentAttemptsCount > 0 ? studentAttemptsCount : studentAttempts;
     }
 
     public void setStudentAttemptsCount(int studentAttemptsCount) {
         this.studentAttemptsCount = studentAttemptsCount;
+        this.studentAttempts = studentAttemptsCount;
+    }
+
+    public int getStudentAttempts() {
+        return studentAttemptsCount > 0 ? studentAttemptsCount : studentAttempts;
+    }
+
+    public void setStudentAttempts(int studentAttempts) {
+        this.studentAttempts = studentAttempts;
+        this.studentAttemptsCount = studentAttempts;
     }
 
     public int getQuestionsCount() {
@@ -207,11 +242,43 @@ public class ContentItemDto {
         this.visibility = visibility;
     }
 
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
+    }
+
+    public List<Map<String, Object>> getVersions() {
+        return versions;
+    }
+
+    public void setVersions(List<Map<String, Object>> versions) {
+        this.versions = versions != null ? versions : new ArrayList<>();
+    }
+
+    public Map<String, Object> getSettings() {
+        return settings;
+    }
+
+    public void setSettings(Map<String, Object> settings) {
+        this.settings = settings != null ? settings : new HashMap<>();
+    }
+
+    public Map<String, Object> getContentData() {
+        return contentData;
+    }
+
+    public void setContentData(Map<String, Object> contentData) {
+        this.contentData = contentData != null ? contentData : new HashMap<>();
+    }
+
     public Map<String, Object> getPayload() {
         return payload;
     }
 
     public void setPayload(Map<String, Object> payload) {
-        this.payload = payload;
+        this.payload = payload != null ? payload : new HashMap<>();
     }
 }

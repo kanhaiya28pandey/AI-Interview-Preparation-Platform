@@ -19,7 +19,7 @@ import com.interviewplatform.backend.model.TeacherNote;
 import com.interviewplatform.backend.service.StudentProgressService;
 
 @RestController
-@RequestMapping("/api/v1/admin")
+@RequestMapping({"/api/v1/admin", "/api/admin"})
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminStudentProgressController {
 

@@ -58,10 +58,16 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/v1/auth/**",
                                 "/api/public/**",
+                                "/api/v1/verification/upload-id",
+                                "/api/v1/verifications/upload-id",
+                                "/uploads/**",
                                 "/error",
                                 "/favicon.ico"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                "/content/**",
+                                "/api/v1/content/**",
+                                "/api/content/**",
                                 "/api/v1/coding/problems/**",
                                 "/api/v1/articles/**",
                                 "/api/v1/practice/**",
@@ -69,7 +75,7 @@ public class SecurityConfig {
                                 "/api/v1/quiz/topics/**",
                                 "/api/v1/quizzes/topics/**"
                         ).permitAll()
-                        .requestMatchers("/api/admin/**", "/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**", "/api/admin/**", "/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -17,7 +17,7 @@ import com.interviewplatform.backend.dto.AdminUserDto;
 import com.interviewplatform.backend.service.AdminDashboardService;
 
 @RestController
-@RequestMapping("/api/v1/admin")
+@RequestMapping({"/api/v1/admin", "/api/admin"})
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminDashboardController {
 
