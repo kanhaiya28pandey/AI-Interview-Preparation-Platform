@@ -8,7 +8,7 @@ target/
 .env.*.local
 *.env
 !.env.example
-uploads/*
+uploads/
 !uploads/.gitkeep
 
 ### STS ###
