@@ -213,17 +213,17 @@ public class AdminContentController {
         return ResponseEntity.ok(updated);
     }
 
-    @PatchMapping("/{id}/publish")
+    @RequestMapping(value = "/{id}/publish", method = {org.springframework.web.bind.annotation.RequestMethod.PATCH, org.springframework.web.bind.annotation.RequestMethod.POST})
     public ResponseEntity<?> publishContent(@PathVariable String id, Authentication authentication) {
         return setStatus(id, "Published", "PUBLISH", authentication);
     }
 
-    @PatchMapping("/{id}/unpublish")
+    @RequestMapping(value = "/{id}/unpublish", method = {org.springframework.web.bind.annotation.RequestMethod.PATCH, org.springframework.web.bind.annotation.RequestMethod.POST})
     public ResponseEntity<?> unpublishContent(@PathVariable String id, Authentication authentication) {
         return setStatus(id, "Draft", "UNPUBLISH", authentication);
     }
 
-    @PatchMapping("/{id}/archive")
+    @RequestMapping(value = "/{id}/archive", method = {org.springframework.web.bind.annotation.RequestMethod.PATCH, org.springframework.web.bind.annotation.RequestMethod.POST})
     public ResponseEntity<?> archiveContent(@PathVariable String id, Authentication authentication) {
         return setStatus(id, "Archived", "ARCHIVE", authentication);
     }
