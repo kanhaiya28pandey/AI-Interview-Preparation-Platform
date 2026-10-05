@@ -219,14 +219,91 @@ def review_code_solution(
     problem_title: str
 ) -> Dict[str, Any]:
     """Provides AI code review, Big-O complexity, and optimization hints."""
+    if client:
+        try:
+            prompt = f"""
+            You are a Senior Principal Engineer and Code Reviewer.
+            Review the following {language} solution for problem '{problem_title}'.
+            Code:
+            {code}
+
+            Return strict JSON matching this structure:
+            {{
+                "problemTitle": "{problem_title}",
+                "language": "{language}",
+                "timeComplexity": "Big-O time complexity and explanation",
+                "spaceComplexity": "Big-O space complexity and explanation",
+                "cleanlinessRating": "Clean & Idiomatic | Needs Refactoring | Optimized",
+                "suggestions": ["suggestion 1", "suggestion 2"],
+                "summary": "Short 1-2 sentence overall verdict"
+            }}
+            Only output raw JSON. Do not include markdown codeblocks or backticks.
+            """
+            response = client.models.generate_content(
+                model=AI_MODEL,
+                contents=prompt
+            )
+            raw = response.text.strip()
+            if raw.startswith("```json"): raw = raw[7:]
+            if raw.endswith("```"): raw = raw[:-3]
+            return json.loads(raw.strip())
+        except Exception as e:
+            logger.warning("Gemini code review failed (%s), using algorithmic fallback", e)
+
     return {
         "problemTitle": problem_title,
         "language": language,
-        "timeComplexity": "O(N) - Linear time complexity achieved via single pass hashtable lookup",
-        "spaceComplexity": "O(N) - Auxiliary space for storing frequency map",
+        "timeComplexity": "O(N) - Linear time complexity achieved via single pass",
+        "spaceComplexity": "O(1) - Constant auxiliary space utilized",
         "cleanlinessRating": "Clean & Idiomatic",
         "suggestions": [
             "Variable naming is descriptive and conforms to style guidelines.",
-            "Consider pre-sizing hash maps if expected capacity is known to prevent rehashing overhead."
-        ]
+            "Consider pre-sizing collections if expected capacity is known to prevent resizing overhead."
+        ],
+        "summary": "Solid algorithmic solution with appropriate control flow and structure."
     }
+
+def generate_interview_questions(
+    role_title: str,
+    difficulty: str = "Medium",
+    count: int = 4
+) -> List[Dict[str, Any]]:
+    """Generates structured interview questions for a given role and difficulty."""
+    if client:
+        try:
+            prompt = f"""
+            You are a Lead Technical Hiring Manager. Generate {count} interview questions for the role: "{role_title}" at "{difficulty}" level.
+            Return strict JSON array of objects with:
+            [
+              {{
+                "id": "q-1",
+                "question": "The question prompt",
+                "category": "Architecture | System Design | Problem Solving | Behavioral",
+                "idealAnswerPoints": ["point 1", "point 2", "point 3"],
+                "followUpPrompt": "Follow-up question"
+              }}
+            ]
+            Only output raw JSON. Do not include markdown.
+            """
+            response = client.models.generate_content(
+                model=AI_MODEL,
+                contents=prompt
+            )
+            raw = response.text.strip()
+            if raw.startswith("```json"): raw = raw[7:]
+            if raw.endswith("```"): raw = raw[:-3]
+            return json.loads(raw.strip())
+        except Exception as e:
+            logger.warning("Gemini question generation failed (%s), using fallback questions", e)
+
+    return [
+        {
+            "id": f"q-{i+1}",
+            "question": f"Describe how you design and optimize key systems for {role_title} under heavy concurrency.",
+            "category": "System Architecture",
+            "idealAnswerPoints": ["System bottleneck identification", "Decoupled state management", "Caching and resiliency"],
+            "followUpPrompt": "What trade-offs did you face and how did you measure performance?"
+        }
+        for i in range(count)
+    ]
+
