@@ -24,12 +24,15 @@ import {
   Sparkles,
   Layers,
   RotateCw,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { OnlineQuestionExplorer } from "@/components/admin/OnlineQuestionExplorer";
 
 export const AdminCodingTests: React.FC = () => {
   const { domains, getTopicsForDomain, normalizeDomain } = useTaxonomy();
+  const [activeTab, setActiveTab] = useState<"benchmarks" | "online_bank">("benchmarks");
   const [tests, setTests] = useState<AdminCodingTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; is403: boolean; isNetworkError: boolean } | null>(null);
@@ -252,20 +255,52 @@ export const AdminCodingTests: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
-            Coding Tests & Topic Management
+            Coding Tests & Question Management
           </h2>
           <p className="text-xs text-text-secondary">
-            Create multi-topic coding benchmarks, configure weightages, and control test life-cycle.
+            Manage multi-topic coding assessments and import live questions directly from LeetCode, GFG, & Codeforces.
           </p>
         </div>
 
-        <Button variant="primary" size="sm" onClick={handleOpenCreate} className="shrink-0 font-semibold">
-          <Plus className="w-4 h-4" /> Create Multi-Topic Test
-        </Button>
+        {activeTab === "benchmarks" && (
+          <Button variant="primary" size="sm" onClick={handleOpenCreate} className="shrink-0 font-semibold">
+            <Plus className="w-4 h-4" /> Create Multi-Topic Test
+          </Button>
+        )}
       </div>
 
-      {/* Filter & Search Bar */}
-      <Card className="p-4 bg-surface border-border space-y-4">
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-border space-x-2">
+        <button
+          onClick={() => setActiveTab("benchmarks")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+            activeTab === "benchmarks"
+              ? "border-cyan-400 text-cyan-400 font-semibold"
+              : "border-transparent text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          <Layers className="w-4 h-4" /> Multi-Topic Benchmarks ({tests.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("online_bank")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+            activeTab === "online_bank"
+              ? "border-cyan-400 text-cyan-400 font-semibold"
+              : "border-transparent text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          <Globe className="w-4 h-4 text-cyan-400" /> Online Question Bank (LeetCode / GFG / Codeforces)
+          <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
+            Live API
+          </span>
+        </button>
+      </div>
+
+      {activeTab === "benchmarks" ? (
+        <>
+          {/* Filter & Search Bar */}
+          <Card className="p-4 bg-surface border-border space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           {/* Search Input */}
           <div className="relative sm:col-span-1">
@@ -501,6 +536,10 @@ export const AdminCodingTests: React.FC = () => {
           </div>
         )}
       </Card>
+        </>
+      ) : (
+        <OnlineQuestionExplorer onPlatformUpdated={loadTests} />
+      )}
 
       {/* CREATE / EDIT DIALOG WITH TOPIC MANAGER */}
       {modalOpen && editingTest && (

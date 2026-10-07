@@ -166,4 +166,60 @@ export const adminService = {
     const res = await api.get("/api/v1/admin/reports");
     return res.data;
   },
+
+  async searchExternalProblems(params: {
+    source?: string;
+    query?: string;
+    domain?: string;
+    difficulty?: string;
+    limit?: number;
+  }): Promise<ExternalProblemSummary[]> {
+    const searchParams = new URLSearchParams();
+    if (params.source) searchParams.append("source", params.source);
+    if (params.query) searchParams.append("query", params.query);
+    if (params.domain) searchParams.append("domain", params.domain);
+    if (params.difficulty) searchParams.append("difficulty", params.difficulty);
+    if (params.limit) searchParams.append("limit", String(params.limit));
+
+    const res = await api.get<ExternalProblemSummary[]>(`/api/v1/admin/coding-import/search?${searchParams.toString()}`);
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async importExternalProblem(request: ExternalProblemImportRequest): Promise<any> {
+    const res = await api.post("/api/v1/admin/coding-import/import", request);
+    return res.data;
+  },
+
+  async getPlatformCodingProblems(): Promise<any[]> {
+    const res = await api.get("/api/v1/admin/coding-import/bank");
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async deletePlatformCodingProblem(problemId: string): Promise<boolean> {
+    await api.delete(`/api/v1/admin/coding-import/${problemId}`);
+    return true;
+  },
 };
+
+export interface ExternalProblemSummary {
+  id: string;
+  title: string;
+  slug: string;
+  source: "LEETCODE" | "CODEFORCES" | "GEEKSFORGEEKS" | string;
+  difficulty: "Easy" | "Medium" | "Hard" | string;
+  category: string;
+  topicTags: string[];
+  acceptance: string;
+  isPaidOnly: boolean;
+  externalUrl?: string;
+  isAlreadyImported?: boolean;
+}
+
+export interface ExternalProblemImportRequest {
+  source: string;
+  slug: string;
+  title: string;
+  difficulty: string;
+  category: string;
+  tags?: string[];
+}
