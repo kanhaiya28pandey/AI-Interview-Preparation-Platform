@@ -57,6 +57,16 @@ interface ProblemLocalState {
   savedCode: Record<string, string>;
 }
 
+const getSafeStarterCode = (p?: CodingProblem | null, lang: string = "javascript"): string => {
+  if (!p) return "";
+  if (p.starterCode) {
+    const code = p.starterCode[lang as keyof typeof p.starterCode];
+    if (code) return code;
+    if (p.starterCode.javascript) return p.starterCode.javascript;
+  }
+  return "// Write your solution here\nfunction solve(input) {\n  return input;\n}";
+};
+
 export const Coding: React.FC = () => {
   const { user } = useAuth();
   const { domains, getTopicsForDomain, normalizeDomain } = useTaxonomy();
@@ -110,7 +120,7 @@ export const Coding: React.FC = () => {
         if (firstState && firstState.savedCode && firstState.savedCode.javascript) {
           setCode(firstState.savedCode.javascript);
         } else {
-          setCode(first.starterCode.javascript);
+          setCode(getSafeStarterCode(first, "javascript"));
         }
       }
       setLoading(false);
@@ -170,7 +180,7 @@ export const Coding: React.FC = () => {
     if (pState.savedCode && pState.savedCode[language]) {
       setCode(pState.savedCode[language]);
     } else {
-      setCode(problem.starterCode[language] || problem.starterCode.javascript);
+      setCode(getSafeStarterCode(problem, language));
     }
   };
 
@@ -182,14 +192,14 @@ export const Coding: React.FC = () => {
       if (pState.savedCode && pState.savedCode[newLang]) {
         setCode(pState.savedCode[newLang]);
       } else {
-        setCode(selectedProblem.starterCode[newLang] || "");
+        setCode(getSafeStarterCode(selectedProblem, newLang));
       }
     }
   };
 
   const handleResetCode = () => {
     if (!selectedProblem) return;
-    const defaultCode = selectedProblem.starterCode[language] || "";
+    const defaultCode = getSafeStarterCode(selectedProblem, language);
     handleCodeChange(defaultCode);
     setShowResetModal(false);
   };
@@ -331,7 +341,7 @@ export const Coding: React.FC = () => {
   }
 
   const pState = getProblemState(selectedProblem.id);
-  const lineCount = code.split("\n").length;
+  const lineCount = (code || "").split("\n").length;
   const lineNumbers = Array.from({ length: Math.max(15, lineCount) }, (_, i) => i + 1);
 
   // Cascading filters logic

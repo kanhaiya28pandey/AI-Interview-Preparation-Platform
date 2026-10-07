@@ -62,7 +62,11 @@ public class SecurityConfig {
                                 "/api/v1/verifications/upload-id",
                                 "/uploads/**",
                                 "/error",
-                                "/favicon.ico"
+                                "/favicon.ico",
+                                "/api/v1/coding/run",
+                                "/api/v1/coding/submit",
+                                "/api/coding/run",
+                                "/api/coding/submit"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/content/**",

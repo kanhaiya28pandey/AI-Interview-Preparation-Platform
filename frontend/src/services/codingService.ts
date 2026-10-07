@@ -6,83 +6,111 @@ import { contentManagerService } from "./contentManagerService";
 
 export const codingService = {
   async getProblems(): Promise<CodingProblem[]> {
-    const list = [...mockCodingProblems];
-    SEED_CODING_PROBLEMS.forEach((sp) => {
-      if (!list.some((item) => item.id === sp.id)) {
-        list.push(sp);
+    const list: CodingProblem[] = [];
+    const seenIds = new Set<string>();
+
+    const addProblem = (p: CodingProblem, prepend: boolean = false) => {
+      if (!p || !p.id || seenIds.has(p.id)) return;
+      seenIds.add(p.id);
+      const safeProblem: CodingProblem = {
+        ...p,
+        starterCode: {
+          javascript: p.starterCode?.javascript || "// Write your solution here\nfunction solve(input) {\n  return input;\n}",
+          python: p.starterCode?.python || "# Write your solution here\ndef solve(input):\n  return input\n",
+          java: p.starterCode?.java || "class Solution {\n  public static Object solve(Object input) {\n    return input;\n  }\n}",
+          cpp: p.starterCode?.cpp || "#include <iostream>\nusing namespace std;\n\nint solve(int input) {\n  return input;\n}",
+        },
+      };
+      if (prepend) {
+        list.unshift(safeProblem);
+      } else {
+        list.push(safeProblem);
       }
-    });
+    };
+
+    // 1. Merge dynamic published coding tests and problems from Content Manager
+    try {
+      const [publishedProblems, publishedTests] = await Promise.allSettled([
+        contentManagerService.getPublishedContent("CODING_PROBLEM"),
+        contentManagerService.getPublishedContent("CODING_TEST"),
+      ]);
+
+      const published = [
+        ...(publishedProblems.status === "fulfilled" ? publishedProblems.value : []),
+        ...(publishedTests.status === "fulfilled" ? publishedTests.value : []),
+      ];
+
+      published.forEach((item) => {
+        addProblem(
+          {
+            id: item.id,
+            title: item.title,
+            difficulty: (item.difficulty as any) || "Medium",
+            category: item.subject || "Algorithms",
+            acceptance: "76%",
+            description: item.contentData?.statement || item.description || "Coding challenge problem statement",
+            inputFormat: item.contentData?.inputFormat || "Standard input format",
+            outputFormat: item.contentData?.outputFormat || "Standard output format",
+            constraints: item.contentData?.constraints ? item.contentData.constraints.split("\n") : ["1 <= N <= 10^5"],
+            examples: item.contentData?.testCases
+              ? item.contentData.testCases
+                  .filter((tc: any) => !tc.isHidden)
+                  .map((tc: any) => ({
+                    input: tc.inputStr,
+                    output: tc.expectedStr,
+                    explanation: "Automated sample test case",
+                  }))
+              : [{ input: "Sample input", output: "Sample output" }],
+            starterCode: {
+              javascript: item.contentData?.starterCode?.javascript || "// Write your solution here\nfunction solve(input) {\n  return input;\n}",
+              python: item.contentData?.starterCode?.python || "# Write your solution here\ndef solve(input):\n  return input\n",
+              java: item.contentData?.starterCode?.java || "class Solution {\n  public static Object solve(Object input) {\n    return input;\n  }\n}",
+              cpp: item.contentData?.starterCode?.cpp || "int solve(int input) {\n  return input;\n}",
+            },
+            fnName: "solve",
+            xpReward: 50,
+            hints: item.contentData?.hints || ["Analyze time complexity", "Consider edge cases"],
+            solution: {
+              code: {
+                javascript: "function solve(input) { return input; }",
+                python: "def solve(input):\n  return input",
+                java: "class Solution {}",
+                cpp: "void solve() {}",
+              },
+              explanation: item.contentData?.editorial || "Optimal standard approach",
+              timeComplexity: "O(N)",
+              spaceComplexity: "O(1)",
+            },
+            testCases: item.contentData?.testCases
+              ? item.contentData.testCases.map((tc: any, idx: number) => ({
+                  id: idx + 1,
+                  inputStr: tc.inputStr,
+                  expectedStr: tc.expectedStr,
+                  params: [tc.inputStr],
+                  expectedVal: tc.expectedStr,
+                }))
+              : [{ id: 1, inputStr: "1", expectedStr: "1", params: [1], expectedVal: 1 }],
+          },
+          true
+        );
+      });
+    } catch (e) {
+      console.warn("Failed to fetch published coding problems:", e);
+    }
+
+    // 2. Fetch problems from backend API
     try {
       const response = await api.get<CodingProblem[]>("/api/v1/coding/problems");
-      if (response.data && response.data.length > 0) {
-        return response.data;
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach((p) => addProblem(p));
       }
     } catch (err) {
       console.warn("Could not fetch problems from backend, using local dataset", err);
     }
 
-    try {
-      const published = await contentManagerService.getPublishedContent("CODING_PROBLEM");
-      const dynamicProblems: CodingProblem[] = published.map((item) => ({
-        id: item.id,
-        title: item.title,
-        difficulty: (item.difficulty as any) || "Medium",
-        category: item.subject,
-        acceptance: "76%",
-        description: item.contentData?.statement || item.description,
-        inputFormat: item.contentData?.inputFormat || "Standard input format",
-        outputFormat: item.contentData?.outputFormat || "Standard output format",
-        constraints: item.contentData?.constraints ? item.contentData.constraints.split("\n") : ["1 <= N <= 10^5"],
-        examples: item.contentData?.testCases
-          ? item.contentData.testCases
-              .filter((tc: any) => !tc.isHidden)
-              .map((tc: any, i: number) => ({
-                input: tc.inputStr,
-                output: tc.expectedStr,
-                explanation: "Automated sample test case",
-              }))
-          : [],
-        starterCode: {
-          javascript: item.contentData?.starterCode?.javascript || "function solve() {}",
-          python: item.contentData?.starterCode?.python || "# Implementation here\ndef solve(): pass",
-          java: item.contentData?.starterCode?.java || "class Solution { public void solve() {} }",
-          cpp: item.contentData?.starterCode?.cpp || "void solve() {}",
-        },
-        fnName: "solve",
-        xpReward: 50,
-        hints: item.contentData?.hints || ["Analyze time complexity"],
-        solution: {
-          code: {
-            javascript: "function solve() {}",
-            python: "def solve(): pass",
-            java: "class Solution {}",
-            cpp: "void solve() {}",
-          },
-          explanation: item.contentData?.editorial || "Optimal standard approach",
-          timeComplexity: "O(N)",
-          spaceComplexity: "O(1)",
-        },
-        testCases: item.contentData?.testCases
-          ? item.contentData.testCases.map((tc: any, idx: number) => ({
-              id: idx + 1,
-              inputStr: tc.inputStr,
-              expectedStr: tc.expectedStr,
-              params: [tc.inputStr],
-              expectedVal: tc.expectedStr,
-            }))
-          : [],
-      }));
-
-      const seenIds = new Set(list.map((p) => p.id));
-      dynamicProblems.forEach((dp) => {
-        if (!seenIds.has(dp.id)) {
-          list.unshift(dp);
-          seenIds.add(dp.id);
-        }
-      });
-    } catch (e) {
-      console.warn("Failed to merge published coding problems:", e);
-    }
+    // 3. Merge mock and taxonomy seed problems
+    mockCodingProblems.forEach((mp) => addProblem(mp));
+    SEED_CODING_PROBLEMS.forEach((sp) => addProblem(sp));
 
     return list;
   },
@@ -91,10 +119,19 @@ export const codingService = {
     try {
       const response = await api.get<CodingProblem>(`/api/v1/coding/problems/${id}`);
       if (response.data) {
-        return response.data;
+        const p = response.data;
+        return {
+          ...p,
+          starterCode: {
+            javascript: p.starterCode?.javascript || "// Write your solution here\nfunction solve(input) {\n  return input;\n}",
+            python: p.starterCode?.python || "# Write your solution here\ndef solve(input):\n  return input\n",
+            java: p.starterCode?.java || "class Solution {\n  public static Object solve(Object input) {\n    return input;\n  }\n}",
+            cpp: p.starterCode?.cpp || "#include <iostream>\nusing namespace std;\n\nint solve(int input) {\n  return input;\n}",
+          },
+        };
       }
     } catch (err) {
-      console.warn("Could not fetch problem by id from backend, using local problem", err);
+      console.warn("Could not fetch problem by id from backend, searching unified problem list", err);
     }
     const problems = await this.getProblems();
     return problems.find((p) => p.id === id);
