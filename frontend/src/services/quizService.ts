@@ -1,65 +1,48 @@
-import { mockQuizTopics, mockQuizQuestions, QuizTopic, QuizQuestion } from "@/mocks/quizData";
-import { SEED_QUIZ_TOPICS, SEED_QUIZ_QUESTIONS } from "@/mocks/taxonomyQuizSeed";
+import api from "@/lib/api";
+import { QuizTopic, QuizQuestion } from "@/mocks/quizData";
 import { contentManagerService } from "./contentManagerService";
-
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export const quizService = {
   async getQuizTopics(): Promise<QuizTopic[]> {
-    await delay(100);
-    const seeded: QuizTopic[] = [...mockQuizTopics];
-    const seenIds = new Set(seeded.map((s) => s.id));
-
-    SEED_QUIZ_TOPICS.forEach((sq) => {
-      if (!seenIds.has(sq.id)) {
-        seeded.push(sq);
-        seenIds.add(sq.id);
+    try {
+      const res = await api.get<QuizTopic[]>("/api/v1/quiz/topics");
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
       }
-    });
+    } catch (err) {
+      console.warn("Backend quiz topics endpoint unavailable, checking content manager:", err);
+    }
 
     try {
       const published = await contentManagerService.getPublishedContent();
       const quizItems = published.filter((i) => i.type === "QUIZ" || i.type === "MOCK_TEST");
-      const now = new Date();
-
-      const dynamicTopics: QuizTopic[] = quizItems
-        .filter((item) => {
-          if (item.settings?.endDate) {
-            const end = new Date(item.settings.endDate);
-            if (now > end) return false;
-          }
-          return true;
-        })
-        .map((item) => {
-          const isUpcoming = item.settings?.startDate ? new Date(item.settings.startDate) > now : false;
-          const qCount = item.contentData?.questions?.length || (item.contentData?.sections ? 25 : 5);
-
-          return {
-            id: item.id,
-            title: isUpcoming ? `[Upcoming] ${item.title}` : item.title,
-            description: item.description,
-            category: item.type === "MOCK_TEST" ? "Full Mock Test" : item.subject || "Algorithms",
-            questionCount: qCount,
-            timeLimitMinutes: item.settings?.durationMinutes || 15,
-            icon: item.type === "MOCK_TEST" ? "Radio" : "HelpCircle",
-          };
-        });
-
-      dynamicTopics.forEach((dt) => {
-        if (!seenIds.has(dt.id)) {
-          seeded.unshift(dt);
-          seenIds.add(dt.id);
-        }
-      });
+      if (quizItems.length > 0) {
+        return quizItems.map((item) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          category: item.type === "MOCK_TEST" ? "Full Mock Test" : item.subject || "Algorithms",
+          questionCount: item.contentData?.questions?.length || 5,
+          timeLimitMinutes: item.settings?.durationMinutes || 15,
+          icon: item.type === "MOCK_TEST" ? "Radio" : "HelpCircle",
+        }));
+      }
     } catch (e) {
-      console.warn("Failed to merge published quiz topics:", e);
+      console.warn("Failed to retrieve fallback quiz topics:", e);
     }
 
-    return seeded;
+    return [];
   },
 
   async getQuestionsByTopic(topicId: string): Promise<QuizQuestion[]> {
-    await delay(100);
+    try {
+      const res = await api.get<QuizQuestion[]>(`/api/v1/quiz/topics/${encodeURIComponent(topicId)}/questions`);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Backend questions endpoint unavailable, querying content manager:", err);
+    }
 
     if (topicId.startsWith("cnt-")) {
       try {
@@ -78,10 +61,6 @@ export const quizService = {
       }
     }
 
-    if (SEED_QUIZ_QUESTIONS[topicId]) {
-      return SEED_QUIZ_QUESTIONS[topicId];
-    }
-
-    return mockQuizQuestions[topicId] || mockQuizQuestions["quiz-js"] || [];
+    return [];
   },
 };

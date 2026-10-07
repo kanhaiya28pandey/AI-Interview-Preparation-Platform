@@ -108,9 +108,11 @@ export const codingService = {
       console.warn("Could not fetch problems from backend, using local dataset", err);
     }
 
-    // 3. Merge mock and taxonomy seed problems
-    mockCodingProblems.forEach((mp) => addProblem(mp));
-    SEED_CODING_PROBLEMS.forEach((sp) => addProblem(sp));
+    // 3. Fallback only if no problems could be fetched from backend or content manager
+    if (list.length === 0) {
+      mockCodingProblems.forEach((mp) => addProblem(mp));
+      SEED_CODING_PROBLEMS.forEach((sp) => addProblem(sp));
+    }
 
     return list;
   },

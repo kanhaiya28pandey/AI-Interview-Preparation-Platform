@@ -1,3 +1,4 @@
+import api from "@/lib/api";
 import { notificationService } from "./notificationService";
 
 export interface SupportTicket {
@@ -25,57 +26,43 @@ export interface CreateTicketPayload {
 const STORAGE_KEY = "ai_interview_prep_tickets";
 const VOTES_STORAGE_KEY = "ai_interview_prep_faq_votes";
 
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-const INITIAL_TICKETS: SupportTicket[] = [
-  {
-    id: "TCK-2026-0091",
-    category: "Feature Request",
-    subject: "Add dark mode preview for code editor syntax highlighting",
-    description:
-      "The dark theme works cleanly on pages. Would love an option to customize editor font sizes and line numbers too.",
-    status: "Resolved",
-    createdAt: "2026-09-24T14:30:00.000Z",
-    userName: "Kanhaiya Pandey",
-    userEmail: "kanhaiya.student@srmist.edu.in",
-  },
-  {
-    id: "TCK-2026-0084",
-    category: "Bug Report",
-    subject: "Profile completion percentage display sync across components",
-    description:
-      "Verified that profile completion ring in the topbar and sidebar updates immediately upon saving new personal details.",
-    status: "Resolved",
-    createdAt: "2026-09-22T09:15:00.000Z",
-    userName: "Kanhaiya Pandey",
-    userEmail: "kanhaiya.student@srmist.edu.in",
-  },
-];
-
-const getStoredTickets = (): SupportTicket[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    console.error("Failed to parse stored support tickets:", e);
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_TICKETS));
-  return INITIAL_TICKETS;
-};
-
 export const supportService = {
   async getTickets(): Promise<SupportTicket[]> {
-    await delay(150);
-    return getStoredTickets();
+    try {
+      const res = await api.get<SupportTicket[]>("/api/v1/support/tickets");
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
+      }
+    } catch {
+      // Try admin endpoint
+      try {
+        const resAdmin = await api.get<SupportTicket[]>("/api/v1/admin/support/tickets");
+        if (Array.isArray(resAdmin.data) && resAdmin.data.length > 0) {
+          return resAdmin.data;
+        }
+      } catch (err) {
+        console.warn("Could not fetch support tickets from backend:", err);
+      }
+    }
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+
+    return [];
   },
 
   async createTicket(payload: CreateTicketPayload): Promise<SupportTicket> {
-    await delay(250);
-    const existing = getStoredTickets();
+    try {
+      const res = await api.post<SupportTicket>("/api/v1/support/tickets", payload);
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Backend create ticket failed, saving locally:", err);
+    }
 
-    // Get active user from localStorage if present
     let userId = "";
     let userName = "Student User";
     let userEmail = "student@srmist.edu.in";
@@ -87,13 +74,10 @@ export const supportService = {
         if (parsed.name) userName = parsed.name;
         if (parsed.email) userEmail = parsed.email;
       }
-    } catch (e) {
-      console.error("Failed to parse user for support ticket:", e);
-    }
+    } catch {}
 
-    const ticketNumber = Math.floor(1000 + Math.random() * 9000);
     const newTicket: SupportTicket = {
-      id: `TCK-2026-${ticketNumber}`,
+      id: `TCK-2026-${Math.floor(1000 + Math.random() * 9000)}`,
       category: payload.category,
       subject: payload.subject,
       description: payload.description,
@@ -106,67 +90,34 @@ export const supportService = {
       userEmail,
     };
 
-    const updated = [newTicket, ...existing];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    // Notifications
     try {
-      if (userId) {
-        await notificationService.notifyUser(userId, {
-          audience: "STUDENT",
-          type: "support",
-          title: "Support Ticket Submitted",
-          message: `Ticket ${newTicket.id} ("${payload.subject}") was received by our team.`,
-          link: "/help",
-          priority: "info",
-        });
-      }
-
-      await notificationService.notifyAdmins({
-        type: "support",
-        title: "New Support Ticket",
-        message: `${userName} opened ticket ${newTicket.id}: "${payload.subject}".`,
-        link: "/admin/help",
-        priority: "info",
-      });
-    } catch (e) {
-      console.warn("Could not dispatch ticket notifications:", e);
-    }
+      const existing = await this.getTickets();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([newTicket, ...existing]));
+    } catch {}
 
     return newTicket;
   },
 
   async updateTicketStatus(ticketId: string, nextStatus: "Open" | "In Review" | "Resolved"): Promise<SupportTicket | null> {
-    await delay(100);
-    const existing = getStoredTickets();
-    let updatedTicket: SupportTicket | null = null;
-
-    const updated = existing.map((t) => {
-      if (t.id === ticketId) {
-        updatedTicket = { ...t, status: nextStatus };
-        return updatedTicket;
+    try {
+      const res = await api.patch<SupportTicket>(`/api/v1/admin/support/tickets/${encodeURIComponent(ticketId)}/status`, {
+        status: nextStatus,
+      });
+      if (res.data) {
+        return res.data;
       }
-      return t;
-    });
-
-    if (updatedTicket) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-      // Notify student
-      const t: SupportTicket = updatedTicket;
-      if (t.userId) {
-        notificationService.notifyUser(t.userId, {
-          audience: "STUDENT",
-          type: "support",
-          title: `Support Ticket ${nextStatus}`,
-          message: `Your ticket ${t.id} ("${t.subject}") is now marked as ${nextStatus}.`,
-          link: "/help",
-          priority: nextStatus === "Resolved" ? "success" : "info",
-        }).catch((e) => console.warn(e));
-      }
+    } catch (err) {
+      console.warn("Backend update ticket status failed, saving locally:", err);
     }
 
-    return updatedTicket;
+    try {
+      const existing = await this.getTickets();
+      const updated = existing.map((t) => (t.id === ticketId ? { ...t, status: nextStatus } : t));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated.find((t) => t.id === ticketId) || null;
+    } catch {
+      return null;
+    }
   },
 
   getFaqVotes(): Record<string, "up" | "down"> {
@@ -179,10 +130,23 @@ export const supportService = {
     return {};
   },
 
-  saveFaqVote(faqId: string, vote: "up" | "down"): Record<string, "up" | "down"> {
-    const votes = this.getFaqVotes();
-    votes[faqId] = vote;
-    localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(votes));
-    return votes;
+  voteFaq(faqId: string, voteType: "up" | "down"): Record<string, "up" | "down"> {
+    try {
+      const current = this.getFaqVotes();
+      if (current[faqId] === voteType) {
+        delete current[faqId];
+      } else {
+        current[faqId] = voteType;
+      }
+      localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(current));
+      return current;
+    } catch (e) {
+      console.error("Failed to persist FAQ vote:", e);
+    }
+    return {};
+  },
+
+  saveFaqVote(faqId: string, voteType: "up" | "down"): Record<string, "up" | "down"> {
+    return this.voteFaq(faqId, voteType);
   },
 };

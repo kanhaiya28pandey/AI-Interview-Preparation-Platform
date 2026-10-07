@@ -54,17 +54,17 @@ public class LeaderboardService {
             list.add(lu);
         }
 
-        // Ensure rich leaderboard with baseline candidates if DB has few users
-        if (list.size() < 4) {
-            list.add(new LeaderboardUser(0, "usr-top-1", "Aarav Sharma", "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150", "SRM Institute of Science and Technology", 2840, 24, 142, 18, 94, "Master"));
-            list.add(new LeaderboardUser(0, "usr-top-2", "Priya Nair", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150", "IIT Madras", 2690, 19, 128, 15, 91, "Gold"));
-            list.add(new LeaderboardUser(0, "usr-top-3", "Vikramaditya Roy", "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150", "BITS Pilani", 2510, 16, 115, 14, 89, "Silver"));
-            list.add(new LeaderboardUser(0, "usr-top-4", "Sneha Reddy", "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150", "NIT Trichy", 2380, 14, 98, 12, 87, "Bronze"));
-        }
-
         // Apply filters
         if ("college".equalsIgnoreCase(filter)) {
-            list = list.stream().filter(u -> u.getCollege() != null && u.getCollege().contains("SRM")).toList();
+            String targetCollege = "SRM";
+            if (authEmail != null) {
+                UserProfile cur = userProfileRepository.findByEmail(authEmail).orElse(null);
+                if (cur != null && cur.getCollege() != null && !cur.getCollege().isBlank()) {
+                    targetCollege = cur.getCollege();
+                }
+            }
+            final String finalCollege = targetCollege;
+            list = list.stream().filter(u -> u.getCollege() != null && u.getCollege().toLowerCase().contains(finalCollege.toLowerCase())).toList();
         } else if ("weekly".equalsIgnoreCase(filter)) {
             list = list.stream().sorted(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()).toList();
         } else {

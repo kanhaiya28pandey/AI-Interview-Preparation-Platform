@@ -1,170 +1,106 @@
-import api, { isDemoSession } from "@/lib/api";
+import api from "@/lib/api";
 import {
-  mockAdminUsers,
-  mockAdminCodingTests,
-  mockAdminMockInterviews,
-  mockAdminReports,
   AdminUser,
   AdminCodingTest,
   AdminMockInterviewConfig,
   AdminReportData,
 } from "@/mocks/adminData";
 
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-let usersList = [...mockAdminUsers];
-let testsList = [...mockAdminCodingTests];
-let interviewsList = [...mockAdminMockInterviews];
-
 export const adminService = {
   async getUsers(): Promise<AdminUser[]> {
-    if (isDemoSession()) {
-      await delay(150);
-      return [...usersList];
+    try {
+      const res = await api.get("/api/v1/admin/users");
+      if (Array.isArray(res.data)) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch users from backend:", err);
     }
-    const res = await api.get("/api/v1/admin/users");
-    return res.data;
+    return [];
   },
 
   async toggleBlockUser(userId: string): Promise<AdminUser> {
-    if (isDemoSession()) {
-      await delay(150);
-      const user = usersList.find((u) => u.id === userId);
-      if (user) {
-        user.status = user.status === "ACTIVE" ? "BLOCKED" : "ACTIVE";
-        return { ...user };
-      }
-      throw new Error("User not found");
-    }
     const res = await api.patch(`/api/v1/admin/users/${userId}/toggle-block`);
     return res.data;
   },
 
   async deleteUser(userId: string): Promise<boolean> {
-    if (isDemoSession()) {
-      await delay(150);
-      usersList = usersList.filter((u) => u.id !== userId);
-      return true;
-    }
     const res = await api.delete(`/api/v1/admin/users/${userId}`);
     return res.data?.success ?? true;
   },
 
   async getCodingTests(): Promise<AdminCodingTest[]> {
-    if (isDemoSession()) {
-      await delay(150);
-      return [...testsList];
-    }
-    const res = await api.get("/api/v1/admin/coding-tests");
-    if (Array.isArray(res.data)) {
-      return res.data.map((p: any) => ({
-        id: p.id || `test-${Math.random()}`,
-        title: p.title || "Untitled Coding Benchmark",
-        domain: p.category || "Java",
-        topics: p.topics || [{ name: p.category || "General", questionCount: 1, weightage: 100 }],
-        difficulty: p.difficulty || "Medium",
-        submissionsCount: p.submissionsCount || 0,
-        passRate: p.acceptance || p.passRate || "0%",
-        status: p.status || "ACTIVE",
-        createdAt: p.createdAt || new Date().toISOString().split("T")[0],
-      }));
+    try {
+      const res = await api.get("/api/v1/admin/coding-tests");
+      if (Array.isArray(res.data)) {
+        return res.data.map((p: any) => ({
+          id: p.id || `test-${Math.random()}`,
+          title: p.title || "Untitled Coding Benchmark",
+          domain: p.category || "Algorithms",
+          topics: [{ name: p.category || "General", questionCount: 1, weightage: 100 }],
+          difficulty: p.difficulty || "Medium",
+          submissionsCount: p.submissionsCount || 0,
+          passRate: p.acceptance || p.passRate || "70%",
+          status: p.status || "ACTIVE",
+          createdAt: p.createdAt || new Date().toISOString().split("T")[0],
+        }));
+      }
+    } catch (err) {
+      console.warn("Failed to fetch coding tests from backend:", err);
     }
     return [];
   },
 
   async saveCodingTest(test: Partial<AdminCodingTest>): Promise<AdminCodingTest> {
-    if (isDemoSession()) {
-      await delay(200);
-      if (test.id) {
-        const idx = testsList.findIndex((t) => t.id === test.id);
-        if (idx !== -1) {
-          testsList[idx] = { ...testsList[idx], ...test } as AdminCodingTest;
-          return testsList[idx];
-        }
-      }
-      const newTest: AdminCodingTest = {
-        id: `test-${Date.now()}`,
-        title: test.title || "New Coding Benchmark",
-        domain: test.domain || "Java",
-        topics: test.topics || [{ name: "General Fundamentals", questionCount: 2, weightage: 100 }],
-        difficulty: test.difficulty || "Medium",
-        submissionsCount: test.submissionsCount || 0,
-        passRate: test.passRate || "0%",
-        status: test.status || "ACTIVE",
-        createdAt: test.createdAt || new Date().toISOString().split("T")[0],
-      };
-      testsList.push(newTest);
-      return newTest;
-    }
     const res = await api.post("/api/v1/admin/coding-tests", test);
     return res.data;
   },
 
   async deleteCodingTest(testId: string): Promise<boolean> {
-    if (isDemoSession()) {
-      await delay(150);
-      testsList = testsList.filter((t) => t.id !== testId);
-      return true;
-    }
     await api.delete(`/api/v1/admin/coding-tests/${testId}`);
     return true;
   },
 
   async getMockInterviews(): Promise<AdminMockInterviewConfig[]> {
-    if (isDemoSession()) {
-      await delay(150);
-      return [...interviewsList];
-    }
-    const res = await api.get("/api/v1/admin/mock-interviews");
-    if (Array.isArray(res.data)) {
-      return res.data.map((r: any) => ({
-        id: r.id || `interview-${Math.random()}`,
-        roleTitle: r.roleTitle || r.title || "Software Engineer",
-        domain: r.domain || r.category || "Frontend",
-        topics: r.topics || [{ name: "Core Skills", questionCount: 2, weightage: 100 }],
-        category: r.category || "General",
-        questionsCount: r.questionsCount || 4,
-        durationMinutes: r.durationMinutes || 25,
-        status: r.status || "ACTIVE",
-      }));
+    try {
+      const res = await api.get("/api/v1/admin/mock-interviews");
+      if (Array.isArray(res.data)) {
+        return res.data.map((r: any) => ({
+          id: r.id || `interview-${Math.random()}`,
+          roleTitle: r.roleTitle || r.title || "Software Engineer",
+          domain: r.domain || r.category || "Frontend",
+          topics: r.topics || [{ name: "Core Competency", questionCount: r.totalQuestions || 3, weightage: 100 }],
+          category: r.category || "General",
+          questionsCount: r.questionsCount || r.totalQuestions || 4,
+          durationMinutes: r.durationMinutes || 25,
+          status: r.status || "ACTIVE",
+        }));
+      }
+    } catch (err) {
+      console.warn("Failed to fetch mock interviews from backend:", err);
     }
     return [];
   },
 
   async saveMockInterview(config: Partial<AdminMockInterviewConfig>): Promise<AdminMockInterviewConfig> {
-    if (isDemoSession()) {
-      await delay(200);
-      if (config.id) {
-        const idx = interviewsList.findIndex((i) => i.id === config.id);
-        if (idx !== -1) {
-          interviewsList[idx] = { ...interviewsList[idx], ...config } as AdminMockInterviewConfig;
-          return interviewsList[idx];
-        }
-      }
-      const newConfig: AdminMockInterviewConfig = {
-        id: `interview-${Date.now()}`,
-        roleTitle: config.roleTitle || "Software Engineer",
-        domain: config.domain || config.category || "Frontend",
-        topics: config.topics || [{ name: "Core Skills", questionCount: 2, weightage: 100 }],
-        category: config.category || "Backend",
-        questionsCount: config.questionsCount || 4,
-        durationMinutes: config.durationMinutes || 25,
-        status: config.status || "ACTIVE",
-      };
-      interviewsList.push(newConfig);
-      return newConfig;
-    }
     const res = await api.post("/api/v1/admin/mock-interviews", config);
     return res.data;
   },
 
   async getReports(): Promise<AdminReportData> {
-    if (isDemoSession()) {
-      await delay(200);
-      return mockAdminReports;
+    try {
+      const res = await api.get("/api/v1/admin/reports");
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch admin reports from backend:", err);
     }
-    const res = await api.get("/api/v1/admin/reports");
-    return res.data;
+    return {
+      userGrowth: [],
+      interviewStats: [],
+      difficultyDistribution: [],
+    };
   },
 
   async searchExternalProblems(params: {
@@ -187,7 +123,7 @@ export const adminService = {
         return res.data;
       }
     } catch (e) {
-      console.warn("Backend external problem query unavailable, using resilient fallback catalog:", e);
+      console.warn("Backend external problem query unavailable, using catalog fallback:", e);
     }
 
     return FALLBACK_EXTERNAL_PROBLEMS.filter((p) => {
@@ -240,33 +176,24 @@ export const adminService = {
   },
 
   async getPlatformCodingProblems(): Promise<any[]> {
-    let list: any[] = [];
     try {
       const res = await api.get("/api/v1/admin/coding-import/bank");
       if (Array.isArray(res.data) && res.data.length > 0) {
-        list = [...res.data];
+        return res.data;
       }
     } catch (e) {
-      console.warn("Backend question bank unavailable, loading local catalog:", e);
+      console.warn("Backend question bank query error:", e);
     }
 
-    try {
-      const stored = JSON.parse(localStorage.getItem("demo_imported_coding_problems") || "[]");
-      stored.forEach((item: any) => {
-        if (!list.some((p) => p.id === item.id)) {
-          list.push(item);
-        }
-      });
-    } catch {}
-
-    return list;
+    const localSaved = JSON.parse(localStorage.getItem("demo_imported_coding_problems") || "[]");
+    return localSaved;
   },
 
   async deletePlatformCodingProblem(problemId: string): Promise<boolean> {
     try {
       await api.delete(`/api/v1/admin/coding-import/${problemId}`);
     } catch (e) {
-      console.warn("Backend delete unavailable, removing locally:", e);
+      console.warn("Backend delete unavailable:", e);
     }
 
     try {
@@ -299,128 +226,130 @@ export interface ExternalProblemImportRequest {
   title: string;
   difficulty: string;
   category: string;
+  topicTags?: string[];
   tags?: string[];
+  description?: string;
 }
 
 const FALLBACK_EXTERNAL_PROBLEMS: ExternalProblemSummary[] = [
   {
     id: "lc-1",
-    title: "1. Two Sum",
+    title: "Two Sum",
     slug: "two-sum",
     source: "LEETCODE",
     difficulty: "Easy",
     category: "Arrays & Hashing",
     topicTags: ["Array", "Hash Table"],
-    acceptance: "51.8%",
+    acceptance: "49.2%",
     isPaidOnly: false,
     externalUrl: "https://leetcode.com/problems/two-sum/",
   },
   {
     id: "lc-2",
-    title: "2. Add Two Numbers",
+    title: "Add Two Numbers",
     slug: "add-two-numbers",
     source: "LEETCODE",
     difficulty: "Medium",
     category: "Linked List",
     topicTags: ["Linked List", "Math", "Recursion"],
-    acceptance: "42.4%",
+    acceptance: "40.1%",
     isPaidOnly: false,
     externalUrl: "https://leetcode.com/problems/add-two-numbers/",
   },
   {
     id: "lc-3",
-    title: "3. Longest Substring Without Repeating Characters",
+    title: "Longest Substring Without Repeating Characters",
     slug: "longest-substring-without-repeating-characters",
     source: "LEETCODE",
     difficulty: "Medium",
-    category: "Sliding Window",
+    category: "Strings & Sliding Window",
     topicTags: ["Hash Table", "String", "Sliding Window"],
-    acceptance: "34.8%",
+    acceptance: "33.8%",
     isPaidOnly: false,
     externalUrl: "https://leetcode.com/problems/longest-substring-without-repeating-characters/",
   },
   {
-    id: "lc-100",
-    title: "100. Same Tree",
-    slug: "same-tree",
+    id: "lc-20",
+    title: "Valid Parentheses",
+    slug: "valid-parentheses",
     source: "LEETCODE",
     difficulty: "Easy",
-    category: "Trees",
-    topicTags: ["Tree", "Depth-First Search", "Binary Tree"],
-    acceptance: "61.2%",
+    category: "Stack",
+    topicTags: ["String", "Stack"],
+    acceptance: "40.3%",
     isPaidOnly: false,
-    externalUrl: "https://leetcode.com/problems/same-tree/",
+    externalUrl: "https://leetcode.com/problems/valid-parentheses/",
   },
   {
-    id: "lc-175",
-    title: "175. Combine Two Tables",
-    slug: "combine-two-tables",
+    id: "lc-206",
+    title: "Reverse Linked List",
+    slug: "reverse-linked-list",
     source: "LEETCODE",
     difficulty: "Easy",
-    category: "Database",
-    topicTags: ["Database", "SQL", "Join"],
-    acceptance: "74.8%",
+    category: "Linked List",
+    topicTags: ["Linked List", "Recursion"],
+    acceptance: "73.4%",
     isPaidOnly: false,
-    externalUrl: "https://leetcode.com/problems/combine-two-tables/",
+    externalUrl: "https://leetcode.com/problems/reverse-linked-list/",
   },
   {
-    id: "lc-176",
-    title: "176. Second Highest Salary",
-    slug: "second-highest-salary",
+    id: "lc-53",
+    title: "Maximum Subarray",
+    slug: "maximum-subarray",
     source: "LEETCODE",
     difficulty: "Medium",
-    category: "Database",
-    topicTags: ["Database", "SQL"],
-    acceptance: "39.6%",
+    category: "Dynamic Programming",
+    topicTags: ["Array", "Divide and Conquer", "Dynamic Programming"],
+    acceptance: "50.1%",
     isPaidOnly: false,
-    externalUrl: "https://leetcode.com/problems/second-highest-salary/",
+    externalUrl: "https://leetcode.com/problems/maximum-subarray/",
   },
   {
-    id: "gfg-subarray-sum",
+    id: "gfg-1",
     title: "Subarray with Given Sum",
     slug: "subarray-with-given-sum",
     source: "GEEKSFORGEEKS",
     difficulty: "Medium",
-    category: "Two Pointers",
-    topicTags: ["Arrays", "Sliding Window"],
-    acceptance: "78.4%",
+    category: "Arrays & Sliding Window",
+    topicTags: ["Arrays", "Sliding Window", "Prefix Sum"],
+    acceptance: "45.0%",
     isPaidOnly: false,
-    externalUrl: "https://www.geeksforgeeks.org/problems/subarray-with-given-sum/1",
+    externalUrl: "https://practice.geeksforgeeks.org/problems/subarray-with-given-sum-1587115621/1",
   },
   {
-    id: "gfg-missing-number",
-    title: "Missing Number in Array",
-    slug: "missing-number-in-array",
+    id: "gfg-2",
+    title: "Detect Loop in Linked List",
+    slug: "detect-loop-in-linked-list",
     source: "GEEKSFORGEEKS",
     difficulty: "Easy",
-    category: "Arrays",
-    topicTags: ["Arrays", "Math"],
-    acceptance: "82.1%",
+    category: "Linked List",
+    topicTags: ["Linked List", "Two Pointers"],
+    acceptance: "58.2%",
     isPaidOnly: false,
-    externalUrl: "https://www.geeksforgeeks.org/problems/missing-number-in-array1416/1",
+    externalUrl: "https://practice.geeksforgeeks.org/problems/detect-loop-in-linked-list/1",
   },
   {
-    id: "gfg-kadane-algo",
-    title: "Kadane's Algorithm (Max Subarray)",
-    slug: "kadanes-algorithm",
-    source: "GEEKSFORGEEKS",
-    difficulty: "Medium",
-    category: "Dynamic Programming",
-    topicTags: ["DP", "Arrays"],
-    acceptance: "68.2%",
-    isPaidOnly: false,
-    externalUrl: "https://www.geeksforgeeks.org/problems/kadanes-algorithm/1",
-  },
-  {
-    id: "cf-158A",
-    title: "158A - Next Round",
-    slug: "158/A",
+    id: "cf-1",
+    title: "Watermelon",
+    slug: "watermelon",
     source: "CODEFORCES",
     difficulty: "Easy",
-    category: "Algorithms",
-    topicTags: ["implementation", "special problem"],
-    acceptance: "Rating 800",
+    category: "Math & Logic",
+    topicTags: ["brute force", "math"],
+    acceptance: "82.1%",
     isPaidOnly: false,
-    externalUrl: "https://codeforces.com/problemset/problem/158/A",
+    externalUrl: "https://codeforces.com/problemset/problem/4/A",
+  },
+  {
+    id: "cf-71A",
+    title: "Way Too Long Words",
+    slug: "way-too-long-words",
+    source: "CODEFORCES",
+    difficulty: "Easy",
+    category: "Strings",
+    topicTags: ["strings"],
+    acceptance: "88.4%",
+    isPaidOnly: false,
+    externalUrl: "https://codeforces.com/problemset/problem/71/A",
   },
 ];

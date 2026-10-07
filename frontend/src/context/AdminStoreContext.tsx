@@ -3,6 +3,7 @@ import { INITIAL_MOCK_VERIFICATIONS, VerificationSubmission } from "@/mocks/veri
 import { mockStudentsProgress, StudentProgress } from "@/mocks/studentProgressData";
 import { mockAdminUsers, AdminUser } from "@/mocks/adminData";
 import { verificationService } from "@/services/verificationService";
+import api from "@/lib/api";
 
 export interface MasterStudent {
   id: string;
@@ -280,6 +281,94 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error("Failed to save master students:", e);
     }
   };
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRealPlatformData = async () => {
+      try {
+        const [studentsRes, verifsRes, auditRes] = await Promise.allSettled([
+          api.get("/api/v1/admin/students").catch(() => api.get("/api/v1/admin/users")),
+          api.get("/api/v1/admin/verifications"),
+          api.get("/api/v1/admin/content/audit-logs"),
+        ]);
+
+        if (!isMounted) return;
+
+        const verifList = verifsRes.status === "fulfilled" && Array.isArray(verifsRes.value.data) ? verifsRes.value.data : [];
+        const verifMap = new Map<string, any>();
+        verifList.forEach((v: any) => {
+          if (v.userId) verifMap.set(String(v.userId).toLowerCase(), v);
+          if (v.email) verifMap.set(String(v.email).toLowerCase(), v);
+        });
+
+        if (studentsRes.status === "fulfilled" && Array.isArray(studentsRes.value.data) && studentsRes.value.data.length > 0) {
+          const realStudents: MasterStudent[] = studentsRes.value.data
+            .filter((u: any) => u.role !== "ADMIN" && !u.email?.includes("admin"))
+            .map((u: any) => {
+              const v = verifMap.get(String(u.id || "").toLowerCase()) ||
+                        verifMap.get(String(u.userId || "").toLowerCase()) ||
+                        verifMap.get(String(u.email || "").toLowerCase());
+              return {
+                id: u.id || u.userId,
+                userId: u.userId || u.id,
+                name: u.name || "Student",
+                email: u.email,
+                phone: u.phone || "+91 98765 43210",
+                college: u.college || v?.collegeName || "SRM Institute of Science and Technology",
+                course: u.course || "B.Tech",
+                branch: u.branch || "Computer Science",
+                yearSemester: u.year || "3rd Year",
+                year: u.year || "3rd Year",
+                rollNumber: u.rollNumber || v?.rollNumber || "RA2111003010452",
+                idCardFrontUrl: v?.idCardFrontUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+                selfieUrl: v?.selfieUrl,
+                registeredAt: u.joinedDate || u.createdAt || new Date().toISOString(),
+                verificationStatus: (v?.status === "Verified" ? "Verified" : v?.status === "Rejected" ? "Rejected" : "Pending Verification") as any,
+                role: "STUDENT",
+                status: (u.status === "BLOCKED" ? "BLOCKED" : "ACTIVE") as any,
+                profileCompletion: u.activityScore ? Math.min(100, u.activityScore + 10) : 85,
+                activityScore: u.activityScore || 80,
+                riskLevel: (u.riskLevel === "At Risk" ? "At Risk" : u.riskLevel === "Inactive" ? "Inactive" : "On Track") as any,
+                streakDays: u.streakDays || 1,
+                problemsSolved: u.problemsSolved || 0,
+                interviewsCompleted: u.interviewsCompleted || 0,
+                avgInterviewScore: u.avgInterviewScore || 80,
+                avgQuizScore: u.avgQuizScore || 85,
+                bestAtsScore: u.bestAtsScore || 80,
+                lastActive: u.lastActive || "Recently",
+              };
+            });
+
+          if (realStudents.length > 0) {
+            setStudents(realStudents);
+            saveToStorage(realStudents);
+          }
+        }
+
+        if (auditRes.status === "fulfilled" && Array.isArray(auditRes.value.data) && auditRes.value.data.length > 0) {
+          const realAudits: AdminAuditEntry[] = auditRes.value.data.map((l: any) => ({
+            id: l.id || `audit-${Math.random()}`,
+            action: (l.action?.toUpperCase() || "UPDATE") as any,
+            adminName: l.performedBy || "Administrator",
+            adminEmail: "admin@aiinterviewprep.com",
+            targetCount: 1,
+            targets: [l.title || l.contentId || "Content Item"],
+            timestamp: l.timestamp || new Date().toISOString(),
+            details: l.details || `${l.action} on ${l.title || "item"}`,
+          }));
+          setAuditLogs(realAudits);
+          localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(realAudits));
+        }
+      } catch (err) {
+        console.warn("Real admin store data sync notice:", err);
+      }
+    };
+
+    fetchRealPlatformData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const addStudent = (studentData: Partial<MasterStudent>): MasterStudent => {
     const newId = studentData.id || `usr-student-${Date.now()}`;

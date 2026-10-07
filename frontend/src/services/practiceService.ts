@@ -1,9 +1,7 @@
-import { mockPracticeTopics, mockPracticeQuestions, PracticeTopic, PracticeQuestion } from "@/mocks/practiceData";
-import { SEED_PRACTICE_TOPICS, SEED_PRACTICE_QUESTIONS } from "@/mocks/taxonomyPracticeSeed";
+import api from "@/lib/api";
+import { PracticeTopic, PracticeQuestion } from "@/mocks/practiceData";
 import { contentManagerService } from "./contentManagerService";
 import { progressService } from "./progressService";
-
-const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 const getCurrentUserId = (): string | null => {
   try {
@@ -20,56 +18,55 @@ const getCurrentUserId = (): string | null => {
 
 export const practiceService = {
   async getTopics(userId?: string | null): Promise<PracticeTopic[]> {
-    await delay(100);
     const activeUserId = userId !== undefined ? userId : getCurrentUserId();
 
-    // Combine base mocks and taxonomy seed tracks
-    const seeded: PracticeTopic[] = [...mockPracticeTopics];
-    const seenIds = new Set(seeded.map((s) => s.id));
-
-    SEED_PRACTICE_TOPICS.forEach((sp) => {
-      if (!seenIds.has(sp.id)) {
-        seeded.push(sp);
-        seenIds.add(sp.id);
+    try {
+      const res = await api.get<PracticeTopic[]>("/api/v1/practice/topics");
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data.map((t) => {
+          const completed = progressService.getCompletedQuestionsForTopic(activeUserId, t.id);
+          return {
+            ...t,
+            completedCount: completed.length,
+          };
+        });
       }
-    });
+    } catch (err) {
+      console.warn("Backend practice topics endpoint unavailable:", err);
+    }
 
     try {
       const published = await contentManagerService.getPublishedContent("PRACTICE_TOPIC");
-      const dynamicTopics: PracticeTopic[] = published.map((item) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        category: item.subject,
-        difficulty: (item.difficulty as any) || "Medium",
-        questionsCount: item.contentData?.subTopics?.reduce((acc: number, s: any) => acc + (s.questionCount || 0), 0) || 10,
-        completedCount: 0,
-        icon: "Layers",
-        tags: item.tags || [item.subject],
-      }));
-
-      dynamicTopics.forEach((dt) => {
-        if (!seenIds.has(dt.id)) {
-          seeded.unshift(dt);
-          seenIds.add(dt.id);
-        }
-      });
+      if (published.length > 0) {
+        return published.map((item) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          category: item.subject,
+          difficulty: (item.difficulty as any) || "Medium",
+          questionsCount: item.contentData?.subTopics?.reduce((acc: number, s: any) => acc + (s.questionCount || 0), 0) || 10,
+          completedCount: 0,
+          icon: "Layers",
+          tags: item.tags || [item.subject],
+        }));
+      }
     } catch (e) {
-      console.warn("Failed to merge published practice topics:", e);
+      console.warn("Failed to retrieve published practice topics:", e);
     }
 
-    // Attach dynamic per-user completedCount
-    return seeded.map((t) => {
-      const completed = progressService.getCompletedQuestionsForTopic(activeUserId, t.id);
-      return {
-        ...t,
-        completedCount: completed.length,
-      };
-    });
+    return [];
   },
 
   async getTopicById(id: string): Promise<PracticeTopic | undefined> {
-    await delay(100);
+    try {
+      const res = await api.get<PracticeTopic>(`/api/v1/practice/topics/${encodeURIComponent(id)}`);
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Backend practice topic by id unavailable:", err);
+    }
+
     if (id.startsWith("cnt-")) {
       try {
         const item = await contentManagerService.getContentById(id);
@@ -88,15 +85,21 @@ export const practiceService = {
         console.warn("Failed to load dynamic practice topic by id", id);
       }
     }
-    const foundMock = mockPracticeTopics.find((t) => t.id === id);
-    if (foundMock) return foundMock;
-    return SEED_PRACTICE_TOPICS.find((t) => t.id === id);
+
+    const topics = await this.getTopics();
+    return topics.find((t) => t.id === id);
   },
 
   async getQuestionsByTopic(topicId: string): Promise<PracticeQuestion[]> {
-    await delay(100);
-    const mockMatch = mockPracticeQuestions.filter((q) => q.topicId === topicId);
-    if (mockMatch.length > 0) return mockMatch;
-    return SEED_PRACTICE_QUESTIONS.filter((q) => q.topicId === topicId);
+    try {
+      const res = await api.get<PracticeQuestion[]>(`/api/v1/practice/topics/${encodeURIComponent(topicId)}/questions`);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Backend questions for topic unavailable:", err);
+    }
+
+    return [];
   },
 };

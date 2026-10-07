@@ -1,6 +1,6 @@
+import api from "@/lib/api";
 import axios from "axios";
-import { mockInterviewRoles, mockInterviewQuestions, InterviewRole, InterviewQuestion, InterviewFeedback } from "@/mocks/interviewData";
-import { SEED_INTERVIEW_ROLES, SEED_INTERVIEW_QUESTIONS } from "@/mocks/taxonomyInterviewSeed";
+import { InterviewRole, InterviewQuestion, InterviewFeedback } from "@/mocks/interviewData";
 import { contentManagerService } from "./contentManagerService";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -32,45 +32,46 @@ const fallbackFeedback: InterviewFeedback = {
 
 export const interviewService = {
   async getRoles(): Promise<InterviewRole[]> {
-    await delay(100);
-    const seeded = [...mockInterviewRoles];
-    const seenIds = new Set(seeded.map((s) => s.id));
-
-    SEED_INTERVIEW_ROLES.forEach((sr) => {
-      if (!seenIds.has(sr.id)) {
-        seeded.push(sr);
-        seenIds.add(sr.id);
+    try {
+      const res = await api.get<InterviewRole[]>("/api/v1/interview/roles");
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
       }
-    });
+    } catch (err) {
+      console.warn("Backend interview roles endpoint unavailable:", err);
+    }
 
     try {
       const published = await contentManagerService.getPublishedContent("MOCK_INTERVIEW");
-      const dynamicRoles: InterviewRole[] = published.map((item) => ({
-        id: item.id,
-        title: item.contentData?.targetRole || item.title,
-        category: item.contentData?.interviewType || "Technical",
-        description: item.description,
-        difficulty: "Senior",
-        totalQuestions: item.contentData?.questions?.length || 4,
-        durationMinutes: item.settings?.durationMinutes || 30,
-        icon: "Video",
-      }));
-
-      dynamicRoles.forEach((dr) => {
-        if (!seenIds.has(dr.id)) {
-          seeded.unshift(dr);
-          seenIds.add(dr.id);
-        }
-      });
+      if (published.length > 0) {
+        return published.map((item) => ({
+          id: item.id,
+          title: item.contentData?.targetRole || item.title,
+          category: item.contentData?.interviewType || "Technical",
+          description: item.description,
+          difficulty: "Senior",
+          totalQuestions: item.contentData?.questions?.length || 4,
+          durationMinutes: item.settings?.durationMinutes || 30,
+          icon: "Video",
+        }));
+      }
     } catch (e) {
-      console.warn("Failed to merge published interview roles:", e);
+      console.warn("Failed to retrieve published interview roles:", e);
     }
 
-    return seeded;
+    return [];
   },
 
   async getRoleById(roleId: string): Promise<InterviewRole | undefined> {
-    await delay(100);
+    try {
+      const res = await api.get<InterviewRole>(`/api/v1/interview/roles/${encodeURIComponent(roleId)}`);
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Backend interview role by id unavailable:", err);
+    }
+
     if (roleId.startsWith("cnt-")) {
       try {
         const item = await contentManagerService.getContentById(roleId);
@@ -88,13 +89,21 @@ export const interviewService = {
         console.warn("Failed to get dynamic role by id", roleId);
       }
     }
-    const foundMock = mockInterviewRoles.find((r) => r.id === roleId);
-    if (foundMock) return foundMock;
-    return SEED_INTERVIEW_ROLES.find((r) => r.id === roleId);
+
+    const roles = await this.getRoles();
+    return roles.find((r) => r.id === roleId);
   },
 
   async getQuestions(roleId: string): Promise<InterviewQuestion[]> {
-    await delay(100);
+    try {
+      const res = await api.get<InterviewQuestion[]>(`/api/v1/interview/roles/${encodeURIComponent(roleId)}/questions`);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Backend questions for role unavailable:", err);
+    }
+
     if (roleId.startsWith("cnt-")) {
       try {
         const item = await contentManagerService.getContentById(roleId);
@@ -113,12 +122,7 @@ export const interviewService = {
         console.warn("Failed to load questions for dynamic interview role", roleId);
       }
     }
-    if (mockInterviewQuestions[roleId]) {
-      return mockInterviewQuestions[roleId];
-    }
-    if (SEED_INTERVIEW_QUESTIONS[roleId]) {
-      return SEED_INTERVIEW_QUESTIONS[roleId];
-    }
+
     return [
       {
         id: "q-default-1",
@@ -161,8 +165,19 @@ export const interviewService = {
     };
   },
 
-  async getFeedback(sessionId: string): Promise<InterviewFeedback> {
-    await delay(400);
+  async getSessionFeedback(sessionId: string): Promise<InterviewFeedback> {
+    const AI_URL = import.meta.env.VITE_AI_SERVICE_URL || "http://127.0.0.1:8000";
+
+    try {
+      const response = await axios.get(`${AI_URL}/api/ai/interview/feedback/${sessionId}`);
+      if (response.data) {
+        return response.data;
+      }
+    } catch (err) {
+      console.warn("Could not retrieve dynamic feedback from AI service, using structured fallback", err);
+    }
+
+    await delay(1200);
     return {
       ...fallbackFeedback,
       sessionId,
@@ -170,21 +185,7 @@ export const interviewService = {
     };
   },
 
-  async getSessionFeedback(roleId: string, scores: number[]): Promise<InterviewFeedback> {
-    await delay(600);
-    const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 78;
-
-    return {
-      ...fallbackFeedback,
-      sessionId: `sess-${Date.now()}`,
-      overallScore: avg,
-      scores: {
-        technicalAccuracy: Math.min(100, avg + 4),
-        communicationClarity: Math.min(100, avg + 2),
-        problemSolving: avg,
-        confidence: Math.min(100, avg + 1),
-      },
-      date: new Date().toLocaleDateString(),
-    };
+  async getFeedback(sessionId: string): Promise<InterviewFeedback> {
+    return this.getSessionFeedback(sessionId);
   },
 };

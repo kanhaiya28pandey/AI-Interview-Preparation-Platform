@@ -80,6 +80,7 @@ public class SecurityConfig {
                                 "/api/v1/articles/**",
                                 "/api/v1/practice/**",
                                 "/api/v1/leaderboard/**",
+                                "/api/v1/interview/roles/**",
                                 "/api/v1/quiz/topics/**",
                                 "/api/v1/quizzes/topics/**"
                         ).permitAll()

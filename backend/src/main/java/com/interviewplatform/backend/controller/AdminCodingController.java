@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 
 @RestController
-@RequestMapping({"/api/v1/admin/coding-problems", "/api/admin/coding-problems"})
+@RequestMapping({"/api/v1/admin/coding-problems", "/api/admin/coding-problems", "/api/v1/admin/coding-tests", "/api/admin/coding-tests"})
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminCodingController {
 

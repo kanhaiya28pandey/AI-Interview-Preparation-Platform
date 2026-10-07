@@ -169,7 +169,22 @@ export const resumeService = {
   },
 
   async getAdminAnalytics(): Promise<AdminResumeAnalytics> {
-    await delay(100);
+    try {
+      const res = await axios.get<AdminResumeAnalytics>(
+        `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8080"}/api/v1/admin/resume-analytics`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("ai_interview_prep_token") || "demo-admin-test-token"}`,
+          },
+        }
+      );
+      if (res.data) {
+        return res.data;
+      }
+    } catch (err) {
+      console.warn("Backend resume analytics endpoint failed:", err);
+    }
     return mockAdminResumeAnalytics;
   },
 };
+
