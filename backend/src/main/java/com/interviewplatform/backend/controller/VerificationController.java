@@ -28,10 +28,12 @@ public class VerificationController {
 
     private final VerificationService verificationService;
     private final FileStorageService fileStorageService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public VerificationController(VerificationService verificationService, FileStorageService fileStorageService) {
+    public VerificationController(VerificationService verificationService, FileStorageService fileStorageService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.verificationService = verificationService;
         this.fileStorageService = fileStorageService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/status")
@@ -64,6 +66,18 @@ public class VerificationController {
     ) {
         String authEmail = authentication != null ? authentication.getName() : null;
         Verification saved = verificationService.submitVerification(authEmail, request);
+        try {
+            String studentName = saved.getStudentName() != null ? saved.getStudentName() : "Student";
+            String college = saved.getCollegeName() != null ? saved.getCollegeName() : "Campus";
+            notificationService.notifyAdmins(
+                    "verification",
+                    "New Verification Request: " + studentName,
+                    studentName + " from " + college + " (" + saved.getRollNumber() + ") submitted student verification documents for review.",
+                    "/admin/verifications",
+                    "warning"
+            );
+        } catch (Exception ignored) {
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 }

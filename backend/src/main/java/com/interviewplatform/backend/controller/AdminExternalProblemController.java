@@ -25,9 +25,11 @@ import com.interviewplatform.backend.service.ExternalProblemFetchService;
 public class AdminExternalProblemController {
 
     private final ExternalProblemFetchService fetchService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public AdminExternalProblemController(ExternalProblemFetchService fetchService) {
+    public AdminExternalProblemController(ExternalProblemFetchService fetchService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.fetchService = fetchService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/search")
@@ -45,6 +47,16 @@ public class AdminExternalProblemController {
     @PostMapping("/import")
     public ResponseEntity<CodingProblem> importExternalProblem(@RequestBody ExternalProblemImportRequest request) {
         CodingProblem imported = fetchService.importProblem(request);
+        try {
+            notificationService.notifyStudents(
+                    "coding",
+                    "New Challenge Added: " + (imported.getTitle() != null ? imported.getTitle() : request.getTitle()),
+                    "Admin added a new " + (imported.getDifficulty() != null ? imported.getDifficulty() : "coding") + " problem to the Question Bank. Jump in and test your algorithm!",
+                    "/coding",
+                    "info"
+            );
+        } catch (Exception ignored) {
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(imported);
     }
 

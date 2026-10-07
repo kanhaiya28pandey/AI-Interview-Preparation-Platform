@@ -21,9 +21,11 @@ import com.interviewplatform.backend.service.SupportTicketService;
 public class AdminSupportTicketController {
 
     private final SupportTicketService supportTicketService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public AdminSupportTicketController(SupportTicketService supportTicketService) {
+    public AdminSupportTicketController(SupportTicketService supportTicketService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.supportTicketService = supportTicketService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -35,6 +37,20 @@ public class AdminSupportTicketController {
     public ResponseEntity<SupportTicket> updateStatus(@PathVariable String id,
                                                       @RequestBody Map<String, String> body) {
         String status = body.getOrDefault("status", "Open");
-        return ResponseEntity.ok(supportTicketService.updateTicketStatus(id, status));
+        SupportTicket updated = supportTicketService.updateTicketStatus(id, status);
+        if (updated != null && updated.getUserId() != null) {
+            try {
+                notificationService.notifyUser(
+                        updated.getUserId(),
+                        "support",
+                        "Support Ticket " + status + ": " + updated.getSubject(),
+                        "Your support query is now marked as '" + status + "'. Click to review details in Help Center.",
+                        "/help",
+                        "Resolved".equalsIgnoreCase(status) ? "success" : "info"
+                );
+            } catch (Exception ignored) {
+            }
+        }
+        return ResponseEntity.ok(updated);
     }
 }

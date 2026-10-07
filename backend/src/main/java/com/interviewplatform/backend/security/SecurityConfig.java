@@ -70,7 +70,9 @@ public class SecurityConfig {
                                 "/api/v1/admin/coding-import/**",
                                 "/api/admin/coding-import/**",
                                 "/api/v1/coding-import/**",
-                                "/api/coding-import/**"
+                                "/api/coding-import/**",
+                                "/api/v1/notifications/**",
+                                "/api/notifications/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/content/**",

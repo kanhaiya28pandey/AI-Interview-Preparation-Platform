@@ -39,10 +39,12 @@ public class AdminContentController {
 
     private final ContentItemRepository contentItemRepository;
     private final ContentAuditLogRepository auditLogRepository;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public AdminContentController(ContentItemRepository contentItemRepository, ContentAuditLogRepository auditLogRepository) {
+    public AdminContentController(ContentItemRepository contentItemRepository, ContentAuditLogRepository auditLogRepository, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.contentItemRepository = contentItemRepository;
         this.auditLogRepository = auditLogRepository;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/summary")
@@ -167,6 +169,10 @@ public class AdminContentController {
 
         recordAuditLog(saved.getId(), saved.getTitle(), saved.getType(), "CREATE",
                 item.getCreatedBy(), "Created content item: " + saved.getTitle());
+
+        if ("Published".equalsIgnoreCase(saved.getStatus())) {
+            broadcastPublishedNotification(saved);
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
@@ -469,7 +475,49 @@ public class AdminContentController {
                 authentication != null ? authentication.getName() : "Admin",
                 "Changed status to " + newStatus);
 
+        if ("Published".equalsIgnoreCase(newStatus)) {
+            broadcastPublishedNotification(saved);
+        }
+
         return ResponseEntity.ok(saved);
+    }
+
+    private void broadcastPublishedNotification(ContentItem item) {
+        if (item == null || item.getTitle() == null) return;
+        try {
+            String type = item.getType() != null ? item.getType().toUpperCase() : "GENERAL";
+            String notifType = "content";
+            String link = "/dashboard";
+            String title = "New Content Published: " + item.getTitle();
+            String message = item.getDescription() != null && !item.getDescription().isBlank()
+                    ? item.getDescription()
+                    : "Admin has published a new test / assessment for your practice.";
+
+            if (type.contains("CONTEST") || type.contains("CODING_TEST") || type.contains("CODING_PROBLEM")) {
+                notifType = "coding";
+                link = "/coding";
+                title = "New Coding Contest / Challenge: " + item.getTitle();
+                message = "A new live coding benchmark is now open for students. Test your skills now!";
+            } else if (type.contains("QUIZ") || type.contains("MOCK_TEST")) {
+                notifType = "quiz";
+                link = "/quiz";
+                title = "New Quiz / Mock Test Available: " + item.getTitle();
+                message = "New assessment added to Quiz Arena. Put your skills to the test!";
+            } else if (type.contains("INTERVIEW")) {
+                notifType = "interview";
+                link = "/mock-interview";
+                title = "New AI Mock Interview Track: " + item.getTitle();
+                message = "Practice role-specific mock questions with our real-time AI evaluator.";
+            } else if (type.contains("ARTICLE")) {
+                notifType = "content";
+                link = "/articles";
+                title = "New Preparation Article: " + item.getTitle();
+                message = "Read newly released interview preparation insights and guide.";
+            }
+
+            notificationService.notifyStudents(notifType, title, message, link, "info");
+        } catch (Exception ignored) {
+        }
     }
 
     private void recordAuditLog(String contentId, String title, String type, String action, String user, String details) {

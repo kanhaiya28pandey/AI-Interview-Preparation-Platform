@@ -28,9 +28,11 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 public class AdminVerificationController {
 
     private final VerificationService verificationService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public AdminVerificationController(VerificationService verificationService) {
+    public AdminVerificationController(VerificationService verificationService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.verificationService = verificationService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -47,6 +49,22 @@ public class AdminVerificationController {
             @Valid @RequestBody ReviewVerificationRequest request
     ) {
         Verification reviewed = verificationService.reviewVerification(verificationId, request);
+        if (reviewed != null && reviewed.getUserId() != null) {
+            try {
+                boolean isVerified = "Verified".equalsIgnoreCase(reviewed.getStatus());
+                notificationService.notifyUser(
+                        reviewed.getUserId(),
+                        "verification",
+                        "Identity Verification " + reviewed.getStatus(),
+                        isVerified
+                                ? "Congratulations! Your college ID has been verified. All pro features and verified placement tracks are now unlocked."
+                                : "Your verification could not be approved. Reason: " + (request.getRejectionNotes() != null ? request.getRejectionNotes() : "Document details mismatch") + ". Please re-upload your ID.",
+                        "/verify-identity",
+                        isVerified ? "success" : "danger"
+                );
+            } catch (Exception ignored) {
+            }
+        }
         return ResponseEntity.ok(reviewed);
     }
 

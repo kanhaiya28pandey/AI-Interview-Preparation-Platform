@@ -53,7 +53,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   isSidebarCollapsed = false,
   onToggleSidebarCollapse,
 }) => {
-  const { user, logout, isDemoMode } = useAuth();
+  const { user, logout, isDemoMode, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickHelp, setShowQuickHelp] = useState(false);
@@ -238,7 +238,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                   type="button"
                   onClick={() => {
                     setShowQuickHelp(false);
-                    navigate("/help");
+                    navigate(isAdmin() ? "/admin/help" : "/help");
                   }}
                   className="text-[11px] font-mono text-cyan-400 hover:underline flex items-center gap-1 font-semibold"
                 >
@@ -266,7 +266,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                       key={faq.id}
                       onClick={() => {
                         setShowQuickHelp(false);
-                        navigate(`/help?faq=${faq.id}`);
+                        navigate(isAdmin() ? `/admin/help?faq=${faq.id}` : `/help?faq=${faq.id}`);
                       }}
                       className="p-2.5 bg-surface-raised border border-border rounded-lg hover:border-cyan-400/40 cursor-pointer transition-colors space-y-1 text-left"
                     >
@@ -288,7 +288,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                 size="sm"
                 onClick={() => {
                   setShowQuickHelp(false);
-                  navigate("/help");
+                  navigate(isAdmin() ? "/admin/help" : "/help");
                 }}
                 className="w-full text-xs font-mono gap-1"
               >
@@ -438,7 +438,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 
         {/* User Profile Avatar Link */}
         <NavLink
-          to="/profile"
+          to={isAdmin() ? "/admin/settings" : "/profile"}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity pl-1"
           title={`Logged in as ${user?.name || "User"} (${user?.role || "STUDENT"})`}
         >

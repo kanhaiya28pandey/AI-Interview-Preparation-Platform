@@ -27,10 +27,12 @@ public class AdminInterviewController {
 
     private final InterviewService interviewService;
     private final AiInterviewService aiInterviewService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public AdminInterviewController(InterviewService interviewService, AiInterviewService aiInterviewService) {
+    public AdminInterviewController(InterviewService interviewService, AiInterviewService aiInterviewService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.interviewService = interviewService;
         this.aiInterviewService = aiInterviewService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -42,6 +44,16 @@ public class AdminInterviewController {
     @PostMapping
     public ResponseEntity<InterviewRole> saveMockInterviewTrack(@RequestBody InterviewRole role) {
         InterviewRole saved = interviewService.saveRole(role);
+        try {
+            notificationService.notifyStudents(
+                    "interview",
+                    "New AI Mock Interview Track: " + saved.getTitle(),
+                    "Practice targeted questions for " + saved.getCategory() + " (" + saved.getDifficulty() + ") with instant AI voice & textual evaluation.",
+                    "/mock-interview",
+                    "info"
+            );
+        } catch (Exception ignored) {
+        }
         return ResponseEntity.ok(saved);
     }
 
