@@ -12,13 +12,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.interviewplatform.backend.model.AdminCodingTest;
 import com.interviewplatform.backend.model.Article;
 import com.interviewplatform.backend.model.ArticleAuthor;
 import com.interviewplatform.backend.model.CodingProblem;
 import com.interviewplatform.backend.model.InterviewQuestion;
 import com.interviewplatform.backend.model.InterviewRole;
-import com.interviewplatform.backend.model.TopicConfig;
 import com.interviewplatform.backend.model.PracticeQuestion;
 import com.interviewplatform.backend.model.PracticeTopic;
 import com.interviewplatform.backend.model.ProblemExample;
@@ -30,7 +28,6 @@ import com.interviewplatform.backend.model.TestCase;
 import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.model.Verification;
-import com.interviewplatform.backend.repository.AdminCodingTestRepository;
 import com.interviewplatform.backend.repository.ArticleRepository;
 import com.interviewplatform.backend.repository.CodingProblemRepository;
 import com.interviewplatform.backend.repository.InterviewQuestionRepository;
@@ -63,7 +60,6 @@ public class DatabaseInitializer {
             PracticeQuestionRepository practiceQuestionRepository,
             ArticleRepository articleRepository,
             com.interviewplatform.backend.repository.SupportTicketRepository supportTicketRepository,
-            AdminCodingTestRepository adminCodingTestRepository,
             PasswordEncoder passwordEncoder
     ) {
         return args -> {
@@ -340,42 +336,6 @@ public class DatabaseInitializer {
                     codingProblemRepository.save(cmw);
                 }
 
-                // Seed Admin Coding Tests if empty
-                if (adminCodingTestRepository.count() == 0) {
-                    AdminCodingTest t1 = new AdminCodingTest();
-                    t1.setId("test-dsa-01");
-                    t1.setTitle("DSA Core Algorithms Assessment");
-                    t1.setDomain("Data Structures & Algorithms");
-                    t1.setDifficulty("Medium");
-                    t1.setDurationMinutes(60);
-                    t1.setTotalMarks(100);
-                    t1.setPassingMarks(60);
-                    t1.setStatus("ACTIVE");
-                    t1.setCreatedAt("2026-09-20");
-                    t1.setTopics(List.of(
-                            new TopicConfig("Arrays & Hashing", 1, 30),
-                            new TopicConfig("Stacks & Queues", 1, 35),
-                            new TopicConfig("Two Pointers", 1, 35)
-                    ));
-
-                    AdminCodingTest t2 = new AdminCodingTest();
-                    t2.setId("test-mern-02");
-                    t2.setTitle("Full-Stack JavaScript Coding Challenge");
-                    t2.setDomain("Web Development");
-                    t2.setDifficulty("Easy");
-                    t2.setDurationMinutes(45);
-                    t2.setTotalMarks(100);
-                    t2.setPassingMarks(50);
-                    t2.setStatus("ACTIVE");
-                    t2.setCreatedAt("2026-09-25");
-                    t2.setTopics(List.of(
-                            new TopicConfig("JavaScript Basics & ES6", 2, 50),
-                            new TopicConfig("Async & Promises", 1, 50)
-                    ));
-
-                    adminCodingTestRepository.saveAll(List.of(t1, t2));
-                    log.info("Default Admin Coding Tests seeded");
-                }
 
                 // 7. Seed Quiz Topics & Questions if empty
                 if (quizTopicRepository.count() == 0) {
