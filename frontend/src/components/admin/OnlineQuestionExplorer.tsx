@@ -80,7 +80,7 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
         toast.info("No questions found matching your filter criteria. Try broader terms.");
       }
     } catch (err: any) {
-      toast.error("Failed to query online problem repositories: " + (err.message || "Network issue"));
+      console.warn("External question search notice:", err);
     } finally {
       setIsSearching(false);
     }

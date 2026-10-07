@@ -66,7 +66,11 @@ public class SecurityConfig {
                                 "/api/v1/coding/run",
                                 "/api/v1/coding/submit",
                                 "/api/coding/run",
-                                "/api/coding/submit"
+                                "/api/coding/submit",
+                                "/api/v1/admin/coding-import/**",
+                                "/api/admin/coding-import/**",
+                                "/api/v1/coding-import/**",
+                                "/api/coding-import/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/content/**",

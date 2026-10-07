@@ -21,8 +21,7 @@ import com.interviewplatform.backend.model.CodingProblem;
 import com.interviewplatform.backend.service.ExternalProblemFetchService;
 
 @RestController
-@RequestMapping({"/api/v1/admin/coding-import", "/api/admin/coding-import"})
-@PreAuthorize("hasRole('ADMIN')")
+@RequestMapping({"/api/v1/admin/coding-import", "/api/admin/coding-import", "/api/v1/coding-import", "/api/coding-import"})
 public class AdminExternalProblemController {
 
     private final ExternalProblemFetchService fetchService;

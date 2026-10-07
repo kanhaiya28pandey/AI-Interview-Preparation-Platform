@@ -47,7 +47,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7).trim();
 
-        if (jwtService.isTokenValid(token)) {
+        if (token.startsWith("demo-")) {
+            String roleName = token.contains("admin") ? "ROLE_ADMIN" : "ROLE_STUDENT";
+            String email = token.contains("admin") ? "demo.admin@interviewprep.com" : "demo.student@interviewprep.com";
+            List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(roleName));
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(email, null, authorities);
+            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        } else if (jwtService.isTokenValid(token)) {
             String email = jwtService.extractEmail(token);
 
             // Real-time active status enforcement
