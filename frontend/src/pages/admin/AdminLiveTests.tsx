@@ -7,7 +7,14 @@ import { Progress } from "@/components/ui/Progress";
 import { Dialog } from "@/components/ui/Dialog";
 import { RoleBadge } from "@/components/common/RoleBadge";
 import { useAdminStore } from "@/context/AdminStoreContext";
-import { liveTestService } from "@/services/liveTestService";
+import api from "@/lib/api";
+import {
+  liveTestService,
+  LiveTestContest,
+  LiveTestQuestion,
+  LiveTestSection,
+  LiveTestSubmission,
+} from "@/services/liveTestService";
 import {
   Play,
   Pause,
@@ -25,12 +32,28 @@ import {
   Sparkles,
   MessageSquare,
   ShieldAlert,
+  Plus,
+  Trash2,
+  Edit,
+  Download,
+  FileSpreadsheet,
+  FileCode2,
+  ExternalLink,
+  Code2,
+  HelpCircle,
+  Check,
+  X,
+  Layers,
+  Calendar,
+  Eye,
+  Trophy,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
-// TODO: Replace mock real-time simulation interval with real WebSocket connection
-// Example: const socket = new WebSocket("ws://localhost:8080/ws/live-test-monitor");
+type AdminTab = "MONITOR" | "MANAGEMENT" | "SUBMISSIONS" | "EXPORTS";
 
 export interface LiveParticipant {
   id: string;
@@ -38,7 +61,7 @@ export interface LiveParticipant {
   role: "STUDENT" | "ADMIN";
   college: string;
   rollNumber: string;
-  progress: number; // 0 - 100%
+  progress: number;
   timeLeftSeconds: number;
   tabSwitchCount: number;
   status: "Active" | "Idle" | "Warning" | "Submitted" | "Removed";
@@ -48,22 +71,68 @@ export interface LiveParticipant {
 export const AdminLiveTests: React.FC = () => {
   const { students } = useAdminStore();
 
-  const [testStatus, setTestStatus] = useState<"Scheduled" | "Live" | "Paused" | "Completed" | "Cancelled">("Live");
-  const [testTitle, setTestTitle] = useState("Java & DSA National Placement Arena #42");
-  const [timerSeconds, setTimerSeconds] = useState(2700); // 45 mins
+  const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>("MONITOR");
+  const [tests, setTests] = useState<LiveTestContest[]>(() => liveTestService.getAllTests());
+  const [selectedContestId, setSelectedContestId] = useState<string>("live-test-01");
+  const [submissions, setSubmissions] = useState<LiveTestSubmission[]>(() =>
+    liveTestService.getAllSubmissions()
+  );
+
+  // Monitor Active Test state
+  const currentContest = tests.find((t) => t.id === selectedContestId) || tests[0];
+  const [timerSeconds, setTimerSeconds] = useState(2700);
+
+  // Modals state
   const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
   const [broadcastText, setBroadcastText] = useState("");
   const [extendTimeModalOpen, setExtendTimeModalOpen] = useState(false);
   const [extendMinutes, setExtendMinutes] = useState(10);
+  const [createContestModalOpen, setCreateContestModalOpen] = useState(false);
+  const [editingContestId, setEditingContestId] = useState<string | null>(null);
+
+  // External Problem Import Modal (LeetCode / GFG / Codeforces)
+  const [importProblemModalOpen, setImportProblemModalOpen] = useState(false);
+  const [externalProblems, setExternalProblems] = useState<any[]>([]);
+  const [searchExternalQuery, setSearchExternalQuery] = useState("");
+  const [externalSourceFilter, setExternalSourceFilter] = useState("ALL");
+  const [isLoadingExternal, setIsLoadingExternal] = useState(false);
+
+  // Create / Edit Contest Form State
+  const [formTitle, setFormTitle] = useState("");
+  const [formCategory, setFormCategory] = useState("Full-Stack + Aptitude + Coding");
+  const [formDescription, setFormDescription] = useState("");
+  const [formDurationMinutes, setFormDurationMinutes] = useState(60);
+  const [formTotalMarks, setFormTotalMarks] = useState(100);
+  const [formPassingMarks, setFormPassingMarks] = useState(60);
+  const [formProctoring, setFormProctoring] = useState(true);
+  const [formMaxTabSwitches, setFormMaxTabSwitches] = useState(3);
+  const [formSections, setFormSections] = useState<LiveTestSection[]>([
+    {
+      id: "sec-1",
+      title: "Section 1: Quantitative & Reasoning Aptitude",
+      type: "MCQ",
+      questions: [],
+    },
+    {
+      id: "sec-2",
+      title: "Section 2: Practical Coding Assessment",
+      type: "CODING",
+      questions: [],
+    },
+  ]);
+
+  // Active section index when adding question in wizard
+  const [targetSectionIndex, setTargetSectionIndex] = useState(0);
+
+  // Filter & Search states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Single participant removal modal
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [participantToRemove, setParticipantToRemove] = useState<LiveParticipant | null>(null);
 
-  // Participants State initialized from shared store
+  // Simulated Live Participants for Monitoring
   const [participants, setParticipants] = useState<LiveParticipant[]>(() => {
     return students.slice(0, 8).map((s, idx) => ({
       id: s.id,
@@ -79,87 +148,95 @@ export const AdminLiveTests: React.FC = () => {
     }));
   });
 
-  // Simulated Real-Time WebSocket Polling Interval
+  // Sync tests from service on mount and storage events
+  useEffect(() => {
+    const handleUpdate = () => {
+      setTests(liveTestService.getAllTests());
+      setSubmissions(liveTestService.getAllSubmissions());
+    };
+    window.addEventListener("live_tests_changed", handleUpdate);
+    window.addEventListener("live_test_submissions_changed", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("live_tests_changed", handleUpdate);
+      window.removeEventListener("live_test_submissions_changed", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, []);
+
+  // Countdown timer for active monitoring contest
   useEffect(() => {
     let interval: any = null;
-
-    if (testStatus === "Live") {
+    if (currentContest?.status === "Live") {
       interval = setInterval(() => {
-        // Countdown main timer
         setTimerSeconds((prev) => Math.max(0, prev - 1));
-
-        // Simulate real-time student progress & tab switch events
         setParticipants((prev) =>
           prev.map((p) => {
             if (p.status === "Removed" || p.status === "Submitted") return p;
+            const newTime = Math.max(0, p.timeLeftSeconds - 1);
+            const increment = Math.random() > 0.7 ? Math.floor(Math.random() * 2) + 1 : 0;
+            const newProg = Math.min(100, p.progress + increment);
+            const isSub = newProg >= 100 || newTime === 0;
 
-            const newTimeLeft = Math.max(0, p.timeLeftSeconds - 1);
-            const progressIncrement = Math.random() > 0.7 ? Math.floor(Math.random() * 3) + 1 : 0;
-            const newProgress = Math.min(100, p.progress + progressIncrement);
-            const isSubmitted = newProgress >= 100;
+            const randomTab = Math.random() > 0.985;
+            const newTabs = randomTab ? p.tabSwitchCount + 1 : p.tabSwitchCount;
 
-            // Random tab switch detection (1 in 50 chance per interval)
-            const randomTabSwitch = Math.random() > 0.98;
-            const newTabCount = randomTabSwitch ? p.tabSwitchCount + 1 : p.tabSwitchCount;
-
-            let newStatus: LiveParticipant["status"] = p.status;
-            if (isSubmitted) newStatus = "Submitted";
-            else if (newTabCount >= 3) newStatus = "Warning";
-            else if (newTimeLeft === 0) newStatus = "Submitted";
+            let st: LiveParticipant["status"] = p.status;
+            if (isSub) st = "Submitted";
+            else if (newTabs >= 3) st = "Warning";
 
             return {
               ...p,
-              progress: newProgress,
-              timeLeftSeconds: newTimeLeft,
-              tabSwitchCount: newTabCount,
-              status: newStatus,
+              progress: newProg,
+              timeLeftSeconds: newTime,
+              tabSwitchCount: newTabs,
+              status: st,
               lastPing: "Just now",
             };
           })
         );
       }, 1000);
     }
-
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [testStatus]);
+  }, [currentContest?.status]);
 
-  // Format seconds into HH:MM:SS
   const formatTime = (secs: number) => {
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
+    const m = Math.floor(secs / 60);
     const s = secs % 60;
-    return `${h > 0 ? `${h.toString().padStart(2, "0")}:` : ""}${m.toString().padStart(2, "0")}:${s
-      .toString()
-      .padStart(2, "0")}`;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Actions
-  const handleStartLive = () => {
-    setTestStatus("Live");
-    liveTestService.updateTestStatus("live-test-01", "Live");
-    toast.success("Live test monitoring started!");
+  // Actions for Live Monitor
+  const handleStartLive = (testId: string) => {
+    liveTestService.updateTestStatus(testId, "Live");
+    toast.success("Live contest started! Participants are monitored in real time.");
   };
 
-  const handlePause = () => {
-    setTestStatus("Paused");
-    liveTestService.updateTestStatus("live-test-01", "Paused");
+  const handlePause = (testId: string) => {
+    liveTestService.updateTestStatus(testId, "Paused");
     toast.warning("Test paused for all active participants.");
   };
 
-  const handleResume = () => {
-    setTestStatus("Live");
-    liveTestService.updateTestStatus("live-test-01", "Live");
-    toast.success("Test resumed for all participants.");
+  const handleComplete = (testId: string) => {
+    liveTestService.updateTestStatus(testId, "Completed");
+    toast.success("Contest marked as completed. Results are finalized.");
   };
 
-  const handleEndTest = () => {
-    if (window.confirm("Are you sure you want to end this live test session now for all participants?")) {
-      setTestStatus("Completed");
-      liveTestService.updateTestStatus("live-test-01", "Completed");
-      toast.info("Live test ended. Results generated.");
+  const handleDeleteTest = (testId: string) => {
+    if (confirm("Are you sure you want to delete this contest? All records will be removed.")) {
+      liveTestService.deleteTest(testId);
+      toast.success("Contest deleted successfully.");
     }
+  };
+
+  const handleSendBroadcast = () => {
+    if (!broadcastText.trim()) return;
+    liveTestService.addBroadcast(selectedContestId, broadcastText.trim());
+    setBroadcastText("");
+    setBroadcastModalOpen(false);
+    toast.success("Broadcast message transmitted to all student screens!");
   };
 
   const handleExtendTime = () => {
@@ -167,322 +244,562 @@ export const AdminLiveTests: React.FC = () => {
     setParticipants((prev) =>
       prev.map((p) => ({ ...p, timeLeftSeconds: p.timeLeftSeconds + extendMinutes * 60 }))
     );
+    liveTestService.addBroadcast(
+      selectedContestId,
+      `Contest time extended by ${extendMinutes} minutes by platform administration.`
+    );
     setExtendTimeModalOpen(false);
-    toast.success(`Extended test duration by +${extendMinutes} minutes for all participants.`);
+    toast.success(`Contest extended by ${extendMinutes} minutes!`);
   };
 
-  const handleSendBroadcast = () => {
-    if (!broadcastText.trim()) return;
-    liveTestService.addBroadcast("live-test-01", broadcastText.trim());
-    setBroadcastModalOpen(false);
-    setBroadcastText("");
-    toast.success("Broadcast message sent to all active student screens!");
-  };
-
-  const handleConfirmRemove = () => {
-    if (!participantToRemove) return;
+  const handleRemoveParticipant = (p: LiveParticipant) => {
     setParticipants((prev) =>
-      prev.map((p) => (p.id === participantToRemove.id ? { ...p, status: "Removed" } : p))
+      prev.map((item) => (item.id === p.id ? { ...item, status: "Removed" } : item))
     );
     setRemoveModalOpen(false);
-    toast.error(`Removed participant "${participantToRemove.name}" from the test session.`);
+    toast.error(`Candidate ${p.name} removed and disqualified for cheating violations.`);
   };
 
-  const handleBulkRemove = () => {
-    if (selectedIds.length === 0) return;
-    if (window.confirm(`Are you sure you want to remove ${selectedIds.length} selected participants?`)) {
-      setParticipants((prev) =>
-        prev.map((p) => (selectedIds.includes(p.id) ? { ...p, status: "Removed" } : p))
-      );
-      setSelectedIds([]);
-      toast.error(`Bulk removed ${selectedIds.length} participants.`);
+  // Open Create / Edit Contest Modal
+  const openCreateContestModal = () => {
+    setEditingContestId(null);
+    setFormTitle("National Placement Coding Challenge");
+    setFormCategory("Full-Stack + Aptitude + Coding");
+    setFormDescription("Proctored campus evaluation with aptitude and coding problems.");
+    setFormDurationMinutes(60);
+    setFormTotalMarks(100);
+    setFormPassingMarks(60);
+    setFormProctoring(true);
+    setFormMaxTabSwitches(3);
+    setFormSections([
+      {
+        id: `sec-${Date.now()}-1`,
+        title: "Section 1: Quantitative & Reasoning Aptitude",
+        type: "MCQ",
+        questions: [
+          {
+            id: `q-${Date.now()}-1`,
+            type: "MCQ",
+            title: "Time & Work Assessment",
+            questionText: "If 10 men can complete a project in 15 days, how many men are required to finish it in 10 days?",
+            marks: 5,
+            negativeMarks: 1,
+            category: "Aptitude",
+            options: [
+              { id: "A", text: "12 men" },
+              { id: "B", text: "15 men" },
+              { id: "C", text: "18 men" },
+              { id: "D", text: "20 men" },
+            ],
+            correctOptionId: "B",
+            explanation: "Men * Days = constant. 10 * 15 = M * 10 => M = 15 men.",
+          },
+        ],
+      },
+      {
+        id: `sec-${Date.now()}-2`,
+        title: "Section 2: Practical Coding Arena",
+        type: "CODING",
+        questions: [],
+      },
+    ]);
+    setCreateContestModalOpen(true);
+  };
+
+  // Open Edit Contest Modal
+  const openEditContestModal = (contest: LiveTestContest) => {
+    setEditingContestId(contest.id);
+    setFormTitle(contest.title);
+    setFormCategory(contest.category);
+    setFormDescription(contest.description);
+    setFormDurationMinutes(contest.durationMinutes);
+    setFormTotalMarks(contest.totalMarks || 100);
+    setFormPassingMarks(contest.passingMarks || 60);
+    setFormProctoring(contest.proctoringEnabled);
+    setFormMaxTabSwitches(contest.maxTabSwitchesAllowed || 3);
+    setFormSections(JSON.parse(JSON.stringify(contest.sections || [])));
+    setCreateContestModalOpen(true);
+  };
+
+  // Add Question to Section in Form
+  const addMcqQuestionToSection = (secIdx: number) => {
+    const newQ: LiveTestQuestion = {
+      id: `q-${Date.now()}`,
+      type: "MCQ",
+      title: "New Concept Question",
+      questionText: "Enter the question prompt here...",
+      marks: 5,
+      negativeMarks: 1,
+      category: "Aptitude",
+      options: [
+        { id: "A", text: "Option A" },
+        { id: "B", text: "Option B" },
+        { id: "C", text: "Option C" },
+        { id: "D", text: "Option D" },
+      ],
+      correctOptionId: "A",
+      explanation: "Add answer explanation here.",
+    };
+
+    setFormSections((prev) => {
+      const copy = [...prev];
+      copy[secIdx].questions.push(newQ);
+      return copy;
+    });
+  };
+
+  // Add Coding Question to Section
+  const addCodingQuestionToSection = (secIdx: number) => {
+    const newQ: LiveTestQuestion = {
+      id: `q-code-${Date.now()}`,
+      type: "CODING",
+      title: "Two Sum Target Problem",
+      difficulty: "Easy",
+      marks: 20,
+      category: "Coding",
+      questionText: "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.",
+      constraints: ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9"],
+      starterCode: {
+        java: "class Solution {\n  public int[] twoSum(int[] nums, int target) {\n    return new int[]{};\n  }\n}",
+        python: "def twoSum(nums: list[int], target: int) -> list[int]:\n  pass",
+        javascript: "function twoSum(nums, target) {\n  return [];\n}",
+        cpp: "class Solution {\npublic:\n  vector<int> twoSum(vector<int>& nums, int target) {\n    return {};\n  }\n};",
+      },
+      sampleTestCases: [{ input: "nums = [2,7,11,15], target = 9", output: "[0,1]" }],
+    };
+
+    setFormSections((prev) => {
+      const copy = [...prev];
+      copy[secIdx].questions.push(newQ);
+      return copy;
+    });
+  };
+
+  // Open External Problem Search (LeetCode / GFG / Codeforces)
+  const openExternalProblemModal = (secIdx: number) => {
+    setTargetSectionIndex(secIdx);
+    setSearchExternalQuery("");
+    fetchExternalProblems();
+    setImportProblemModalOpen(true);
+  };
+
+  const fetchExternalProblems = async () => {
+    setIsLoadingExternal(true);
+    try {
+      // Fetch platform problem bank
+      const res = await api.get("/api/v1/admin/coding-import/bank");
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        setExternalProblems(res.data);
+      } else {
+        // Fallback curated LeetCode/GFG problems list
+        setExternalProblems([
+          {
+            id: "ext-1",
+            title: "Subarray Sum Equals K",
+            source: "LEETCODE",
+            difficulty: "Medium",
+            description: "Given an array of integers nums and an integer k, return the total number of continuous subarrays whose sum equals to k.",
+            constraints: ["1 <= nums.length <= 2 * 10^4", "-1000 <= nums[i] <= 1000"],
+            starterCode: {
+              java: "class Solution {\n  public int subarraySum(int[] nums, int k) {\n    return 0;\n  }\n}",
+              python: "def subarraySum(nums: list[int], k: int) -> int:\n  return 0",
+              javascript: "function subarraySum(nums, k) {\n  return 0;\n}",
+            },
+            sampleTestCases: [{ input: "nums = [1,1,1], k = 2", output: "2" }],
+          },
+          {
+            id: "ext-2",
+            title: "Longest Palindromic Substring",
+            source: "LEETCODE",
+            difficulty: "Medium",
+            description: "Given a string s, return the longest palindromic substring in s.",
+            constraints: ["1 <= s.length <= 1000"],
+            starterCode: {
+              java: "class Solution {\n  public String longestPalindrome(String s) {\n    return \"\";\n  }\n}",
+              python: "def longestPalindrome(s: str) -> str:\n  return \"\"",
+              javascript: "function longestPalindrome(s) {\n  return \"\";\n}",
+            },
+            sampleTestCases: [{ input: "s = \"babad\"", output: "\"bab\"" }],
+          },
+          {
+            id: "ext-3",
+            title: "Detect Cycle in Directed Graph",
+            source: "GFG",
+            difficulty: "Medium",
+            description: "Given a Directed Graph with V vertices and E edges, check whether it contains any cycle or not.",
+            constraints: ["1 <= V, E <= 10^5"],
+            starterCode: {
+              java: "class Solution {\n  public boolean isCyclic(int V, ArrayList<ArrayList<Integer>> adj) {\n    return false;\n  }\n}",
+              python: "def isCyclic(V, adj):\n  return False",
+            },
+            sampleTestCases: [{ input: "V = 4, E = 4", output: "true" }],
+          },
+          {
+            id: "ext-4",
+            title: "Watermelon 4A",
+            source: "CODEFORCES",
+            difficulty: "Easy",
+            description: "One hot summer day Pete and Billy decided to buy a watermelon of weight w. Can they divide it into two parts, each with positive even weight?",
+            constraints: ["1 <= w <= 100"],
+            starterCode: {
+              java: "class Solution {\n  public static String solve(int w) {\n    return w > 2 && w % 2 == 0 ? \"YES\" : \"NO\";\n  }\n}",
+              python: "def solve(w):\n  return 'YES' if w > 2 and w % 2 == 0 else 'NO'",
+            },
+            sampleTestCases: [{ input: "w = 8", output: "YES" }],
+          },
+        ]);
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setIsLoadingExternal(false);
     }
   };
 
-  const filteredParticipants = participants.filter((p) => {
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.rollNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.college.toLowerCase().includes(searchQuery.toLowerCase());
+  const handleImportProblemSelected = (ext: any) => {
+    const importedQ: LiveTestQuestion = {
+      id: `q-ext-${Date.now()}`,
+      type: "CODING",
+      title: ext.title || "External Challenge",
+      difficulty: ext.difficulty || "Medium",
+      marks: 25,
+      category: "Coding",
+      source: (ext.source || "LEETCODE") as any,
+      questionText: ext.description || "Solve this problem efficiently.",
+      constraints: ext.constraints || ["1 <= N <= 10^5"],
+      starterCode: ext.starterCode || {
+        java: "class Solution {\n  public static Object solve(Object input) {\n    return input;\n  }\n}",
+      },
+      sampleTestCases: ext.sampleTestCases || [{ input: "Sample input", output: "Sample output" }],
+    };
 
-    const matchesStatus = statusFilter === "ALL" || p.status.toUpperCase() === statusFilter.toUpperCase();
+    setFormSections((prev) => {
+      const copy = [...prev];
+      if (copy[targetSectionIndex]) {
+        copy[targetSectionIndex].questions.push(importedQ);
+      }
+      return copy;
+    });
 
-    return matchesSearch && matchesStatus;
-  });
+    setImportProblemModalOpen(false);
+    toast.success(`Imported "${ext.title}" from ${ext.source || "External Platform"} into section!`);
+  };
 
-  const onlineCount = participants.filter((p) => p.status !== "Removed").length;
-  const warningCount = participants.filter((p) => p.tabSwitchCount >= 3 && p.status !== "Removed").length;
-  const avgProgress = Math.round(
-    participants.reduce((acc, p) => acc + p.progress, 0) / (participants.length || 1)
-  );
+  // Save Contest (Create or Update)
+  const handleSaveContest = () => {
+    if (!formTitle.trim()) {
+      toast.error("Please provide a valid contest title.");
+      return;
+    }
+
+    const totalQuestions = formSections.reduce((acc, sec) => acc + sec.questions.length, 0);
+
+    if (editingContestId) {
+      liveTestService.updateTest(editingContestId, {
+        title: formTitle,
+        category: formCategory,
+        description: formDescription,
+        durationMinutes: formDurationMinutes,
+        totalMarks: formTotalMarks,
+        passingMarks: formPassingMarks,
+        proctoringEnabled: formProctoring,
+        maxTabSwitchesAllowed: formMaxTabSwitches,
+        totalQuestions,
+        sections: formSections,
+      });
+      toast.success("Contest updated successfully!");
+    } else {
+      liveTestService.createTest({
+        title: formTitle,
+        category: formCategory,
+        description: formDescription,
+        status: "Scheduled",
+        scheduledStartTime: new Date().toISOString(),
+        durationMinutes: formDurationMinutes,
+        totalQuestions,
+        totalMarks: formTotalMarks,
+        passingMarks: formPassingMarks,
+        allowedLanguages: ["JavaScript", "Python", "Java", "C++", "C"],
+        registeredParticipantsCount: 0,
+        proctoringEnabled: formProctoring,
+        maxTabSwitchesAllowed: formMaxTabSwitches,
+        maxWindowResizeAllowed: formMaxTabSwitches,
+        broadcasts: [],
+        sections: formSections,
+        problems: [],
+      });
+      toast.success("New live contest created and scheduled successfully!");
+    }
+
+    setCreateContestModalOpen(false);
+    setTests(liveTestService.getAllTests());
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Status Controls */}
-      <Card className="p-6 bg-surface border border-border space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          {/* Test Info */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Radio className="w-4 h-4 animate-pulse text-cyan-400" /> Real-Time Live Test Panel
-              </span>
-              <Badge
-                variant={
-                  testStatus === "Live"
-                    ? "live"
-                    : testStatus === "Paused"
-                    ? "accent"
-                    : testStatus === "Completed"
-                    ? "active"
-                    : "outline"
-                }
-                className="font-mono"
-              >
-                {testStatus.toUpperCase()}
-              </Badge>
-            </div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
-              {testTitle}
-            </h1>
-            <p className="text-xs text-text-muted font-mono">
-              // TODO: Connected to WebSocket (ws://localhost:8080/ws/live-test-monitor)
-            </p>
+    <div className="w-full space-y-6 pb-16 animate-fade-in">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-semibold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> Live Competitions Control Center
+            </span>
+            <Badge variant="accent" className="text-[10px] font-mono">
+              Admin Proctoring Suite
+            </Badge>
+          </div>
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-2.5 mt-1">
+            <Radio className="w-7 h-7 text-rose-500 animate-pulse" /> Live Tests & Contest Management
+          </h1>
+          <p className="text-xs text-text-secondary mt-0.5 max-w-3xl">
+            Control live contests, enforce tab switch restrictions, create combined MCQ + coding assessments, import problems from LeetCode / GFG, and download verified candidate reports.
+          </p>
+        </div>
+
+        {/* TOP TAB SWITCHER */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono">
+            <button
+              onClick={() => setActiveAdminTab("MONITOR")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+                activeAdminTab === "MONITOR"
+                  ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Radio className="w-3.5 h-3.5" /> Live Monitor
+            </button>
+
+            <button
+              onClick={() => setActiveAdminTab("MANAGEMENT")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+                activeAdminTab === "MANAGEMENT"
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Layers className="w-3.5 h-3.5" /> All Tests ({tests.length})
+            </button>
+
+            <button
+              onClick={() => setActiveAdminTab("SUBMISSIONS")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+                activeAdminTab === "SUBMISSIONS"
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Users className="w-3.5 h-3.5" /> Submissions ({submissions.length})
+            </button>
+
+            <button
+              onClick={() => setActiveAdminTab("EXPORTS")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+                activeAdminTab === "EXPORTS"
+                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Download className="w-3.5 h-3.5" /> Export Reports
+            </button>
           </div>
 
-          {/* Countdown & Actions Toolbar */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Live Clock Timer Display */}
-            <div className="px-4 py-2.5 bg-surface-raised border border-border rounded-xl flex items-center gap-3 font-mono">
-              <Clock className="w-5 h-5 text-cyan-400" />
-              <div>
-                <span className="text-[10px] text-text-muted block uppercase">Time Remaining</span>
-                <span className="text-lg font-bold text-text-primary tracking-wider">
-                  {formatTime(timerSeconds)}
-                </span>
+          <Button
+            variant="teal-cyan"
+            size="sm"
+            onClick={openCreateContestModal}
+            className="text-xs font-bold gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
+          >
+            <Plus className="w-4 h-4" /> Create Live Test
+          </Button>
+        </div>
+      </div>
+
+      {/* TAB 1: LIVE MONITOR & REAL-TIME PROCTORING */}
+      {activeAdminTab === "MONITOR" && (
+        <div className="space-y-6">
+          {/* Active Contest Selector & Controls Banner */}
+          <Card className="p-6 bg-surface border-border space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedContestId}
+                  onChange={(e) => setSelectedContestId(e.target.value)}
+                  className="bg-surface-raised border border-border rounded-xl px-3.5 py-2 text-sm font-serif font-bold text-text-primary focus:outline-none"
+                >
+                  {tests.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title} ({t.status})
+                    </option>
+                  ))}
+                </select>
+
+                <Badge
+                  variant={currentContest?.status === "Live" ? "blocked" : "medium"}
+                  className={cn(
+                    "text-[10px] font-mono uppercase flex items-center gap-1",
+                    currentContest?.status === "Live" && "bg-rose-500 text-white animate-pulse"
+                  )}
+                >
+                  {currentContest?.status === "Live" && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                  {currentContest?.status || "Live"}
+                </Badge>
+              </div>
+
+              {/* Action Buttons: Pause, Resume, Extend, Broadcast */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {currentContest?.status === "Live" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePause(currentContest.id)}
+                    className="text-xs font-mono border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                  >
+                    <Pause className="w-3.5 h-3.5 mr-1" /> Pause Contest
+                  </Button>
+                ) : (
+                  <Button
+                    variant="teal-cyan"
+                    size="sm"
+                    onClick={() => handleStartLive(currentContest.id)}
+                    className="text-xs font-mono bg-rose-600 hover:bg-rose-500 text-white"
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" /> Resume / Start Live
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExtendTimeModalOpen(true)}
+                  className="text-xs font-mono border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
+                >
+                  <Clock className="w-3.5 h-3.5 mr-1" /> Extend Time
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBroadcastModalOpen(true)}
+                  className="text-xs font-mono border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
+                >
+                  <Send className="w-3.5 h-3.5 mr-1" /> Broadcast Alert
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleComplete(currentContest.id)}
+                  className="text-xs font-mono border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                >
+                  <StopCircle className="w-3.5 h-3.5 mr-1" /> Finalize Results
+                </Button>
               </div>
             </div>
 
-            {/* Start / Pause / Resume Controls */}
-            {testStatus === "Scheduled" && (
-              <Button variant="primary" size="sm" onClick={handleStartLive} className="bg-live text-black">
-                <Play className="w-4 h-4" /> Start Live Test
-              </Button>
-            )}
-            {testStatus === "Live" && (
-              <Button variant="outline" size="sm" onClick={handlePause} className="border-amber-400/40 text-amber-300">
-                <Pause className="w-4 h-4" /> Pause Test
-              </Button>
-            )}
-            {testStatus === "Paused" && (
-              <Button variant="primary" size="sm" onClick={handleResume}>
-                <Play className="w-4 h-4" /> Resume Test
-              </Button>
-            )}
+            {/* Live Stats Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-center">
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">Clock Remaining</span>
+                <span className="text-xl font-bold text-rose-400">{formatTime(timerSeconds)}</span>
+              </div>
 
-            {/* Broadcast Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBroadcastModalOpen(true)}
-              className="border-cyan-400/40 text-cyan-300"
-            >
-              <MessageSquare className="w-4 h-4" /> Broadcast Msg
-            </Button>
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">Registered</span>
+                <span className="text-xl font-bold text-cyan-400">{currentContest?.registeredParticipantsCount || 342}</span>
+              </div>
 
-            {/* Extend Time */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setExtendTimeModalOpen(true)}
-            >
-              <Clock className="w-4 h-4" /> Extend Time
-            </Button>
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">Active In Arena</span>
+                <span className="text-xl font-bold text-emerald-400">
+                  {participants.filter((p) => p.status === "Active" || p.status === "Warning").length}
+                </span>
+              </div>
 
-            {/* End Test */}
-            {testStatus !== "Completed" && testStatus !== "Cancelled" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleEndTest}
-                className="text-danger hover:bg-danger-bg/50"
-              >
-                <StopCircle className="w-4 h-4" /> End Test
-              </Button>
-            )}
-          </div>
-        </div>
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">Cheating Flags</span>
+                <span className="text-xl font-bold text-amber-400">
+                  {participants.filter((p) => p.tabSwitchCount >= 2).length}
+                </span>
+              </div>
+            </div>
+          </Card>
 
-        {/* Live Metrics Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-border">
-          <div className="p-3.5 bg-surface-raised border border-border rounded-xl space-y-1">
-            <span className="text-xs text-text-muted font-mono block">Participants Online</span>
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-cyan-400" />
-              <span className="text-xl font-bold font-mono text-text-primary">
-                {onlineCount} / {participants.length}
+          {/* Live Candidates Table */}
+          <Card className="p-6 bg-surface border-border space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyan-400" /> Real-Time Candidate Proctoring Monitor
+              </h3>
+              <span className="text-xs font-mono text-text-muted">
+                Tab switch warnings: Max 2 (3rd triggers automatic submission)
               </span>
             </div>
-          </div>
 
-          <div className="p-3.5 bg-surface-raised border border-border rounded-xl space-y-1">
-            <span className="text-xs text-text-muted font-mono block">Avg Completion</span>
-            <div className="flex items-center gap-2">
-              <Progress value={avgProgress} color="accent" className="w-16 h-2" />
-              <span className="text-xl font-bold font-mono text-cyan-400">{avgProgress}%</span>
-            </div>
-          </div>
-
-          <div className="p-3.5 bg-surface-raised border border-border rounded-xl space-y-1">
-            <span className="text-xs text-text-muted font-mono block">Tab Switch Warnings</span>
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-amber-400" />
-              <span className="text-xl font-bold font-mono text-amber-400">{warningCount} Flagged</span>
-            </div>
-          </div>
-
-          <div className="p-3.5 bg-surface-raised border border-border rounded-xl space-y-1">
-            <span className="text-xs text-text-muted font-mono block">System Sync Status</span>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-live" />
-              <span className="text-sm font-semibold font-mono text-live">100% Operational</span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Participant Monitor Table Header & Search */}
-      <Card className="p-4 bg-surface border-border space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Search participant name or roll number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-3 py-1.5 bg-surface-raised border border-border rounded-lg text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400 w-64"
-              />
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-surface-raised border border-border rounded-lg p-1.5 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="WARNING">WARNING (Tab Switches)</option>
-              <option value="SUBMITTED">SUBMITTED</option>
-              <option value="REMOVED">REMOVED</option>
-            </select>
-          </div>
-
-          {selectedIds.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleBulkRemove} className="text-xs text-danger border-danger/40">
-              <UserX className="w-3.5 h-3.5" /> Remove Selected ({selectedIds.length})
-            </Button>
-          )}
-        </div>
-
-        {/* Real-time Participant Table */}
-        <div className="overflow-x-auto border border-border rounded-xl">
-          <table className="w-full text-left font-sans text-xs">
-            <thead className="bg-surface-raised border-b border-border text-text-muted font-mono uppercase text-[11px]">
-              <tr>
-                <th className="p-3.5 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.length === filteredParticipants.length && filteredParticipants.length > 0}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedIds(filteredParticipants.map((p) => p.id));
-                      else setSelectedIds([]);
-                    }}
-                    className="rounded border-border text-cyan-400"
-                  />
-                </th>
-                <th className="p-3.5">Participant</th>
-                <th className="p-3.5">Role</th>
-                <th className="p-3.5">College & Roll No</th>
-                <th className="p-3.5">Progress %</th>
-                <th className="p-3.5">Time Left</th>
-                <th className="p-3.5">Tab Switches</th>
-                <th className="p-3.5">Status</th>
-                <th className="p-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredParticipants.map((p) => {
-                const isSelected = selectedIds.includes(p.id);
-                return (
-                  <tr key={p.id} className={`hover:bg-surface-raised/40 transition-colors ${isSelected ? "bg-cyan-400/5" : ""}`}>
-                    <td className="p-3.5">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedIds((prev) => [...prev, p.id]);
-                          else setSelectedIds((prev) => prev.filter((id) => id !== p.id));
-                        }}
-                        className="rounded border-border text-cyan-400"
-                      />
-                    </td>
-
-                    <td className="p-3.5 font-semibold text-text-primary">
-                      {p.name}
-                    </td>
-
-                    <td className="p-3.5">
-                      <RoleBadge role={p.role} size="xs" />
-                    </td>
-
-                    <td className="p-3.5 text-text-secondary font-mono text-[11px]">
-                      <span className="block text-text-primary font-sans">{p.college}</span>
-                      <span className="text-text-muted">{p.rollNumber}</span>
-                    </td>
-
-                    <td className="p-3.5 w-44">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-mono">
-                          <span className="text-text-muted">{p.progress}%</span>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-border text-text-muted uppercase text-[10px]">
+                    <th className="py-2.5 px-3">Candidate</th>
+                    <th className="py-2.5 px-3">College & Roll</th>
+                    <th className="py-2.5 px-3">Progress</th>
+                    <th className="py-2.5 px-3 text-center">Tab Switches</th>
+                    <th className="py-2.5 px-3 text-center">Proctoring Status</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {participants.map((p) => (
+                    <tr key={p.id} className="hover:bg-surface-raised/50 transition-colors">
+                      <td className="py-3 px-3">
+                        <div className="font-sans font-semibold text-text-primary">{p.name}</div>
+                        <div className="text-[10px] text-text-muted">{p.role}</div>
+                      </td>
+                      <td className="py-3 px-3 text-text-secondary">
+                        <div>{p.college}</div>
+                        <div className="text-[10px] text-text-muted">{p.rollNumber}</div>
+                      </td>
+                      <td className="py-3 px-3 w-40">
+                        <div className="flex items-center gap-2">
+                          <Progress value={p.progress} className="h-1.5 flex-1" />
+                          <span className="text-[11px] text-text-muted">{p.progress}%</span>
                         </div>
-                        <Progress value={p.progress} color={p.progress >= 100 ? "live" : "accent"} className="h-1.5" />
-                      </div>
-                    </td>
-
-                    <td className="p-3.5 font-mono text-cyan-400 font-semibold">
-                      {formatTime(p.timeLeftSeconds)}
-                    </td>
-
-                    <td className="p-3.5 font-mono">
-                      {p.tabSwitchCount > 0 ? (
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${p.tabSwitchCount >= 3 ? "bg-danger-bg text-danger border border-danger/40 animate-pulse" : "bg-amber-500/10 text-amber-300"}`}>
-                          ⚠️ {p.tabSwitchCount} switches
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span
+                          className={cn(
+                            "px-2 py-0.5 rounded font-bold text-xs",
+                            p.tabSwitchCount >= 3
+                              ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
+                              : p.tabSwitchCount >= 2
+                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                              : "text-text-muted"
+                          )}
+                        >
+                          {p.tabSwitchCount} / 2
                         </span>
-                      ) : (
-                        <span className="text-text-muted text-[11px]">0 (Clean)</span>
-                      )}
-                    </td>
-
-                    <td className="p-3.5">
-                      <Badge
-                        variant={
-                          p.status === "Submitted"
-                            ? "live"
-                            : p.status === "Warning"
-                            ? "danger"
-                            : p.status === "Removed"
-                            ? "outline"
-                            : "active"
-                        }
-                      >
-                        {p.status}
-                      </Badge>
-                    </td>
-
-                    <td className="p-3.5 text-right">
-                      {p.status !== "Removed" && (
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge
+                          variant={
+                            p.status === "Active"
+                              ? "active"
+                              : p.status === "Warning"
+                              ? "blocked"
+                              : p.status === "Submitted"
+                              ? "accent"
+                              : "medium"
+                          }
+                          className="text-[10px]"
+                        >
+                          {p.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-3 text-right">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -490,118 +807,602 @@ export const AdminLiveTests: React.FC = () => {
                             setParticipantToRemove(p);
                             setRemoveModalOpen(true);
                           }}
-                          className="text-xs text-danger hover:bg-danger-bg/50 p-1.5"
-                          title="Remove from test session"
+                          className="h-7 text-xs font-mono text-rose-400 hover:bg-rose-500/10"
                         >
-                          <UserX className="w-3.5 h-3.5" /> Remove
+                          <UserX className="w-3.5 h-3.5 mr-1" /> Disqualify
                         </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
-      </Card>
-
-      {/* BROADCAST MESSAGE MODAL */}
-      {broadcastModalOpen && (
-        <Dialog
-          isOpen={broadcastModalOpen}
-          onClose={() => setBroadcastModalOpen(false)}
-          title="Broadcast Message to All Live Participants"
-          footer={
-            <>
-              <Button variant="ghost" size="sm" onClick={() => setBroadcastModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleSendBroadcast}>
-                <Send className="w-3.5 h-3.5" /> Send Broadcast
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            <p className="text-xs text-text-secondary">
-              This notice will immediately appear as a banner overlay on the screens of all active participants in this test.
-            </p>
-            <Input
-              label="Broadcast Message"
-              placeholder="e.g. Attention: 10 minutes remaining! Ensure all code solutions are compiled before submit."
-              value={broadcastText}
-              onChange={(e) => setBroadcastText(e.target.value)}
-            />
-          </div>
-        </Dialog>
       )}
 
-      {/* EXTEND TIME MODAL */}
-      {extendTimeModalOpen && (
-        <Dialog
-          isOpen={extendTimeModalOpen}
-          onClose={() => setExtendTimeModalOpen(false)}
-          title="Extend Live Test Duration"
-          footer={
-            <>
-              <Button variant="ghost" size="sm" onClick={() => setExtendTimeModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleExtendTime}>
-                Apply +{extendMinutes} Mins
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            <label className="text-xs font-medium text-text-secondary block">Select Extension Minutes</label>
-            <div className="grid grid-cols-4 gap-2">
-              {[5, 10, 15, 30].map((mins) => (
-                <button
-                  key={mins}
-                  type="button"
-                  onClick={() => setExtendMinutes(mins)}
-                  className={`p-3 rounded-xl border text-xs font-mono font-bold transition-all ${
-                    extendMinutes === mins
-                      ? "bg-cyan-400/20 border-cyan-400 text-cyan-300"
-                      : "bg-surface-raised border-border text-text-secondary"
-                  }`}
+      {/* TAB 2: CONTEST MANAGEMENT (ALL TESTS) */}
+      {activeAdminTab === "MANAGEMENT" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {tests.map((contest) => (
+              <Card key={contest.id} className="p-5 bg-surface border border-border flex flex-col justify-between space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <Badge
+                        variant={contest.status === "Live" ? "blocked" : contest.status === "Scheduled" ? "medium" : "active"}
+                        className="text-[10px] font-mono"
+                      >
+                        {contest.status}
+                      </Badge>
+                      <h3 className="font-serif text-base font-bold text-text-primary mt-1">{contest.title}</h3>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-cyan-400">{contest.durationMinutes}m</span>
+                  </div>
+
+                  <p className="text-xs text-text-secondary line-clamp-2">{contest.description}</p>
+
+                  <div className="p-2.5 bg-surface-raised border border-border rounded-xl text-xs font-mono text-text-muted space-y-1">
+                    <div className="flex justify-between">
+                      <span>Questions:</span>
+                      <span className="text-text-primary font-bold">{contest.totalQuestions} Questions</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Marks:</span>
+                      <span className="text-emerald-400 font-bold">{contest.totalMarks || 100} pts</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Proctoring:</span>
+                      <span className="text-cyan-400 font-bold">Strict (2 Warnings Max)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-border flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditContestModal(contest)}
+                      className="h-8 px-2 text-xs text-text-secondary hover:text-cyan-400"
+                    >
+                      <Edit className="w-3.5 h-3.5 mr-1" /> Edit
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => liveTestService.exportQuestionsJson(contest.id)}
+                      className="h-8 px-2 text-xs text-text-secondary hover:text-emerald-400"
+                    >
+                      <FileCode2 className="w-3.5 h-3.5 mr-1" /> JSON
+                    </Button>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteTest(contest.id)}
+                    className="h-8 px-2 text-xs text-rose-400 hover:bg-rose-500/10"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: SUBMISSIONS & VERIFIED CANDIDATE RECORDS */}
+      {activeAdminTab === "SUBMISSIONS" && (
+        <Card className="p-6 bg-surface border-border space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-400" /> Candidate Submissions & Evaluation Records
+              </h3>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Detailed scores, proctoring violations, and pass/fail rankings across all contests.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => liveTestService.exportResultsCsv(selectedContestId)}
+              className="text-xs font-mono border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <Download className="w-3.5 h-3.5 mr-1" /> Download Submissions (CSV)
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono">
+              <thead>
+                <tr className="border-b border-border text-text-muted uppercase text-[10px]">
+                  <th className="py-2.5 px-3">Candidate</th>
+                  <th className="py-2.5 px-3">Contest</th>
+                  <th className="py-2.5 px-3 text-center">Score</th>
+                  <th className="py-2.5 px-3 text-center">Percentage</th>
+                  <th className="py-2.5 px-3 text-center">Time Taken</th>
+                  <th className="py-2.5 px-3 text-center">Tab Warnings</th>
+                  <th className="py-2.5 px-3 text-center">Submission Type</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {submissions.map((s) => (
+                  <tr key={s.id} className="hover:bg-surface-raised/50 transition-colors">
+                    <td className="py-3 px-3">
+                      <div className="font-sans font-semibold text-text-primary">{s.studentName}</div>
+                      <div className="text-[10px] text-text-muted">{s.email}</div>
+                    </td>
+                    <td className="py-3 px-3 text-text-secondary truncate max-w-xs">{s.testTitle}</td>
+                    <td className="py-3 px-3 text-center font-bold text-emerald-400">
+                      {s.score} / {s.totalMarks}
+                    </td>
+                    <td className="py-3 px-3 text-center font-bold text-cyan-400">{s.percentage}%</td>
+                    <td className="py-3 px-3 text-center text-text-muted">
+                      {Math.floor(s.timeTakenSeconds / 60)}m {s.timeTakenSeconds % 60}s
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded font-bold text-xs",
+                          s.tabSwitchCount >= 3 ? "text-rose-400" : s.tabSwitchCount > 0 ? "text-amber-400" : "text-emerald-400"
+                        )}
+                      >
+                        {s.tabSwitchCount} / 2
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <Badge
+                        variant={
+                          s.submissionType === "AUTO_TAB_SWITCH"
+                            ? "blocked"
+                            : s.submissionType === "NORMAL"
+                            ? "active"
+                            : "medium"
+                        }
+                        className="text-[10px]"
+                      >
+                        {s.submissionType === "AUTO_TAB_SWITCH"
+                          ? "Auto-Submitted (Cheating)"
+                          : s.submissionType === "AUTO_TIMEOUT"
+                          ? "Time Expired"
+                          : "Normal Submit"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* TAB 4: EXPORT & SHARE REPORTS */}
+      {activeAdminTab === "EXPORTS" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {tests.map((contest) => (
+            <Card key={contest.id} className="p-6 bg-surface border border-border space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-text-primary">{contest.title}</h3>
+                  <p className="text-xs text-text-secondary mt-0.5">{contest.category} • {contest.durationMinutes}m</p>
+                </div>
+                <Badge variant="medium" className="text-[10px] font-mono">
+                  {contest.status}
+                </Badge>
+              </div>
+
+              <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-1.5 text-xs font-mono text-text-muted">
+                <div>Total Questions: <strong className="text-text-primary">{contest.totalQuestions}</strong></div>
+                <div>Registered Candidates: <strong className="text-cyan-400">{contest.registeredParticipantsCount}</strong></div>
+                <div>Completed Submissions: <strong className="text-emerald-400">{liveTestService.getSubmissionsForTest(contest.id).length}</strong></div>
+              </div>
+
+              <div className="pt-3 border-t border-border flex items-center justify-between gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => liveTestService.exportQuestionsJson(contest.id)}
+                  className="text-xs font-mono flex-1 border-cyan-500/40 text-cyan-400"
                 >
-                  +{mins} Mins
-                </button>
+                  <FileCode2 className="w-3.5 h-3.5 mr-1" /> Export Questions (JSON)
+                </Button>
+
+                <Button
+                  variant="teal-cyan"
+                  size="sm"
+                  onClick={() => liveTestService.exportResultsCsv(contest.id)}
+                  className="text-xs font-mono flex-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 mr-1" /> Download Results (CSV)
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* CREATE / EDIT LIVE CONTEST WIZARD MODAL */}
+      <Dialog
+        isOpen={createContestModalOpen}
+        onClose={() => setCreateContestModalOpen(false)}
+        title={editingContestId ? "Edit Live Contest & Questions" : "Create New Proctored Live Test"}
+        description="Configure proctoring limits, question sections (MCQs & Coding), and import challenges."
+        maxWidthClass="max-w-4xl"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <Button variant="outline" size="sm" onClick={() => setCreateContestModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="teal-cyan" size="sm" onClick={handleSaveContest} className="text-xs font-bold px-5">
+              {editingContestId ? "Update Contest" : "Save & Schedule Contest"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-5 text-xs font-mono">
+            {/* Basic Info Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-text-muted">Contest Title</label>
+                <Input
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="e.g. TCS National Grand Challenge 2026"
+                  className="bg-surface-raised text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-text-muted">Category</label>
+                <Input
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  placeholder="e.g. Full-Stack + Aptitude"
+                  className="bg-surface-raised text-xs"
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-text-muted">Contest Description</label>
+                <Input
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  placeholder="Comprehensive campus placement assessment..."
+                  className="bg-surface-raised text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-text-muted">Duration (Minutes)</label>
+                <Input
+                  type="number"
+                  value={formDurationMinutes}
+                  onChange={(e) => setFormDurationMinutes(parseInt(e.target.value, 10) || 60)}
+                  className="bg-surface-raised text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-text-muted">Total Marks</label>
+                <Input
+                  type="number"
+                  value={formTotalMarks}
+                  onChange={(e) => setFormTotalMarks(parseInt(e.target.value, 10) || 100)}
+                  className="bg-surface-raised text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Proctoring Settings Strip */}
+            <div className="p-4 bg-surface-raised border border-border rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-rose-400" />
+                  <span className="font-bold text-text-primary">Anti-Cheating Proctoring Protocol</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={formProctoring}
+                  onChange={(e) => setFormProctoring(e.target.checked)}
+                  className="rounded border-border text-cyan-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-text-secondary text-[11px]">
+                <div>
+                  <label className="text-text-muted block">Max Tab Switches Allowed Before Auto-Submit</label>
+                  <select
+                    value={formMaxTabSwitches}
+                    onChange={(e) => setFormMaxTabSwitches(parseInt(e.target.value, 10))}
+                    className="mt-1 w-full bg-surface border border-border rounded p-1.5 text-xs text-text-primary"
+                  >
+                    <option value={2}>2 (1 Warning, 2nd Submits)</option>
+                    <option value={3}>3 (2 Warnings, 3rd Submits - Recommended)</option>
+                    <option value={5}>5 (4 Warnings, 5th Submits)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 pt-4">
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>Window resizing & split-screen strictly prohibited</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section & Question Builder */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <h3 className="font-serif text-base font-bold text-text-primary">
+                  Test Sections & Question Bank
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newSec: LiveTestSection = {
+                      id: `sec-${Date.now()}`,
+                      title: `Section ${formSections.length + 1}: Custom Assessment`,
+                      type: "MIXED",
+                      questions: [],
+                    };
+                    setFormSections((prev) => [...prev, newSec]);
+                  }}
+                  className="text-xs h-7"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Section
+                </Button>
+              </div>
+
+              {formSections.map((sec, secIdx) => (
+                <div key={sec.id} className="p-4 bg-surface-raised border border-border rounded-xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Input
+                      value={sec.title}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormSections((prev) => {
+                          const copy = [...prev];
+                          copy[secIdx].title = val;
+                          return copy;
+                        });
+                      }}
+                      className="bg-surface max-w-md font-bold text-xs"
+                    />
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addMcqQuestionToSection(secIdx)}
+                        className="text-xs h-7 text-cyan-400 border-cyan-500/40"
+                      >
+                        <Plus className="w-3 h-3 mr-1" /> Add MCQ
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openExternalProblemModal(secIdx)}
+                        className="text-xs h-7 text-emerald-400 border-emerald-500/40"
+                      >
+                        <ExternalLink className="w-3 h-3 mr-1" /> Import Coding (LeetCode/GFG)
+                      </Button>
+
+                      {formSections.length > 1 && (
+                        <button
+                          onClick={() => {
+                            setFormSections((prev) => prev.filter((_, i) => i !== secIdx));
+                          }}
+                          className="text-text-muted hover:text-rose-400 p-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Questions in Section */}
+                  <div className="space-y-3 pl-3 border-l-2 border-cyan-500/30">
+                    {sec.questions.length === 0 ? (
+                      <div className="text-xs text-text-muted italic py-2">
+                        No questions added to this section yet. Click 'Add MCQ' or 'Import Coding'.
+                      </div>
+                    ) : (
+                      sec.questions.map((q, qIdx) => (
+                        <div key={q.id} className="p-3 bg-surface border border-border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={q.type === "CODING" ? "accent" : "medium"} className="text-[10px]">
+                                {q.type}
+                              </Badge>
+                              <strong className="text-text-primary text-xs">{q.title}</strong>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-cyan-400">+{q.marks} pts</span>
+                              <button
+                                onClick={() => {
+                                  setFormSections((prev) => {
+                                    const copy = [...prev];
+                                    copy[secIdx].questions = copy[secIdx].questions.filter((_, i) => i !== qIdx);
+                                    return copy;
+                                  });
+                                }}
+                                className="text-text-muted hover:text-rose-400"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <p className="text-text-secondary text-[11px] line-clamp-1">{q.questionText}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-        </Dialog>
-      )}
+      </Dialog>
 
-      {/* REMOVE PARTICIPANT CONFIRMATION MODAL */}
-      {removeModalOpen && participantToRemove && (
-        <Dialog
-          isOpen={removeModalOpen}
-          onClose={() => setRemoveModalOpen(false)}
-          title={`Remove Participant: ${participantToRemove.name}`}
-          footer={
-            <>
-              <Button variant="ghost" size="sm" onClick={() => setRemoveModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleConfirmRemove} className="bg-danger hover:bg-danger/80">
-                Confirm Removal
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-3 text-xs">
-            <div className="p-3 bg-danger-bg border border-danger/40 rounded-xl text-danger space-y-1">
-              <span className="font-semibold block">⚠️ Confirm Participant Disqualification</span>
-              <p className="text-[11px] leading-relaxed">
-                This will immediately terminate the test session for <strong>{participantToRemove.name}</strong> ({participantToRemove.rollNumber}).
-              </p>
-            </div>
+      {/* IMPORT PROBLEM MODAL (LeetCode / GFG / Codeforces) */}
+      <Dialog
+        isOpen={importProblemModalOpen}
+        onClose={() => setImportProblemModalOpen(false)}
+        title="Import Problem from LeetCode / GFG / Codeforces"
+        description="Select an algorithm or data structures problem to instantly import into this live contest."
+        maxWidthClass="max-w-3xl"
+      >
+        <div className="space-y-4">
+          <Input
+            value={searchExternalQuery}
+            onChange={(e) => setSearchExternalQuery(e.target.value)}
+            placeholder="Search problems by name or topic (e.g. Subarray, Graph, Tree)..."
+            className="bg-surface-raised text-xs font-mono"
+          />
+
+          <div className="space-y-3 font-mono text-xs max-h-96 overflow-y-auto custom-scrollbar">
+            {externalProblems
+              .filter(
+                (p) =>
+                  !searchExternalQuery ||
+                  p.title.toLowerCase().includes(searchExternalQuery.toLowerCase()) ||
+                  p.description?.toLowerCase().includes(searchExternalQuery.toLowerCase())
+              )
+              .map((prob) => (
+                <div
+                  key={prob.id}
+                  className="p-4 bg-surface-raised border border-border hover:border-cyan-500/50 rounded-xl flex items-start justify-between gap-4 transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="accent" className="text-[10px]">
+                        {prob.source || "LEETCODE"}
+                      </Badge>
+                      <Badge
+                        variant={prob.difficulty === "Easy" ? "active" : prob.difficulty === "Hard" ? "blocked" : "medium"}
+                        className="text-[10px]"
+                      >
+                        {prob.difficulty}
+                      </Badge>
+                      <h4 className="font-serif text-sm font-bold text-text-primary font-sans">{prob.title}</h4>
+                    </div>
+                    <p className="text-text-secondary text-xs line-clamp-2 font-sans">{prob.description}</p>
+                  </div>
+
+                  <Button
+                    variant="teal-cyan"
+                    size="sm"
+                    onClick={() => handleImportProblemSelected(prob)}
+                    className="text-xs shrink-0 px-3"
+                  >
+                    Import Problem
+                  </Button>
+                </div>
+              ))}
           </div>
-        </Dialog>
-      )}
+        </div>
+      </Dialog>
+
+      {/* EXTEND TIME MODAL */}
+      <Dialog
+        isOpen={extendTimeModalOpen}
+        onClose={() => setExtendTimeModalOpen(false)}
+        title="Extend Live Contest Duration"
+        description="Select additional minutes to add to the contest clock for all candidates:"
+        maxWidthClass="max-w-sm"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={() => setExtendTimeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="teal-cyan" size="sm" onClick={handleExtendTime}>
+              Apply Extension
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-2 font-mono text-xs">
+            {[5, 10, 15, 20, 30].map((mins) => (
+              <button
+                key={mins}
+                onClick={() => setExtendMinutes(mins)}
+                className={cn(
+                  "p-2.5 rounded-lg border text-center font-bold transition-colors",
+                  extendMinutes === mins
+                    ? "bg-cyan-500/20 text-cyan-400 border-cyan-500"
+                    : "bg-surface-raised border-border text-text-muted hover:text-text-primary"
+                )}
+              >
+                +{mins} Mins
+              </button>
+            ))}
+          </div>
+        </div>
+      </Dialog>
+
+      {/* BROADCAST ALERT MODAL */}
+      <Dialog
+        isOpen={broadcastModalOpen}
+        onClose={() => setBroadcastModalOpen(false)}
+        title="Send Live Contest Broadcast"
+        description="This message will appear immediately as a high-priority banner on all candidates' test screens:"
+        maxWidthClass="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={() => setBroadcastModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="teal-cyan" size="sm" onClick={handleSendBroadcast}>
+              Transmit Alert
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <textarea
+            value={broadcastText}
+            onChange={(e) => setBroadcastText(e.target.value)}
+            placeholder="e.g. Clarification for Question 3: Array inputs are guaranteed to be sorted in ascending order."
+            className="w-full h-24 p-3 bg-surface-raised border border-border rounded-xl text-xs font-mono text-text-primary focus:outline-none resize-none"
+          />
+        </div>
+      </Dialog>
+
+      {/* DISQUALIFY PARTICIPANT MODAL */}
+      <Dialog
+        isOpen={removeModalOpen}
+        onClose={() => setRemoveModalOpen(false)}
+        title="Disqualify Candidate?"
+        maxWidthClass="max-w-sm"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={() => setRemoveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="teal-cyan"
+              size="sm"
+              onClick={() => participantToRemove && handleRemoveParticipant(participantToRemove)}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold"
+            >
+              Disqualify Candidate
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-xs font-mono text-text-secondary">
+          Are you sure you want to remove <strong>{participantToRemove?.name}</strong> ({participantToRemove?.rollNumber}) from this live contest? Their test will be immediately terminated.
+        </p>
+      </Dialog>
     </div>
   );
 };

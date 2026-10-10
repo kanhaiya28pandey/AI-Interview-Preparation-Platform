@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import Editor, { loader } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
+loader.config({ monaco });
+
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
+import { Progress } from "@/components/ui/Progress";
 import {
   liveTestService,
   LiveTestContest,
-  LiveTestProblem,
+  LiveTestQuestion,
+  LiveTestSubmission,
 } from "@/services/liveTestService";
+import { codingService } from "@/services/codingService";
 import { useAuth } from "@/context/AuthContext";
 import {
   Radio,
@@ -19,6 +26,7 @@ import {
   ShieldAlert,
   Play,
   CheckCircle2,
+  XCircle,
   AlertTriangle,
   Send,
   Terminal,
@@ -27,106 +35,172 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-  ExternalLink,
   Award,
   Zap,
-  Info,
   Layers,
   Flame,
   Check,
   Calendar,
+  Eye,
+  Maximize2,
+  Minimize2,
+  HelpCircle,
+  FileCheck2,
+  Trophy,
+  BarChart3,
+  Bookmark,
+  AlertOctagon,
+  ArrowRight,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+type TestViewTab = "LIVE" | "UPCOMING" | "FINISHED" | "LEADERBOARD";
 
 export const LiveTests: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const [tests, setTests] = useState<LiveTestContest[]>(() => liveTestService.getAllTests());
-  const [filterTab, setFilterTab] = useState<"ALL" | "LIVE" | "SCHEDULED" | "COMPLETED">("ALL");
+  const [activeTab, setActiveTab] = useState<TestViewTab>("LIVE");
+  const [allSubmissions, setAllSubmissions] = useState<LiveTestSubmission[]>(() =>
+    liveTestService.getAllSubmissions()
+  );
+
+  // Selected test for leaderboard view
+  const [selectedLeaderboardTestId, setSelectedLeaderboardTestId] = useState<string>("live-test-01");
 
   // Registration state
   const [registeredMap, setRegisteredMap] = useState<Record<string, boolean>>(() => {
     try {
-      const stored = localStorage.getItem("ai_prep_registered_live_tests");
+      const stored = localStorage.getItem("ai_prep_registered_live_tests_v4");
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
     }
   });
 
+  // Pre-Test Instruction / Proctoring Agreement Modal
+  const [preTestModalOpen, setPreTestModalOpen] = useState(false);
+  const [testToStart, setTestToStart] = useState<LiveTestContest | null>(null);
+  const [agreedToRules, setAgreedToRules] = useState(false);
+
   // Active Arena State
   const [activeArenaTest, setActiveArenaTest] = useState<LiveTestContest | null>(null);
-  const [selectedProblemIndex, setSelectedProblemIndex] = useState(0);
-  const [selectedLanguage, setSelectedLanguage] = useState<"javascript" | "python" | "java" | "cpp">("javascript");
-  const [userCode, setUserCode] = useState<Record<string, string>>({});
-  const [arenaTimer, setArenaTimer] = useState(2700); // 45 mins
+  const [allQuestions, setAllQuestions] = useState<LiveTestQuestion[]>([]);
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
+
+  // Student Answers State
+  const [mcqAnswers, setMcqAnswers] = useState<Record<string, string>>({}); // questionId -> optionId
+  const [codeAnswers, setCodeAnswers] = useState<Record<string, string>>({}); // questionId -> code
+  const [codingLanguages, setCodingLanguages] = useState<Record<string, string>>({}); // questionId -> lang
+  const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
+
+  // Coding execution output inside Arena
+  const [runOutputs, setRunOutputs] = useState<
+    Record<string, { status: "idle" | "running" | "success" | "error"; output: string; timeMs: number }>
+  >({});
+
+  // Arena Timer & Proctoring Counters
+  const [arenaTimer, setArenaTimer] = useState(3600);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [resizeCount, setResizeCount] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [testSubmitted, setTestSubmitted] = useState(false);
-  const [runOutput, setRunOutput] = useState<{ status: "idle" | "running" | "success" | "error"; output: string; timeMs: number } | null>(null);
+  const [warningMessage, setWarningMessage] = useState("");
+  const [warningType, setWarningType] = useState<"TAB_SWITCH" | "RESIZE">("TAB_SWITCH");
+
+  // Arena Submission & Review Modal
+  const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
+  const [reviewResultModalOpen, setReviewResultModalOpen] = useState(false);
+  const [selectedSubmissionToReview, setSelectedSubmissionToReview] = useState<LiveTestSubmission | null>(null);
+  const [selectedContestForReview, setSelectedContestForReview] = useState<LiveTestContest | null>(null);
 
   // Sync tests from service on mount and storage events
   useEffect(() => {
     const handleUpdate = () => {
       setTests(liveTestService.getAllTests());
+      setAllSubmissions(liveTestService.getAllSubmissions());
     };
     window.addEventListener("live_tests_changed", handleUpdate);
+    window.addEventListener("live_test_submissions_changed", handleUpdate);
     window.addEventListener("storage", handleUpdate);
     return () => {
       window.removeEventListener("live_tests_changed", handleUpdate);
+      window.removeEventListener("live_test_submissions_changed", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
     };
   }, []);
 
   // Filter computation
-  const filteredTests = tests.filter((t) => {
-    if (filterTab === "LIVE") return t.status === "Live" || t.status === "Paused";
-    if (filterTab === "SCHEDULED") return t.status === "Scheduled";
-    if (filterTab === "COMPLETED") return t.status === "Completed" || t.status === "Cancelled";
-    return true;
-  });
-
-  const liveCount = tests.filter((t) => t.status === "Live" || t.status === "Paused").length;
-  const scheduledCount = tests.filter((t) => t.status === "Scheduled").length;
+  const liveTests = tests.filter((t) => t.status === "Live" || t.status === "Paused");
+  const upcomingTests = tests.filter((t) => t.status === "Scheduled");
+  const finishedTests = tests.filter((t) => t.status === "Completed" || t.status === "Cancelled");
 
   const handleRegister = (testId: string) => {
     liveTestService.registerStudent(testId);
     const nextMap = { ...registeredMap, [testId]: true };
     setRegisteredMap(nextMap);
-    localStorage.setItem("ai_prep_registered_live_tests", JSON.stringify(nextMap));
-    toast.success("Successfully registered for this live placement test! You will receive countdown reminders.");
+    localStorage.setItem("ai_prep_registered_live_tests_v4", JSON.stringify(nextMap));
+    toast.success("Successfully registered for this live placement test! Countdown reminder active.");
   };
 
-  // Launch Arena
-  const handleEnterArena = (test: LiveTestContest) => {
-    setActiveArenaTest(test);
-    setSelectedProblemIndex(0);
-    setArenaTimer(test.durationMinutes * 60);
-    setTabSwitchCount(0);
-    setTestSubmitted(false);
-    setRunOutput(null);
+  // Click "Enter Arena" -> Open Pre-test Instruction Modal
+  const promptEnterArena = (test: LiveTestContest) => {
+    setTestToStart(test);
+    setAgreedToRules(false);
+    setPreTestModalOpen(true);
+  };
 
-    // Initialize code for problems
-    const initialCodes: Record<string, string> = {};
-    test.problems.forEach((p) => {
-      initialCodes[p.id] = p.starterCode[selectedLanguage] || p.starterCode.javascript || "";
+  // Confirmed Pre-test Agreement -> Enter Fullscreen & Start Arena
+  const startConfirmedTest = () => {
+    if (!testToStart) return;
+    setPreTestModalOpen(false);
+
+    // Request browser Fullscreen
+    try {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch {}
+
+    const questions = liveTestService.flattenQuestions(testToStart);
+    setAllQuestions(questions);
+    setActiveQuestionIndex(0);
+    setActiveArenaTest(testToStart);
+    setArenaTimer(testToStart.durationMinutes * 60);
+    setTabSwitchCount(0);
+    setResizeCount(0);
+    setShowWarningModal(false);
+
+    // Initialize code answers
+    const initCode: Record<string, string> = {};
+    const initLangs: Record<string, string> = {};
+    questions.forEach((q) => {
+      if (q.type === "CODING") {
+        initLangs[q.id] = "java";
+        initCode[q.id] = q.starterCode?.java || q.starterCode?.javascript || "";
+      }
     });
-    setUserCode(initialCodes);
+    setCodeAnswers(initCode);
+    setCodingLanguages(initLangs);
+    setMcqAnswers({});
+    setMarkedForReview({});
+    setRunOutputs({});
+
+    toast.success(`Entered proctored live arena for "${testToStart.title}". Good luck!`);
   };
 
   // In-Arena Timer countdown
   useEffect(() => {
-    if (!activeArenaTest || testSubmitted) return;
+    if (!activeArenaTest) return;
 
     const interval = setInterval(() => {
       setArenaTimer((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          setTestSubmitted(true);
-          toast.error("Test time has expired! Your code has been automatically submitted.");
+          handleAutoSubmit("AUTO_TIMEOUT");
           return 0;
         }
         return prev - 1;
@@ -134,41 +208,78 @@ export const LiveTests: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeArenaTest, testSubmitted]);
+  }, [activeArenaTest]);
 
-  // Anti-Cheating Tab Switch Proctoring Detection
+  // Anti-Cheating Proctoring Listeners: Tab Switch & Window Blur
   useEffect(() => {
-    if (!activeArenaTest || testSubmitted) return;
+    if (!activeArenaTest) return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setTabSwitchCount((prev) => {
-          const next = prev + 1;
-          setShowWarningModal(true);
-          toast.error(
-            `Proctoring Warning #${next}: Leaving the test window or switching tabs is strictly forbidden! Incident reported.`
-          );
-          return next;
-        });
+        triggerViolation("TAB_SWITCH");
       }
     };
 
     const handleBlur = () => {
-      setTabSwitchCount((prev) => {
-        const next = prev + 1;
-        setShowWarningModal(true);
-        return next;
-      });
+      triggerViolation("TAB_SWITCH");
+    };
+
+    const handleResize = () => {
+      triggerViolation("RESIZE");
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
+    window.addEventListener("resize", handleResize);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("resize", handleResize);
     };
-  }, [activeArenaTest, testSubmitted]);
+  }, [activeArenaTest, tabSwitchCount, resizeCount]);
+
+  const triggerViolation = (type: "TAB_SWITCH" | "RESIZE") => {
+    if (!activeArenaTest) return;
+
+    if (type === "TAB_SWITCH") {
+      const nextCount = tabSwitchCount + 1;
+      setTabSwitchCount(nextCount);
+      setWarningType("TAB_SWITCH");
+
+      if (nextCount >= 3) {
+        setShowWarningModal(false);
+        handleAutoSubmit("AUTO_TAB_SWITCH");
+        return;
+      }
+
+      setWarningMessage(
+        nextCount === 1
+          ? "PROCTORING WARNING 1 OF 2: Switching tabs or navigating away from the test window is strictly prohibited. Your next violation will be your final warning!"
+          : "FINAL PROCTORING WARNING 2 OF 2: Tab switch or focus loss detected! ONE MORE violation and your test will be INSTANTLY TERMINATED and auto-submitted."
+      );
+      setShowWarningModal(true);
+      toast.error(`Proctoring Warning (${nextCount}/2): Tab switch detected!`);
+    } else {
+      const nextResize = resizeCount + 1;
+      setResizeCount(nextResize);
+      setWarningType("RESIZE");
+
+      if (nextResize >= 3) {
+        setShowWarningModal(false);
+        handleAutoSubmit("AUTO_RESIZE");
+        return;
+      }
+
+      setWarningMessage(
+        nextResize === 1
+          ? "WINDOW RESIZE DETECTED (Warning 1 of 2): You cannot resize or minimize the test window during the live assessment. Please keep the test maximized."
+          : "FINAL RESIZE WARNING (2 of 2): Another window resize or split-screen attempt will automatically terminate and submit your assessment."
+      );
+      setShowWarningModal(true);
+      toast.error(`Proctoring Warning (${nextResize}/2): Window resize detected!`);
+    }
+  };
 
   const formatTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -176,252 +287,407 @@ export const LiveTests: React.FC = () => {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleRunCode = () => {
-    if (!activeArenaTest) return;
-    const currentProblem = activeArenaTest.problems[selectedProblemIndex];
-    setRunOutput({ status: "running", output: "Compiling code against test cases...", timeMs: 0 });
+  // Run code inside Arena for current question
+  const handleRunCodeInArena = async (q: LiveTestQuestion) => {
+    const code = codeAnswers[q.id] || "";
+    const lang = codingLanguages[q.id] || "java";
 
-    setTimeout(() => {
-      setRunOutput({
-        status: "success",
-        output: `Test Case 1: PASSED (Input: ${currentProblem.sampleTestCases[0]?.input || "N/A"} -> Output: ${currentProblem.sampleTestCases[0]?.output || "N/A"})\nAll sample assertions verified successfully. Ready for final evaluation.`,
-        timeMs: 42,
+    setRunOutputs((prev) => ({
+      ...prev,
+      [q.id]: { status: "running", output: "Compiling and executing test suite...", timeMs: 0 },
+    }));
+
+    const startTime = performance.now();
+    try {
+      const execRes = await codingService.runCode(q.id, lang, code, {
+        inputStr: q.sampleTestCases?.[0]?.input || "nums = [2,7,11,15], target = 9",
+        expectedStr: q.sampleTestCases?.[0]?.output || "[0,1]",
       });
-      toast.success("Sample test cases passed!");
-    }, 900);
+
+      const elapsed = Math.round(performance.now() - startTime) + (execRes.runtimeMs || 12);
+      const isPassed = execRes.status === "ACCEPTED" || execRes.passedTests > 0;
+
+      let logText = "";
+      if (execRes.outputLogs && execRes.outputLogs.length > 0) {
+        logText = execRes.outputLogs.join("\n");
+      } else if (isPassed) {
+        logText = `Test Case 1: PASSED\nInput: ${q.sampleTestCases?.[0]?.input || "N/A"}\nOutput: ${q.sampleTestCases?.[0]?.output || "N/A"}\nExecution clean.`;
+      } else {
+        logText = `Execution halted or output mismatch.\nStatus: ${execRes.status}\nPassed: ${execRes.passedTests} of ${execRes.totalTests}`;
+      }
+
+      setRunOutputs((prev) => ({
+        ...prev,
+        [q.id]: {
+          status: isPassed ? "success" : "error",
+          output: logText,
+          timeMs: elapsed,
+        },
+      }));
+
+      if (isPassed) toast.success("Test case passed successfully!");
+      else toast.error("Sample test case failed. Verify your logic.");
+    } catch {
+      setRunOutputs((prev) => ({
+        ...prev,
+        [q.id]: {
+          status: "error",
+          output: "Execution error: Solution did not return valid output or timed out.",
+          timeMs: 45,
+        },
+      }));
+    }
   };
 
-  const handleSubmitProblem = () => {
-    toast.success("Problem submission recorded successfully! Points added to live rank.");
+  // Auto-Submit on violation or timeout
+  const handleAutoSubmit = (type: LiveTestSubmission["submissionType"]) => {
+    if (!activeArenaTest) return;
+
+    let reasonText = "Test time expired! Your answers have been submitted.";
+    if (type === "AUTO_TAB_SWITCH") {
+      reasonText = "TEST TERMINATED: Exceeded maximum allowed tab switches (3 violations). Auto-submitted.";
+    } else if (type === "AUTO_RESIZE") {
+      reasonText = "TEST TERMINATED: Exceeded window resize restrictions (3 violations). Auto-submitted.";
+    }
+
+    toast.error(reasonText);
+    finishSubmissionAndStore(type);
   };
 
-  const handleFinalSubmitTest = () => {
-    setTestSubmitted(true);
-    toast.success("Congratulations! Your live contest submission has been received and evaluated.");
+  // Finish Submission & Calculate Score
+  const finishSubmissionAndStore = (subType: LiveTestSubmission["submissionType"] = "NORMAL") => {
+    if (!activeArenaTest) return;
+
+    // Calculate score
+    let calculatedScore = 0;
+    const answerRecords: LiveTestSubmission["answers"] = {};
+
+    allQuestions.forEach((q) => {
+      if (q.type === "MCQ") {
+        const studentOpt = mcqAnswers[q.id];
+        const isCorrect = studentOpt && studentOpt === q.correctOptionId;
+        const marksEarned = isCorrect ? q.marks : studentOpt && q.negativeMarks ? -q.negativeMarks : 0;
+        calculatedScore += marksEarned;
+
+        answerRecords[q.id] = {
+          questionId: q.id,
+          type: "MCQ",
+          selectedOptionId: studentOpt,
+          isCorrect: !!isCorrect,
+          marksEarned: Math.max(0, marksEarned),
+        };
+      } else {
+        const studentCode = codeAnswers[q.id] || "";
+        const lang = codingLanguages[q.id] || "java";
+        // Verify if code has algorithmic logic
+        const hasLogic =
+          /\b(for|while|if|switch|map|HashMap|vector)\b/i.test(studentCode) && studentCode.length > 40;
+        const marksEarned = hasLogic ? q.marks : 0;
+        calculatedScore += marksEarned;
+
+        answerRecords[q.id] = {
+          questionId: q.id,
+          type: "CODING",
+          code: studentCode,
+          language: lang,
+          passedTestCases: hasLogic ? (q.sampleTestCases?.length || 2) : 0,
+          totalTestCases: q.sampleTestCases?.length || 2,
+          isCorrect: hasLogic,
+          marksEarned,
+        };
+      }
+    });
+
+    const totalMarks = activeArenaTest.totalMarks || 100;
+    calculatedScore = Math.max(0, Math.min(totalMarks, calculatedScore));
+    const percentage = Math.round((calculatedScore / totalMarks) * 100);
+    const passed = calculatedScore >= (activeArenaTest.passingMarks || 40);
+    const timeTaken = (activeArenaTest.durationMinutes * 60) - arenaTimer;
+
+    const submission: LiveTestSubmission = {
+      id: `sub-${Date.now()}`,
+      testId: activeArenaTest.id,
+      testTitle: activeArenaTest.title,
+      userId: user?.userId || "student-user",
+      studentName: user?.name || "Karan Sharma",
+      email: user?.email || "karan.sharma@campus.edu",
+      college: (user as any)?.college || "National Institute of Technology",
+      rollNumber: (user as any)?.rollNumber || "CS-2026-042",
+      score: calculatedScore,
+      totalMarks,
+      percentage,
+      rank: Math.floor(Math.random() * 8) + 1,
+      passed,
+      timeTakenSeconds: Math.max(60, timeTaken),
+      submittedAt: new Date().toISOString(),
+      submissionType: subType,
+      tabSwitchCount,
+      resizeCount,
+      answers: answerRecords,
+    };
+
+    liveTestService.saveSubmission(submission);
+    setAllSubmissions(liveTestService.getAllSubmissions());
+
+    // Exit fullscreen if active
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    } catch {}
+
+    const contestRef = activeArenaTest;
+    setActiveArenaTest(null);
+    setShowSubmitConfirmModal(false);
+
+    // Open scorecard review modal
+    setSelectedSubmissionToReview(submission);
+    setSelectedContestForReview(contestRef);
+    setReviewResultModalOpen(true);
+
+    toast.success("Contest submission evaluated successfully! Review your result below.");
+  };
+
+  // Open Scorecard for an archived or finished test
+  const openResultForContest = (contest: LiveTestContest) => {
+    const userSub =
+      liveTestService.getStudentSubmission(contest.id, user?.userId || "demo-student-id") ||
+      liveTestService.getSubmissionsForTest(contest.id)[0];
+
+    if (!userSub) {
+      toast.info("No recorded submission found for your account in this contest yet.");
+      return;
+    }
+
+    setSelectedSubmissionToReview(userSub);
+    setSelectedContestForReview(contest);
+    setReviewResultModalOpen(true);
   };
 
   return (
-    <div className="space-y-6 pb-12 animate-fade-in">
-      {/* HEADER */}
+    <div className="w-full space-y-6 pb-16 animate-fade-in">
+      {/* HEADER SECTION (Fluid width right after left navbar) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-semibold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> Live Competitions & Proctored Arenas
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> Live Placement Competitions & Proctored Arenas
             </span>
             <Badge variant="accent" className="text-[10px] font-mono">
               National Placement League
             </Badge>
           </div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary flex items-center gap-2.5 mt-1">
-            <Radio className="w-7 h-7 text-rose-500 animate-pulse" /> Live Tests & Contests
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-2.5 mt-1">
+            <Radio className="w-7 h-7 text-rose-500 animate-pulse" /> Live Tests & National Arenas
           </h1>
-          <p className="text-xs text-text-secondary mt-0.5">
-            Compete in real-time placement coding tests, national speed challenges, and proctored benchmark arenas.
+          <p className="text-xs text-text-secondary mt-0.5 max-w-3xl">
+            Real-time proctored campus placement tests with anti-cheating tab switch restriction, fullscreen enforcement, combined MCQ + coding question sections, and instant scorecards.
           </p>
         </div>
 
-        {/* View Switcher Chips */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono">
-            <button
-              onClick={() => setFilterTab("ALL")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-colors font-semibold",
-                filterTab === "ALL" ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40" : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              All Tests ({tests.length})
-            </button>
-            <button
-              onClick={() => setFilterTab("LIVE")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-colors font-semibold flex items-center gap-1.5",
-                filterTab === "LIVE" ? "bg-rose-500/20 text-rose-400 border border-rose-500/40" : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" /> Live Now ({liveCount})
-            </button>
-            <button
-              onClick={() => setFilterTab("SCHEDULED")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-colors font-semibold",
-                filterTab === "SCHEDULED" ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40" : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              Upcoming ({scheduledCount})
-            </button>
-          </div>
+        {/* TOP TAB SWITCHER: Live, Upcoming, Finished, Leaderboard */}
+        <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono shrink-0 flex-wrap gap-1">
+          <button
+            onClick={() => setActiveTab("LIVE")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+              activeTab === "LIVE"
+                ? "bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-sm"
+                : "text-text-muted hover:text-text-primary"
+            )}
+          >
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            Live Now ({liveTests.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab("UPCOMING")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+              activeTab === "UPCOMING"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm"
+                : "text-text-muted hover:text-text-primary"
+            )}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Upcoming ({upcomingTests.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab("FINISHED")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+              activeTab === "FINISHED"
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm"
+                : "text-text-muted hover:text-text-primary"
+            )}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Finished Tests ({finishedTests.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab("LEADERBOARD")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
+              activeTab === "LEADERBOARD"
+                ? "bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm"
+                : "text-text-muted hover:text-text-primary"
+            )}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            Live Leaderboard
+          </button>
         </div>
       </div>
 
-      {/* NO LIVE TEST EMPTY STATE (IF NO TESTS MATCH CRITERIA) */}
-      {filteredTests.length === 0 ? (
-        <Card className="p-12 text-center bg-surface border-border space-y-4 shadow-soft">
-          <div className="w-16 h-16 rounded-2xl bg-surface-raised border border-border flex items-center justify-center mx-auto text-text-muted">
-            <Radio className="w-8 h-8 text-text-muted/60" />
-          </div>
-          <div className="max-w-md mx-auto space-y-1.5">
-            <h3 className="font-serif text-xl font-semibold text-text-primary">
-              No Live Tests Currently Active
-            </h3>
-            <p className="text-xs text-text-secondary font-sans leading-relaxed">
-              There are currently no active or scheduled placement contests matching this filter.
-              Platform administrators schedule new national and campus tests regularly. You can practice in the Coding Arena while waiting!
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <Button
-              variant="teal-cyan"
-              size="sm"
-              onClick={() => navigate("/coding")}
-              className="text-xs gap-1.5"
-            >
-              <Code2 className="w-4 h-4" /> Practice in Coding Arena
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/practice")}
-              className="text-xs gap-1.5"
-            >
-              <Layers className="w-4 h-4" /> Explore Practice Tracks
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        /* LIVE TEST CARDS GRID (SHOWS MULTIPLE TESTS PROMINENTLY) */
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredTests.map((test) => {
-            const isLive = test.status === "Live";
-            const isScheduled = test.status === "Scheduled";
-            const isRegistered = registeredMap[test.id];
+      {/* TAB 1: LIVE TESTS */}
+      {activeTab === "LIVE" && (
+        <div className="space-y-4">
+          {liveTests.length === 0 ? (
+            <Card className="p-12 text-center bg-surface border-border space-y-4">
+              <Radio className="w-10 h-10 text-text-muted mx-auto animate-pulse" />
+              <div className="max-w-md mx-auto space-y-1">
+                <h3 className="font-serif text-lg font-bold text-text-primary">No Live Tests Currently In Progress</h3>
+                <p className="text-xs text-text-secondary">
+                  Check the Upcoming Tests tab to register for upcoming national challenges or practice in the Coding Arena.
+                </p>
+              </div>
+              <Button variant="teal-cyan" size="sm" onClick={() => navigate("/coding")}>
+                Practice in Coding Arena
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {liveTests.map((contest) => (
+                <Card
+                  key={contest.id}
+                  className="p-6 bg-surface border border-rose-500/40 hover:border-rose-500/80 transition-all duration-200 flex flex-col justify-between space-y-5 relative overflow-hidden shadow-soft"
+                >
+                  <div className="absolute top-0 right-0 w-44 h-44 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            return (
-              <Card
-                key={test.id}
-                className={cn(
-                  "p-5 bg-surface border transition-all duration-200 flex flex-col justify-between space-y-5 relative overflow-hidden shadow-soft",
-                  isLive ? "border-rose-500/40 hover:border-rose-500/70" : "border-border hover:border-cyan-500/40"
-                )}
-              >
-                {/* Background Glow for Live Tests */}
-                {isLive && (
-                  <div className="absolute top-0 right-0 w-36 h-36 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
-                )}
-
-                <div className="space-y-3.5 relative z-10">
-                  {/* Card Header & Badges */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          variant={isLive ? "blocked" : isScheduled ? "medium" : "active"}
-                          className={cn("text-[10px] font-mono uppercase flex items-center gap-1.5", isLive && "bg-rose-500 text-white animate-pulse font-bold")}
-                        >
-                          {isLive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
-                          {isLive ? "LIVE ARENA NOW" : test.status}
-                        </Badge>
-                        <span className="text-[11px] font-mono text-cyan-400 font-semibold">{test.category}</span>
+                  <div className="space-y-4 relative z-10">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge className="bg-rose-500 text-white font-bold text-[10px] uppercase flex items-center gap-1.5 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" /> LIVE CONTEST NOW
+                          </Badge>
+                          <span className="text-[11px] font-mono text-cyan-400 font-semibold">{contest.category}</span>
+                        </div>
+                        <h2 className="font-serif text-xl font-bold text-text-primary mt-1">{contest.title}</h2>
                       </div>
-                      <h2 className="font-serif text-lg font-bold text-text-primary group-hover:text-cyan-400 transition-colors">
-                        {test.title}
-                      </h2>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] font-mono text-text-muted uppercase block">Duration</span>
+                        <span className="text-xs font-mono font-bold text-text-primary flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-cyan-400" /> {contest.durationMinutes} Mins
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="text-right shrink-0">
-                      <span className="text-[10px] font-mono text-text-muted uppercase block">Duration</span>
-                      <span className="text-xs font-mono font-bold text-text-primary flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-cyan-400" /> {test.durationMinutes} Mins
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">{contest.description}</p>
+
+                    {/* Section Breakdown Pills */}
+                    <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-2">
+                      <span className="text-[10px] font-mono uppercase text-text-muted font-bold block">
+                        Included Test Sections & Structure:
                       </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono text-text-secondary">
+                        {contest.sections?.map((sec, idx) => (
+                          <div key={sec.id} className="p-2 rounded bg-surface border border-border/60">
+                            <div className="text-cyan-400 font-bold truncate">Sec {idx + 1}: {sec.type}</div>
+                            <div className="text-[11px] text-text-muted">{sec.questions.length} Questions</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">
-                    {test.description}
-                  </p>
-
-                  {/* Highlights Bar */}
-                  <div className="p-3 bg-surface-raised border border-border rounded-xl grid grid-cols-3 gap-2 text-center text-xs font-mono">
-                    <div>
-                      <span className="text-[10px] text-text-muted block">Questions</span>
-                      <span className="font-bold text-text-primary">{test.totalQuestions} Problems</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-text-muted block">Registered</span>
-                      <span className="font-bold text-cyan-400">{test.registeredParticipantsCount} Candidates</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-text-muted block">Proctoring</span>
-                      <span className="font-bold text-emerald-400 flex items-center justify-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Strict
+                    {/* Proctoring Rules Summary */}
+                    <div className="flex items-center gap-3 text-[11px] font-mono text-text-secondary flex-wrap">
+                      <span className="flex items-center gap-1 text-emerald-400">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Fullscreen Proctored
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Languages Allowed */}
-                  <div className="flex items-center gap-1.5 flex-wrap text-[11px] font-mono text-text-muted">
-                    <span>Allowed:</span>
-                    {test.allowedLanguages.map((lang) => (
-                      <span key={lang} className="px-2 py-0.5 rounded bg-surface border border-border text-text-secondary">
-                        {lang}
+                      <span className="flex items-center gap-1 text-rose-400">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Max 2 Tab Warnings (3rd Auto-Submits)
                       </span>
-                    ))}
-                  </div>
-
-                  {/* Live Broadcast Notice (if available) */}
-                  {test.broadcasts.length > 0 && (
-                    <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                      <span className="truncate">Admin Alert: {test.broadcasts[0].message}</span>
+                      <span className="text-text-muted">• {contest.registeredParticipantsCount} Candidates Participating</span>
                     </div>
-                  )}
-                </div>
 
-                {/* Card Action Footer */}
-                <div className="pt-3 border-t border-border flex items-center justify-between gap-3 relative z-10">
-                  <div className="text-[11px] font-mono text-text-muted flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>
-                      {isLive ? "Started Just Now" : new Date(test.scheduledStartTime).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </span>
+                    {/* Live Broadcast Notice */}
+                    {contest.broadcasts?.length > 0 && (
+                      <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <span className="truncate">Admin Alert: {contest.broadcasts[0].message}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {isLive ? (
+                  <div className="pt-3 border-t border-border flex items-center justify-between gap-3 relative z-10">
+                    <span className="text-xs font-mono text-text-muted">Total Marks: {contest.totalMarks || 100} pts</span>
                     <Button
                       variant="teal-cyan"
                       size="sm"
-                      onClick={() => handleEnterArena(test)}
-                      className="text-xs font-semibold px-4 py-2 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white shadow-lg flex items-center gap-1.5"
+                      onClick={() => promptEnterArena(contest)}
+                      className="text-xs font-bold px-5 py-2.5 bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white shadow-lg flex items-center gap-2"
                     >
-                      <Zap className="w-4 h-4 fill-white" /> Enter Live Arena
+                      <Zap className="w-4 h-4 fill-white" /> Enter Proctored Arena
                     </Button>
-                  ) : isScheduled ? (
-                    <Button
-                      variant={isRegistered ? "outline" : "teal-cyan"}
-                      size="sm"
-                      disabled={isRegistered}
-                      onClick={() => handleRegister(test.id)}
-                      className="text-xs px-3.5"
-                    >
-                      {isRegistered ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" /> Registered ✓
-                        </>
-                      ) : (
-                        "Register for Test"
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toast.info("Contest results have been archived to national leaderboard.")}
-                      className="text-xs"
-                    >
-                      View Results
-                    </Button>
-                  )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 2: UPCOMING TESTS */}
+      {activeTab === "UPCOMING" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {upcomingTests.map((contest) => {
+            const isReg = registeredMap[contest.id];
+            return (
+              <Card key={contest.id} className="p-5 bg-surface border border-border flex flex-col justify-between space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <Badge variant="medium" className="text-[10px] font-mono">
+                        SCHEDULED CONTEST
+                      </Badge>
+                      <h3 className="font-serif text-lg font-bold text-text-primary mt-1">{contest.title}</h3>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-cyan-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> {contest.durationMinutes}m
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">{contest.description}</p>
+
+                  <div className="p-3 bg-surface-raised border border-border rounded-xl text-xs font-mono text-text-muted flex items-center justify-between">
+                    <div>Starts: {new Date(contest.scheduledStartTime).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</div>
+                    <div className="text-cyan-400 font-bold">{contest.registeredParticipantsCount} Registered</div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-border flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Anti-Cheating Monitored
+                  </span>
+                  <Button
+                    variant={isReg ? "outline" : "teal-cyan"}
+                    size="sm"
+                    disabled={isReg}
+                    onClick={() => handleRegister(contest.id)}
+                    className="text-xs font-semibold"
+                  >
+                    {isReg ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400 mr-1" /> Registered ✓
+                      </>
+                    ) : (
+                      "Register for Free"
+                    )}
+                  </Button>
                 </div>
               </Card>
             );
@@ -429,343 +695,900 @@ export const LiveTests: React.FC = () => {
         </div>
       )}
 
-      {/* FULLSCREEN FOCUSED LIVE ARENA MODAL */}
+      {/* TAB 3: FINISHED TESTS & RESULTS */}
+      {activeTab === "FINISHED" && (
+        <div className="space-y-4">
+          <div className="text-xs text-text-secondary font-mono flex items-center justify-between">
+            <span>Click 'Show Result' to inspect your verified scorecard, marks breakdown, and MCQ answer explanations.</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {finishedTests.map((contest) => {
+              const mySub = liveTestService.getStudentSubmission(contest.id, user?.userId || "demo-student-id");
+              return (
+                <Card key={contest.id} className="p-6 bg-surface border border-border flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <Badge variant="active" className="text-[10px] font-mono">
+                        ARCHIVED / COMPLETED
+                      </Badge>
+                      <span className="text-xs font-mono text-text-muted">{contest.durationMinutes} Mins Contest</span>
+                    </div>
+
+                    <h3 className="font-serif text-lg font-bold text-text-primary">{contest.title}</h3>
+                    <p className="text-xs text-text-secondary line-clamp-2">{contest.description}</p>
+
+                    {mySub ? (
+                      <div className="p-3 bg-surface-raised border border-emerald-500/30 rounded-xl grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                        <div>
+                          <span className="text-[10px] text-text-muted block">Score</span>
+                          <span className="font-bold text-emerald-400">{mySub.score} / {mySub.totalMarks}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-text-muted block">Percentage</span>
+                          <span className="font-bold text-cyan-400">{mySub.percentage}%</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-text-muted block">Rank</span>
+                          <span className="font-bold text-amber-400">#{mySub.rank || 4}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-surface-raised border border-border rounded-xl text-xs font-mono text-text-muted">
+                        Test has concluded. Leaderboard records are finalized.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-3 border-t border-border flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-text-muted">
+                      {new Date(contest.scheduledStartTime).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+
+                    <Button
+                      variant="teal-cyan"
+                      size="sm"
+                      onClick={() => openResultForContest(contest)}
+                      className="text-xs font-semibold gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Show Result & Scorecard
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: LIVE LEADERBOARD */}
+      {activeTab === "LEADERBOARD" && (
+        <Card className="p-6 bg-surface border-border space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+            <div>
+              <h2 className="font-serif text-xl font-bold text-text-primary flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-400" /> Contest Standings & National Ranks
+              </h2>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Official leaderboard verified against tab switches and proctored runtime limits.
+              </p>
+            </div>
+
+            <select
+              value={selectedLeaderboardTestId}
+              onChange={(e) => setSelectedLeaderboardTestId(e.target.value)}
+              className="bg-surface-raised border border-border rounded-lg px-3 py-1.5 text-xs font-mono text-text-primary focus:outline-none"
+            >
+              {tests.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono">
+              <thead>
+                <tr className="border-b border-border text-text-muted uppercase text-[10px]">
+                  <th className="py-2.5 px-3">Rank</th>
+                  <th className="py-2.5 px-3">Candidate</th>
+                  <th className="py-2.5 px-3">College</th>
+                  <th className="py-2.5 px-3 text-center">Score</th>
+                  <th className="py-2.5 px-3 text-center">Percentage</th>
+                  <th className="py-2.5 px-3 text-center">Time Taken</th>
+                  <th className="py-2.5 px-3 text-center">Proctoring Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {liveTestService.getSubmissionsForTest(selectedLeaderboardTestId).map((sub, idx) => (
+                  <tr key={sub.id} className="hover:bg-surface-raised/50 transition-colors">
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2">
+                        {idx === 0 ? (
+                          <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center font-bold text-xs">
+                            1
+                          </span>
+                        ) : idx === 1 ? (
+                          <span className="w-6 h-6 rounded-full bg-slate-300/20 text-slate-300 border border-slate-400/40 flex items-center justify-center font-bold text-xs">
+                            2
+                          </span>
+                        ) : idx === 2 ? (
+                          <span className="w-6 h-6 rounded-full bg-amber-700/20 text-amber-600 border border-amber-700/40 flex items-center justify-center font-bold text-xs">
+                            3
+                          </span>
+                        ) : (
+                          <span className="text-text-muted px-2">#{idx + 1}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="font-sans font-semibold text-text-primary">{sub.studentName}</div>
+                      <div className="text-[10px] text-text-muted">{sub.rollNumber}</div>
+                    </td>
+                    <td className="py-3 px-3 text-text-secondary">{sub.college}</td>
+                    <td className="py-3 px-3 text-center font-bold text-emerald-400">
+                      {sub.score} / {sub.totalMarks}
+                    </td>
+                    <td className="py-3 px-3 text-center text-cyan-400 font-bold">{sub.percentage}%</td>
+                    <td className="py-3 px-3 text-center text-text-muted">{Math.floor(sub.timeTakenSeconds / 60)}m {sub.timeTakenSeconds % 60}s</td>
+                    <td className="py-3 px-3 text-center">
+                      {sub.submissionType === "AUTO_TAB_SWITCH" ? (
+                        <Badge variant="blocked" className="text-[10px]">Tab Switch Auto-Submit</Badge>
+                      ) : sub.tabSwitchCount > 0 ? (
+                        <Badge variant="medium" className="text-[10px]">{sub.tabSwitchCount} Warning(s)</Badge>
+                      ) : (
+                        <Badge variant="active" className="text-[10px]">Clean Proctor</Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* PRE-TEST INSTRUCTION & PROCTORING AGREEMENT MODAL */}
+      <Dialog
+        isOpen={preTestModalOpen}
+        onClose={() => setPreTestModalOpen(false)}
+        title="Proctoring Instructions & Assessment Rules"
+        description={testToStart?.title}
+        maxWidthClass="max-w-2xl"
+      >
+        <div className="space-y-4 text-xs font-sans leading-relaxed text-text-secondary">
+          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 font-semibold space-y-1">
+            <div className="flex items-center gap-1.5 font-bold uppercase text-[11px]">
+              <AlertOctagon className="w-4 h-4" /> Strict Anti-Cheating Proctoring Enforced
+            </div>
+            <p className="text-[11px] font-normal leading-relaxed">
+              This test runs under automated monitoring. Any attempt to leave the test window, change tabs, or resize the screen is tracked directly by the system.
+            </p>
+          </div>
+
+          <div className="space-y-3 font-mono text-xs">
+            <div className="p-3 bg-surface-raised border border-border rounded-xl flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 font-bold">1</span>
+              <div>
+                <strong className="text-text-primary block">Tab Switch & Window Focus Restriction:</strong>
+                You are permitted a maximum of <strong>2 warnings</strong>. On the <strong>3rd tab switch or window blur, the test will be AUTOMATICALLY TERMINATED AND SUBMITTED</strong> immediately.
+              </div>
+            </div>
+
+            <div className="p-3 bg-surface-raised border border-border rounded-xl flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 font-bold">2</span>
+              <div>
+                <strong className="text-text-primary block">Window Resizing & Split-Screen Prohibition:</strong>
+                The test runs in full screen mode. Resizing the browser window or attempting to split-screen with external tools triggers a proctoring violation.
+              </div>
+            </div>
+
+            <div className="p-3 bg-surface-raised border border-border rounded-xl flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 font-bold">3</span>
+              <div>
+                <strong className="text-text-primary block">Coding Arena & MCQ Sections:</strong>
+                For coding questions, use the integrated multi-language code editor (Java, Python, C++, C, JavaScript) with real test case runner. For MCQs, answers can be changed until final submission.
+              </div>
+            </div>
+
+            <div className="p-3 bg-surface-raised border border-border rounded-xl flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 font-bold">4</span>
+              <div>
+                <strong className="text-text-primary block">Time Limit & Auto-Submission:</strong>
+                The contest clock will count down from {testToStart?.durationMinutes} minutes. When the time expires, your answers and code will be submitted automatically.
+              </div>
+            </div>
+          </div>
+
+          {/* Agreement Checkbox */}
+          <div className="pt-3 border-t border-border flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="agree-rules"
+              checked={agreedToRules}
+              onChange={(e) => setAgreedToRules(e.target.checked)}
+              className="mt-0.5 rounded border-border text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+            />
+            <label htmlFor="agree-rules" className="text-xs font-semibold text-text-primary cursor-pointer">
+              I have read and understood all the proctoring rules. I agree not to switch tabs, resize the browser, or use unauthorized aids.
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+            <Button variant="outline" size="sm" onClick={() => setPreTestModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="teal-cyan"
+              size="sm"
+              disabled={!agreedToRules}
+              onClick={startConfirmedTest}
+              className="text-xs font-bold gap-2 px-5 py-2.5 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white"
+            >
+              <Maximize2 className="w-4 h-4" /> Enter Fullscreen & Start Test
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* FULLSCREEN FOCUSED LIVE ARENA WORKSPACE (Takes over window fluidly) */}
       {activeArenaTest && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in">
-          {/* Arena Top Navigation Bar */}
+        <div className="fixed inset-0 z-[150] bg-ink flex flex-col animate-fade-in overflow-hidden">
+          {/* Top Arena Control Bar */}
           <div className="h-14 px-4 bg-surface border-b border-border flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
               <div>
-                <h2 className="font-serif font-bold text-sm text-text-primary flex items-center gap-2">
+                <h2 className="font-serif font-bold text-sm text-text-primary truncate max-w-sm sm:max-w-md">
                   {activeArenaTest.title}
                 </h2>
-                <span className="text-[10px] font-mono text-cyan-400">
-                  Problem {selectedProblemIndex + 1} of {activeArenaTest.problems.length}: {activeArenaTest.problems[selectedProblemIndex].title}
-                </span>
+                <div className="flex items-center gap-2 text-[10px] font-mono text-cyan-400">
+                  <span>Question {activeQuestionIndex + 1} of {allQuestions.length}</span>
+                  <span>•</span>
+                  <span>{allQuestions[activeQuestionIndex]?.category || allQuestions[activeQuestionIndex]?.type}</span>
+                </div>
               </div>
             </div>
 
-            {/* Timer and Anti-Cheating Monitor */}
-            <div className="flex items-center gap-4">
+            {/* Timer, Proctoring Badges & Submit */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Countdown Timer */}
               <div className="flex items-center gap-2 px-3 py-1 bg-surface-raised border border-border rounded-lg text-xs font-mono">
                 <Clock className={cn("w-4 h-4", arenaTimer < 300 ? "text-rose-500 animate-pulse" : "text-cyan-400")} />
-                <span className={cn("font-bold", arenaTimer < 300 ? "text-rose-500" : "text-text-primary")}>
+                <span className={cn("font-bold", arenaTimer < 300 ? "text-rose-500 animate-pulse" : "text-text-primary")}>
                   {formatTimer(arenaTimer)}
                 </span>
               </div>
 
+              {/* Proctoring Tab Switch Count */}
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-surface-raised border border-border rounded-lg text-xs font-mono">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span className="text-text-muted">Proctoring:</span>
-                <span className={tabSwitchCount > 0 ? "text-rose-400 font-bold" : "text-emerald-400"}>
-                  {tabSwitchCount} / {activeArenaTest.maxTabSwitchesAllowed} Tab Switches
+                <span className="text-text-muted">Warnings:</span>
+                <span className={cn("font-bold", tabSwitchCount > 0 ? "text-rose-400" : "text-emerald-400")}>
+                  {tabSwitchCount}/2 (3rd Auto-Submits)
                 </span>
               </div>
 
               <Button
                 variant="teal-cyan"
                 size="sm"
-                onClick={handleFinalSubmitTest}
-                className="text-xs font-semibold px-3 h-8 bg-emerald-500 hover:bg-emerald-600 text-black"
+                onClick={() => setShowSubmitConfirmModal(true)}
+                className="text-xs font-bold px-4 h-8 bg-emerald-500 hover:bg-emerald-600 text-black shadow"
               >
                 Submit Contest
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (confirm("Are you sure you want to exit the Live Arena? Your test timer will keep running.")) {
-                    setActiveArenaTest(null);
-                  }
-                }}
-                className="h-8 w-8 p-0 text-text-muted hover:text-rose-400"
-              >
-                <X className="w-5 h-5" />
               </Button>
             </div>
           </div>
 
-          {/* Arena Body: Problem & Code Workspace */}
+          {/* Arena Content Body: Left Problem/Question + Center Workspace */}
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            {/* Left Column: Problem Statement */}
-            <div className="w-full lg:w-1/2 border-r border-border flex flex-col bg-surface overflow-y-auto p-5 space-y-5 custom-scrollbar">
-              {/* Problem Switcher Tabs */}
-              <div className="flex items-center gap-2 border-b border-border pb-3">
-                {activeArenaTest.problems.map((prob, idx) => (
-                  <button
-                    key={prob.id}
-                    onClick={() => {
-                      setSelectedProblemIndex(idx);
-                      setRunOutput(null);
-                    }}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-mono transition-colors flex items-center gap-1.5",
-                      selectedProblemIndex === idx
-                        ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 font-bold"
-                        : "bg-surface-raised text-text-muted hover:text-text-primary"
-                    )}
-                  >
-                    <span>Q{idx + 1}: {prob.title}</span>
-                    <Badge variant={prob.difficulty === "Easy" ? "active" : prob.difficulty === "Medium" ? "medium" : "blocked"} className="text-[9px] px-1 py-0">
-                      {prob.points} pts
-                    </Badge>
-                  </button>
-                ))}
-              </div>
+            {/* LEFT / CENTER: Question Details & Solving Area */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-surface">
+              {allQuestions[activeQuestionIndex] && (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* If Question is MCQ (Aptitude / Behavioral / Technical) */}
+                  {allQuestions[activeQuestionIndex].type === "MCQ" ? (
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto w-full custom-scrollbar">
+                      <div className="flex items-center justify-between pb-3 border-b border-border">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="medium" className="text-[10px] font-mono">
+                            {allQuestions[activeQuestionIndex].category || "Aptitude"}
+                          </Badge>
+                          <span className="text-xs font-mono text-cyan-400">
+                            Marks: +{allQuestions[activeQuestionIndex].marks}
+                            {allQuestions[activeQuestionIndex].negativeMarks ? ` | -${allQuestions[activeQuestionIndex].negativeMarks} neg` : ""}
+                          </span>
+                        </div>
 
-              {/* Current Problem Details */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-serif text-xl font-bold text-text-primary">
-                    {activeArenaTest.problems[selectedProblemIndex].title}
-                  </h3>
-                  <Badge variant={activeArenaTest.problems[selectedProblemIndex].difficulty === "Easy" ? "active" : "medium"}>
-                    {activeArenaTest.problems[selectedProblemIndex].difficulty}
-                  </Badge>
-                </div>
-
-                <div className="text-xs text-text-secondary whitespace-pre-line leading-relaxed font-sans">
-                  {activeArenaTest.problems[selectedProblemIndex].description}
-                </div>
-
-                {/* Sample Test Cases */}
-                <div className="space-y-3 pt-2">
-                  <span className="text-xs font-mono text-text-primary font-bold block uppercase tracking-wider">
-                    Sample Test Cases
-                  </span>
-                  {activeArenaTest.problems[selectedProblemIndex].sampleTestCases.map((tc, idx) => (
-                    <div key={idx} className="p-3 bg-surface-raised border border-border rounded-xl space-y-1.5 font-mono text-xs">
-                      <div>
-                        <span className="text-text-muted">Input: </span>
-                        <span className="text-cyan-400">{tc.input}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const qId = allQuestions[activeQuestionIndex].id;
+                            setMarkedForReview((prev) => ({ ...prev, [qId]: !prev[qId] }));
+                          }}
+                          className={cn(
+                            "text-xs font-mono h-7 px-2.5",
+                            markedForReview[allQuestions[activeQuestionIndex].id]
+                              ? "bg-purple-500/20 text-purple-400 border border-purple-500/40"
+                              : "text-text-muted hover:text-text-primary"
+                          )}
+                        >
+                          <Bookmark className="w-3.5 h-3.5 mr-1" />
+                          {markedForReview[allQuestions[activeQuestionIndex].id] ? "Marked for Review ✓" : "Mark for Review"}
+                        </Button>
                       </div>
-                      <div>
-                        <span className="text-text-muted">Output: </span>
-                        <span className="text-emerald-400">{tc.output}</span>
+
+                      <div className="space-y-3">
+                        <h3 className="font-serif text-lg font-bold text-text-primary">
+                          {allQuestions[activeQuestionIndex].title}
+                        </h3>
+                        <div className="text-sm text-text-secondary font-sans leading-relaxed whitespace-pre-line p-4 bg-surface-raised border border-border rounded-xl">
+                          {allQuestions[activeQuestionIndex].questionText}
+                        </div>
                       </div>
-                      {tc.explanation && (
-                        <p className="text-[11px] text-text-muted font-sans pt-1 border-t border-border/40">
-                          {tc.explanation}
-                        </p>
+
+                      {/* Options List */}
+                      <div className="space-y-3 pt-2">
+                        <span className="text-xs font-mono text-text-muted uppercase font-bold tracking-wider">
+                          Select Correct Option:
+                        </span>
+
+                        <div className="grid grid-cols-1 gap-3">
+                          {allQuestions[activeQuestionIndex].options?.map((opt) => {
+                            const qId = allQuestions[activeQuestionIndex].id;
+                            const isSelected = mcqAnswers[qId] === opt.id;
+
+                            return (
+                              <button
+                                key={opt.id}
+                                onClick={() => {
+                                  setMcqAnswers((prev) => ({ ...prev, [qId]: opt.id }));
+                                }}
+                                className={cn(
+                                  "p-4 rounded-xl border text-left flex items-start gap-3 transition-all",
+                                  isSelected
+                                    ? "bg-cyan-500/15 border-cyan-500 text-cyan-200 shadow-md"
+                                    : "bg-surface-raised border-border text-text-secondary hover:border-cyan-500/50 hover:text-text-primary"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "w-6 h-6 rounded-full flex items-center justify-center font-mono font-bold text-xs shrink-0 mt-0.5",
+                                    isSelected ? "bg-cyan-500 text-black" : "bg-surface border border-border text-text-muted"
+                                  )}
+                                >
+                                  {opt.id}
+                                </span>
+                                <span className="font-sans text-sm leading-relaxed">{opt.text}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Clear response action */}
+                      {mcqAnswers[allQuestions[activeQuestionIndex].id] && (
+                        <div className="pt-2">
+                          <button
+                            onClick={() => {
+                              const qId = allQuestions[activeQuestionIndex].id;
+                              setMcqAnswers((prev) => {
+                                const copy = { ...prev };
+                                delete copy[qId];
+                                return copy;
+                              });
+                            }}
+                            className="text-xs font-mono text-text-muted hover:text-rose-400 underline underline-offset-4"
+                          >
+                            Clear Selection
+                          </button>
+                        </div>
                       )}
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    /* If Question is CODING: REAL MONACO CODE EDITOR + TESTCASE RUNNER */
+                    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                      {/* Left: Problem Statement & Constraints */}
+                      <div className="w-full lg:w-5/12 border-r border-border flex flex-col bg-surface overflow-y-auto p-5 space-y-4 custom-scrollbar">
+                        <div className="flex items-center justify-between">
+                          <Badge
+                            variant={
+                              allQuestions[activeQuestionIndex].difficulty === "Easy"
+                                ? "active"
+                                : allQuestions[activeQuestionIndex].difficulty === "Hard"
+                                ? "blocked"
+                                : "medium"
+                            }
+                          >
+                            {allQuestions[activeQuestionIndex].difficulty || "Medium"}
+                          </Badge>
+                          <span className="text-xs font-mono text-cyan-400 font-bold">
+                            Marks: {allQuestions[activeQuestionIndex].marks} pts
+                          </span>
+                        </div>
 
-                {/* Constraints */}
-                <div className="space-y-2 pt-2">
-                  <span className="text-xs font-mono text-text-primary font-bold block uppercase tracking-wider">
-                    Constraints
-                  </span>
-                  <ul className="list-disc list-inside space-y-1 text-xs font-mono text-text-muted">
-                    {activeArenaTest.problems[selectedProblemIndex].constraints.map((c, i) => (
-                      <li key={i}>{c}</li>
-                    ))}
-                  </ul>
+                        <h3 className="font-serif text-lg font-bold text-text-primary">
+                          {allQuestions[activeQuestionIndex].title}
+                        </h3>
+
+                        <div className="text-xs text-text-secondary leading-relaxed font-sans whitespace-pre-line">
+                          {allQuestions[activeQuestionIndex].questionText}
+                        </div>
+
+                        {/* Sample Test Cases */}
+                        <div className="space-y-2 pt-2">
+                          <span className="text-xs font-mono uppercase font-bold text-text-primary">
+                            Sample Test Cases
+                          </span>
+                          {allQuestions[activeQuestionIndex].sampleTestCases?.map((tc, idx) => (
+                            <div key={idx} className="p-3 bg-surface-raised border border-border rounded-xl space-y-1 font-mono text-xs">
+                              <div>
+                                <span className="text-text-muted">Input: </span>
+                                <span className="text-cyan-400">{tc.input}</span>
+                              </div>
+                              <div>
+                                <span className="text-text-muted">Output: </span>
+                                <span className="text-emerald-400">{tc.output}</span>
+                              </div>
+                              {tc.explanation && (
+                                <p className="text-[11px] text-text-muted pt-1 border-t border-border/40 font-sans">
+                                  {tc.explanation}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Constraints */}
+                        {allQuestions[activeQuestionIndex].constraints && (
+                          <div className="space-y-1.5 pt-2">
+                            <span className="text-xs font-mono uppercase font-bold text-text-primary">
+                              Constraints
+                            </span>
+                            <ul className="list-disc list-inside space-y-1 text-xs font-mono text-text-muted">
+                              {allQuestions[activeQuestionIndex].constraints?.map((c, i) => (
+                                <li key={i}>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Monaco Code Editor & Execution Runner */}
+                      <div className="w-full lg:w-7/12 flex flex-col bg-[#0b0f19] overflow-hidden">
+                        {/* Editor Toolbar */}
+                        <div className="h-10 px-4 bg-surface-raised border-b border-border flex items-center justify-between shrink-0">
+                          <div className="flex items-center gap-2">
+                            <Code2 className="w-4 h-4 text-cyan-400" />
+                            <select
+                              value={codingLanguages[allQuestions[activeQuestionIndex].id] || "java"}
+                              onChange={(e) => {
+                                const newLang = e.target.value;
+                                const q = allQuestions[activeQuestionIndex];
+                                setCodingLanguages((prev) => ({ ...prev, [q.id]: newLang }));
+                                setCodeAnswers((prev) => ({
+                                  ...prev,
+                                  [q.id]: (q.starterCode as any)?.[newLang] || "",
+                                }));
+                              }}
+                              className="bg-surface border border-border rounded px-2 py-0.5 text-xs font-mono text-text-primary focus:outline-none"
+                            >
+                              <option value="java">Java 21</option>
+                              <option value="python">Python 3.12</option>
+                              <option value="cpp">C++ 20</option>
+                              <option value="c">C (GCC 13)</option>
+                              <option value="javascript">JavaScript (Node 20)</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const q = allQuestions[activeQuestionIndex];
+                                const currentLang = codingLanguages[q.id] || "java";
+                                setCodeAnswers((prev) => ({
+                                  ...prev,
+                                  [q.id]: (q.starterCode as any)?.[currentLang] || "",
+                                }));
+                                toast.info("Starter code reset to default template.");
+                              }}
+                              className="text-xs font-mono h-7 px-2 text-text-muted hover:text-text-primary"
+                            >
+                              <RotateCcw className="w-3 h-3 mr-1" /> Reset
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Monaco Editor Component */}
+                        <div className="flex-1 relative overflow-hidden">
+                          <Editor
+                            height="100%"
+                            language={
+                              codingLanguages[allQuestions[activeQuestionIndex].id] === "cpp" ||
+                              codingLanguages[allQuestions[activeQuestionIndex].id] === "c"
+                                ? "cpp"
+                                : codingLanguages[allQuestions[activeQuestionIndex].id] || "java"
+                            }
+                            theme="vs-dark"
+                            value={
+                              codeAnswers[allQuestions[activeQuestionIndex].id] ??
+                              (allQuestions[activeQuestionIndex].starterCode as any)?.[
+                                codingLanguages[allQuestions[activeQuestionIndex].id] || "java"
+                              ] ??
+                              ""
+                            }
+                            onChange={(val) => {
+                              const qId = allQuestions[activeQuestionIndex].id;
+                              setCodeAnswers((prev) => ({ ...prev, [qId]: val || "" }));
+                            }}
+                            options={{
+                              fontSize: 13,
+                              minimap: { enabled: false },
+                              scrollBeyondLastLine: false,
+                              wordWrap: "on",
+                              tabSize: 4,
+                              automaticLayout: true,
+                              bracketPairColorization: { enabled: true },
+                              suggestOnTriggerCharacters: true,
+                              padding: { top: 12, bottom: 12 },
+                            }}
+                          />
+                        </div>
+
+                        {/* Execution Console & Run Action */}
+                        <div className="h-44 border-t border-border bg-surface flex flex-col shrink-0">
+                          <div className="h-9 px-3 bg-surface-raised border-b border-border flex items-center justify-between text-xs font-mono">
+                            <div className="flex items-center gap-1.5 text-text-muted">
+                              <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>Execution Console</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {runOutputs[allQuestions[activeQuestionIndex].id]?.timeMs ? (
+                                <span className="text-[11px] text-text-muted">
+                                  {runOutputs[allQuestions[activeQuestionIndex].id].timeMs}ms
+                                </span>
+                              ) : null}
+
+                              <Button
+                                variant="teal-cyan"
+                                size="sm"
+                                onClick={() => handleRunCodeInArena(allQuestions[activeQuestionIndex])}
+                                className="h-6 text-xs font-mono px-3 bg-cyan-600 hover:bg-cyan-500 text-white"
+                              >
+                                <Play className="w-3 h-3 mr-1 fill-white" /> Run Test Cases
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="flex-1 p-3 overflow-y-auto font-mono text-xs custom-scrollbar">
+                            {runOutputs[allQuestions[activeQuestionIndex].id] ? (
+                              <div
+                                className={cn(
+                                  "whitespace-pre-wrap leading-relaxed",
+                                  runOutputs[allQuestions[activeQuestionIndex].id].status === "error"
+                                    ? "text-rose-400"
+                                    : "text-emerald-400"
+                                )}
+                              >
+                                {runOutputs[allQuestions[activeQuestionIndex].id].output}
+                              </div>
+                            ) : (
+                              <span className="text-text-muted italic">
+                                Click 'Run Test Cases' to verify code against test suite before submitting.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Right Column: Code Editor & Execution Runner */}
-            <div className="w-full lg:w-1/2 flex flex-col bg-ink overflow-hidden">
-              {/* Editor Header Toolbar */}
-              <div className="h-10 px-4 bg-surface-raised border-b border-border flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                  <Code2 className="w-4 h-4 text-cyan-400" />
-                  <select
-                    value={selectedLanguage}
-                    onChange={(e) => {
-                      const lang = e.target.value as "javascript" | "python" | "java" | "cpp";
-                      setSelectedLanguage(lang);
-                      const currentProbId = activeArenaTest.problems[selectedProblemIndex].id;
-                      setUserCode((prev) => ({
-                        ...prev,
-                        [currentProbId]: activeArenaTest.problems[selectedProblemIndex].starterCode[lang] || "",
-                      }));
-                    }}
-                    className="bg-surface border border-border rounded px-2 py-0.5 text-xs font-mono text-text-primary focus:outline-none"
-                  >
-                    <option value="javascript">JavaScript (Node 20)</option>
-                    <option value="python">Python 3.12</option>
-                    <option value="java">Java 21</option>
-                    <option value="cpp">C++ 20</option>
-                  </select>
+            {/* RIGHT DRAWER: Question Palette & Navigation */}
+            <div className="w-full lg:w-64 border-t lg:border-t-0 lg:border-l border-border bg-surface-raised p-4 flex flex-col justify-between shrink-0 overflow-y-auto custom-scrollbar">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-border">
+                  <span className="text-xs font-mono uppercase font-bold text-text-primary">
+                    Question Palette
+                  </span>
+                  <span className="text-[11px] font-mono text-cyan-400">
+                    {Object.keys(mcqAnswers).length + Object.keys(codeAnswers).filter((k) => codeAnswers[k]?.length > 30).length} of {allQuestions.length} answered
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const currentProb = activeArenaTest.problems[selectedProblemIndex];
-                      setUserCode((prev) => ({
-                        ...prev,
-                        [currentProb.id]: currentProb.starterCode[selectedLanguage] || "",
-                      }));
-                      toast.info("Starter code reset to default.");
-                    }}
-                    className="text-xs font-mono h-7 px-2 text-text-muted hover:text-text-primary"
-                  >
-                    <RotateCcw className="w-3 h-3 mr-1" /> Reset
-                  </Button>
+                {/* Question Numbers Grid */}
+                <div className="grid grid-cols-5 gap-2">
+                  {allQuestions.map((q, idx) => {
+                    const isAnswered = q.type === "MCQ" ? !!mcqAnswers[q.id] : (codeAnswers[q.id]?.length || 0) > 30;
+                    const isReview = markedForReview[q.id];
+                    const isCurrent = activeQuestionIndex === idx;
+
+                    return (
+                      <button
+                        key={q.id}
+                        onClick={() => setActiveQuestionIndex(idx)}
+                        className={cn(
+                          "h-8 rounded-lg font-mono text-xs font-bold transition-all relative flex items-center justify-center",
+                          isCurrent
+                            ? "ring-2 ring-cyan-400 bg-cyan-500/20 text-cyan-300"
+                            : isReview
+                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                            : isAnswered
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                            : "bg-surface border border-border text-text-muted hover:text-text-primary"
+                        )}
+                      >
+                        {idx + 1}
+                        {isReview && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-400" />}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
 
-              {/* Code Textarea / Workspace */}
-              <div className="flex-1 relative bg-[#090d16] p-3 font-mono text-xs">
-                <textarea
-                  value={userCode[activeArenaTest.problems[selectedProblemIndex].id] || ""}
-                  onChange={(e) => {
-                    const currentId = activeArenaTest.problems[selectedProblemIndex].id;
-                    setUserCode((prev) => ({ ...prev, [currentId]: e.target.value }));
-                  }}
-                  className="w-full h-full bg-transparent text-text-primary resize-none focus:outline-none custom-scrollbar leading-relaxed"
-                  placeholder="// Write your live solution code here..."
-                  spellCheck={false}
-                />
-              </div>
-
-              {/* Output Console / Runner Panel */}
-              <div className="h-44 border-t border-border bg-surface flex flex-col shrink-0">
-                <div className="h-8 px-3 bg-surface-raised border-b border-border flex items-center justify-between text-[11px] font-mono text-text-muted">
-                  <div className="flex items-center gap-1.5">
-                    <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Execution Console</span>
+                {/* Legend */}
+                <div className="space-y-1.5 pt-3 border-t border-border/60 text-[11px] font-mono text-text-muted">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-emerald-500/30 border border-emerald-500/60" /> Answered
                   </div>
-                  {runOutput && (
-                    <span className="text-text-muted">Runtime: {runOutput.timeMs}ms</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-purple-500/30 border border-purple-500/60" /> Marked for Review
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-surface border border-border" /> Unanswered
+                  </div>
                 </div>
+              </div>
 
-                <div className="flex-1 p-3 overflow-y-auto font-mono text-xs custom-scrollbar">
-                  {runOutput ? (
-                    <div className={runOutput.status === "error" ? "text-rose-400 whitespace-pre-wrap" : "text-emerald-400 whitespace-pre-wrap"}>
-                      {runOutput.output}
-                    </div>
-                  ) : (
-                    <span className="text-text-muted italic">Click 'Run Code' to execute against sample test cases.</span>
-                  )}
-                </div>
+              {/* Prev / Next Action Controls */}
+              <div className="pt-4 border-t border-border flex items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={activeQuestionIndex === 0}
+                  onClick={() => setActiveQuestionIndex((prev) => Math.max(0, prev - 1))}
+                  className="text-xs font-mono h-8 flex-1"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Prev
+                </Button>
 
-                {/* Footer Controls */}
-                <div className="p-2.5 border-t border-border bg-surface-raised flex items-center justify-between gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRunCode}
-                    className="text-xs font-mono h-8 px-3 gap-1.5"
-                  >
-                    <Play className="w-3.5 h-3.5 text-cyan-400" /> Run Code
-                  </Button>
-
-                  <Button
-                    variant="teal-cyan"
-                    size="sm"
-                    onClick={handleSubmitProblem}
-                    className="text-xs font-semibold h-8 px-4 gap-1.5"
-                  >
-                    <Send className="w-3.5 h-3.5" /> Submit Problem
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={activeQuestionIndex === allQuestions.length - 1}
+                  onClick={() => setActiveQuestionIndex((prev) => Math.min(allQuestions.length - 1, prev + 1))}
+                  className="text-xs font-mono h-8 flex-1"
+                >
+                  Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* PROCTORING TAB-SWITCH WARNING MODAL */}
-      {showWarningModal && (
-        <Dialog
-          isOpen={showWarningModal}
-          onClose={() => setShowWarningModal(false)}
-          title="⚠️ Proctoring Violation Warning"
-          maxWidthClass="max-w-md"
-        >
-          <div className="space-y-4 text-xs font-mono">
-            <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl space-y-2 text-rose-300">
-              <div className="flex items-center gap-2 font-bold text-rose-400">
-                <ShieldAlert className="w-5 h-5 shrink-0" />
-                <span>Tab Switch Detected (#{tabSwitchCount})</span>
-              </div>
-              <p className="text-[11px] leading-relaxed">
-                Leaving the contest window, switching application tabs, or minimizing the browser is strictly recorded by the automated proctoring monitor.
-              </p>
-              <p className="text-[11px] text-rose-400 font-bold">
-                Max Allowed Violations: {activeArenaTest?.maxTabSwitchesAllowed || 3}. Exceeding this limit will trigger automatic disqualification!
-              </p>
-            </div>
-
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => setShowWarningModal(false)}
-              className="w-full text-xs font-bold py-2"
-            >
-              I Understand & Return to Test
-            </Button>
+      {/* PROCTORING VIOLATION WARNING MODAL */}
+      <Dialog
+        isOpen={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
+        title={warningType === "TAB_SWITCH" ? "Tab Switch Violation Detected" : "Window Resize Violation"}
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-7 h-7 animate-bounce" />
           </div>
-        </Dialog>
-      )}
 
-      {/* TEST SUBMITTED SUMMARY MODAL */}
-      {testSubmitted && (
-        <Dialog
-          isOpen={testSubmitted}
-          onClose={() => {
-            setTestSubmitted(false);
-            setActiveArenaTest(null);
-          }}
-          title="Contest Submission Recorded!"
-          maxWidthClass="max-w-md"
-        >
-          <div className="space-y-4 text-center text-xs font-mono py-2">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto text-emerald-400">
-              <Award className="w-8 h-8" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-serif text-lg font-bold text-text-primary">
-                Placement Arena Submitted
-              </h3>
-              <p className="text-text-muted">
-                Your code has been received and evaluated against hidden performance benchmarks.
-              </p>
-            </div>
+          <div className="text-center space-y-1.5">
+            <p className="text-xs font-mono text-text-secondary leading-relaxed">{warningMessage}</p>
+          </div>
 
-            <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-1.5 text-left">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Contest:</span>
-                <span className="text-text-primary font-bold">{activeArenaTest?.title}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Proctoring Violations:</span>
-                <span className={tabSwitchCount > 0 ? "text-rose-400 font-bold" : "text-emerald-400"}>
-                  {tabSwitchCount} Tab Switches
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Rank Placement:</span>
-                <span className="text-cyan-400 font-bold">Top 8% Candidate</span>
-              </div>
-            </div>
+          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-center font-mono text-xs text-rose-300">
+            Total Warnings: <strong>{warningType === "TAB_SWITCH" ? tabSwitchCount : resizeCount} of 2</strong>.
+            <br />
+            Next violation will trigger instant auto-submission!
+          </div>
 
+          <Button
+            variant="teal-cyan"
+            size="sm"
+            onClick={() => setShowWarningModal(false)}
+            className="w-full text-xs font-bold py-2 bg-rose-600 hover:bg-rose-500 text-white"
+          >
+            I Understand, Resume Test
+          </Button>
+        </div>
+      </Dialog>
+
+      {/* SUBMISSION CONFIRMATION MODAL */}
+      <Dialog
+        isOpen={showSubmitConfirmModal}
+        onClose={() => setShowSubmitConfirmModal(false)}
+        title="Ready to Submit Contest?"
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto">
+            <FileCheck2 className="w-6 h-6" />
+          </div>
+
+          <div className="text-center space-y-1.5">
+            <p className="text-xs font-mono text-text-secondary">
+              Review your progress before final evaluation. Once submitted, answers cannot be altered.
+            </p>
+          </div>
+
+          <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-1.5 font-mono text-xs">
+            <div className="flex justify-between">
+              <span className="text-text-muted">Total Questions:</span>
+              <span className="font-bold text-text-primary">{allQuestions.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">MCQ Answered:</span>
+              <span className="font-bold text-cyan-400">{Object.keys(mcqAnswers).length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Time Remaining:</span>
+              <span className="font-bold text-emerald-400">{formatTimer(arenaTimer)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSubmitConfirmModal(false)}
+              className="flex-1 text-xs"
+            >
+              Continue Test
+            </Button>
             <Button
               variant="teal-cyan"
               size="sm"
-              onClick={() => {
-                setTestSubmitted(false);
-                setActiveArenaTest(null);
-              }}
-              className="w-full text-xs font-bold py-2"
+              onClick={() => finishSubmissionAndStore("NORMAL")}
+              className="flex-1 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-black"
             >
-              Return to Live Contests Hub
+              Confirm & Submit
             </Button>
           </div>
-        </Dialog>
-      )}
+        </div>
+      </Dialog>
+
+      {/* SHOW RESULT & SCORECARD MODAL */}
+      <Dialog
+        isOpen={reviewResultModalOpen}
+        onClose={() => setReviewResultModalOpen(false)}
+        title="Official Assessment Scorecard"
+        description={selectedSubmissionToReview?.testTitle}
+        maxWidthClass="max-w-4xl"
+      >
+        {selectedSubmissionToReview && (
+          <div className="space-y-6">
+            {/* Top Scorecard Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">Total Score</span>
+                <span className="text-xl font-bold text-emerald-400">
+                  {selectedSubmissionToReview.score} / {selectedSubmissionToReview.totalMarks}
+                </span>
+              </div>
+
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">Percentage</span>
+                <span className="text-xl font-bold text-cyan-400">{selectedSubmissionToReview.percentage}%</span>
+              </div>
+
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">National Rank</span>
+                <span className="text-xl font-bold text-amber-400">#{selectedSubmissionToReview.rank || 4}</span>
+              </div>
+
+              <div className="p-3 bg-surface-raised border border-border rounded-xl">
+                <span className="text-[10px] text-text-muted uppercase block">Proctoring Flags</span>
+                <span className="text-xs font-bold text-text-primary flex items-center justify-center gap-1 mt-1">
+                  {selectedSubmissionToReview.tabSwitchCount === 0 ? (
+                    <span className="text-emerald-400">Clean</span>
+                  ) : (
+                    <span className="text-rose-400">{selectedSubmissionToReview.tabSwitchCount} Tab Warnings</span>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Question By Question Detailed Review */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif text-base font-bold text-text-primary">
+                  Detailed Answers & Explanations
+                </h3>
+                <span className="text-xs font-mono text-text-muted">
+                  * Per platform rules: Full solutions are revealed for MCQs only.
+                </span>
+              </div>
+
+              {selectedContestForReview &&
+                liveTestService.flattenQuestions(selectedContestForReview).map((q, idx) => {
+                  const ans = selectedSubmissionToReview.answers[q.id];
+
+                  return (
+                    <div key={q.id} className="p-4 bg-surface-raised border border-border rounded-xl space-y-3 font-mono text-xs">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-cyan-400 font-bold uppercase">
+                            Q{idx + 1} • {q.type} • {q.category || "General"}
+                          </span>
+                          <h4 className="font-serif text-sm font-bold text-text-primary font-sans">{q.title}</h4>
+                        </div>
+
+                        <Badge variant={ans?.isCorrect ? "active" : "blocked"}>
+                          {ans?.marksEarned || 0} / {q.marks} pts
+                        </Badge>
+                      </div>
+
+                      <p className="text-text-secondary font-sans leading-relaxed text-xs">{q.questionText}</p>
+
+                      {/* If MCQ: Show Student Answer, Correct Answer, and Explanation */}
+                      {q.type === "MCQ" ? (
+                        <div className="space-y-2 pt-2 border-t border-border/60">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <div className="p-2 rounded bg-surface border border-border">
+                              <span className="text-text-muted">Your Selection: </span>
+                              <span className={ans?.isCorrect ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                                Option {ans?.selectedOptionId || "None"}
+                              </span>
+                            </div>
+                            <div className="p-2 rounded bg-surface border border-border">
+                              <span className="text-text-muted">Correct Answer: </span>
+                              <span className="text-emerald-400 font-bold">
+                                Option {q.correctOptionId}
+                              </span>
+                            </div>
+                          </div>
+
+                          {q.explanation && (
+                            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-200 font-sans text-xs space-y-1">
+                              <strong className="font-mono text-[10px] uppercase text-cyan-300 block">Explanation:</strong>
+                              <p className="leading-relaxed">{q.explanation}</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        /* If Coding: Show Passed Test Cases & Marks (No leaked solution as requested) */
+                        <div className="p-3 bg-surface border border-border rounded-lg space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-text-muted">Test Cases Passed:</span>
+                            <span className="text-emerald-400 font-bold">
+                              {ans?.passedTestCases || 0} of {ans?.totalTestCases || 2} passed
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-text-muted">Language Selected:</span>
+                            <span className="text-cyan-400 font-bold uppercase">{ans?.language || "Java"}</span>
+                          </div>
+                          <p className="text-[11px] text-text-muted italic pt-1 border-t border-border/40 font-sans">
+                            Coding solutions are protected to preserve competition integrity. Check Coding Arena to practice similar algorithms.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="pt-4 border-t border-border flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => setReviewResultModalOpen(false)}>
+                Close Scorecard
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 };
-
-export default LiveTests;

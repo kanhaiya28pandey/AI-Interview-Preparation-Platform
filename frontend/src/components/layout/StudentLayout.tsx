@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useVerificationStatus } from "@/hooks/useVerificationStatus";
 import { ShieldAlert, Clock, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "sidebar_collapsed_student";
 
@@ -168,9 +169,21 @@ export const StudentLayout: React.FC = () => {
         <main
           ref={mainRef}
           tabIndex={-1}
-          className="app-scroll flex-1 min-h-0 p-4 sm:p-8 relative z-10 outline-none"
+          className={cn(
+            "app-scroll flex-1 min-h-0 relative z-10 outline-none",
+            location.pathname === "/live-tests" || location.pathname === "/coding"
+              ? "p-2 sm:p-5"
+              : "p-4 sm:p-8"
+          )}
         >
-          <div className="max-w-7xl w-full mx-auto">
+          <div
+            className={cn(
+              "w-full mx-auto",
+              location.pathname === "/live-tests" || location.pathname === "/coding"
+                ? "max-w-none"
+                : "max-w-7xl"
+            )}
+          >
             <ErrorBoundary fallbackTitle="Student Section Error" fallbackMessage="An error occurred while loading this view.">
               <PageTransition>
                 <Outlet />
