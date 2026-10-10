@@ -500,3 +500,134 @@ def generate_mcq_quiz_questions(
     return results
 
 
+def generate_placement_article(
+    topic: str,
+    domain: str = "Backend & Systems",
+    target_role: str = "Software Engineer"
+) -> Dict[str, Any]:
+    """Generates an in-depth placement article guide complete with code/architecture and interview Q&As."""
+    if client:
+        try:
+            prompt = f"""
+            You are a Principal Engineering Lead and Technical Interviewer.
+            Write a comprehensive, publication-ready placement preparation guide on the topic: "{topic}" within the domain: "{domain}" for candidates interviewing for "{target_role}".
+            
+            Return strict JSON format with the following schema:
+            {{
+              "title": "Engaging, professional article title",
+              "summary": "2-3 sentence high-impact summary of core takeaways",
+              "readTimeMinutes": 8,
+              "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
+              "content": "# Markdown formatted deep-dive guide with headings, architectural analysis, best practices, and code examples (at least 350 words)",
+              "interviewQA": [
+                {{
+                  "id": "qa-1",
+                  "question": "Realistic interview question asked at top tech firms on this topic",
+                  "answer": "Detailed model answer explaining trade-offs, internal mechanics, and engineering rationale",
+                  "keyPoints": ["Key takeaway point 1", "Key takeaway point 2", "Common pitfall to avoid"]
+                }},
+                {{
+                  "id": "qa-2",
+                  "question": "Second challenging interview question",
+                  "answer": "Detailed model answer",
+                  "keyPoints": ["Point 1", "Point 2"]
+                }},
+                {{
+                  "id": "qa-3",
+                  "question": "Third scenario-based or troubleshooting question",
+                  "answer": "Detailed model answer",
+                  "keyPoints": ["Point 1", "Point 2"]
+                }},
+                {{
+                  "id": "qa-4",
+                  "question": "Fourth senior-level architectural trade-off question",
+                  "answer": "Detailed model answer",
+                  "keyPoints": ["Point 1", "Point 2"]
+                }}
+              ]
+            }}
+            
+            Only output raw valid JSON. Do not include markdown codeblocks or backticks.
+            """
+            response = client.models.generate_content(
+                model=AI_MODEL,
+                contents=prompt
+            )
+            raw = response.text.strip()
+            if raw.startswith("```json"): raw = raw[7:]
+            if raw.endswith("```"): raw = raw[:-3]
+            data = json.loads(raw.strip())
+            if "title" in data and "content" in data and "interviewQA" in data:
+                return data
+        except Exception as e:
+            logger.warning("Gemini article generation failed (%s), using structured fallback", e)
+
+    return {
+        "title": f"Complete Technical Guide & Interview Patterns: {topic}",
+        "summary": f"Essential architectural principles, production best practices, and frequently asked interview questions for {topic} in {domain}.",
+        "readTimeMinutes": 8,
+        "tags": [domain, topic, "Interview Prep", "Architecture"],
+        "content": f"""
+# Technical Masterclass: {topic}
+
+In modern software engineering interviews, candidates are expected to demonstrate deep conceptual understanding, practical hands-on patterns, and clear trade-off awareness for **{topic}**.
+
+---
+
+## 1. Architectural Foundations & Principles
+When designing solutions involving **{topic}**, senior interviewers look for:
+- **Scalability & Latency**: How the design behaves under 10x to 100x traffic expansion.
+- **Fault Tolerance & Graceful Degradation**: Handling partial failures, timeouts, and network partitions.
+- **Clean Separation of Concerns**: Isolating domain logic from infrastructure details.
+
+## 2. Best Practices & Production Pitfalls
+1. **Premature Optimization**: Always measure and profile bottlenecks before adding caching or complex sharding layers.
+2. **Observability**: Ensure distributed tracing (OpenTelemetry), structured logs, and Prometheus metrics are built into every component.
+3. **Idempotency**: Protect against duplicate requests and network retries using unique idempotency keys.
+        """,
+        "interviewQA": [
+            {
+                "id": "qa-fb-1",
+                "question": f"What is the most critical design trade-off when implementing {topic}?",
+                "answer": f"The primary trade-off in {topic} centers on balancing operational simplicity against high-throughput scalability. Premature distributed complexity introduces network latency and synchronization overhead.",
+                "keyPoints": [
+                    "Evaluate read-to-write ratios before choosing storage models",
+                    "Simplicity beats cleverness in production reliability",
+                    "Always define clear SLO/SLA constraints"
+                ]
+            },
+            {
+                "id": "qa-fb-2",
+                "question": f"How do you troubleshoot high latency or bottlenecks in {topic}?",
+                "answer": "Analyze distributed traces to isolate whether the delay stems from CPU execution, database lock contention, or slow downstream API dependencies. Inspect connection pool saturation and query execution plans.",
+                "keyPoints": [
+                    "Trace-first diagnostic approach across service boundaries",
+                    "Check connection pool exhaustion and memory leaks",
+                    "Audit P99 and P95 latencies rather than averages"
+                ]
+            },
+            {
+                "id": "qa-fb-3",
+                "question": f"What security or concurrency safeguards are required for {topic}?",
+                "answer": "Implement strict input validation, rate limiting at the API gateway, least-privilege credential scoping, and optimistic locking to prevent concurrent overwrite anomalies.",
+                "keyPoints": [
+                    "Optimistic locking prevents race conditions",
+                    "Zero-trust credential scoping across microservices",
+                    "Defense in depth with API gateway rate limiting"
+                ]
+            },
+            {
+                "id": "qa-fb-4",
+                "question": f"How does {topic} evolve from a monolith to a distributed architecture?",
+                "answer": "Start with modular monolith boundaries. Extract high-frequency components into isolated services only when deployment velocity, independent scaling, or team ownership boundaries mandate the separation.",
+                "keyPoints": [
+                    "Modular boundaries before distributed networks",
+                    "Extract services based on independent scaling requirements",
+                    "Maintain clear event-driven domain boundaries"
+                ]
+            }
+        ]
+    }
+
+
+

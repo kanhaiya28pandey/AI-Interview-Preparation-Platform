@@ -55,6 +55,7 @@ export interface UserStatsSnapshot {
   codingProblemsSolved: number;
   mockInterviewsCompleted: number;
   quizzesCompleted: number;
+  articlesRead?: number;
   overallRating: number;
   currentStreak: number;
   totalXP: number;

@@ -102,6 +102,7 @@ export interface UserProfile {
     codingProblemsSolved: number;
     mockInterviewsCompleted: number;
     quizzesCompleted: number;
+    articlesRead?: number;
     overallRating: number;
     currentStreak: number;
     totalXP: number;
