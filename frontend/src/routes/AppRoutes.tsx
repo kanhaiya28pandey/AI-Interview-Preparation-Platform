@@ -100,7 +100,7 @@ export const AppRoutes: React.FC = () => {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="content" element={<ContentManagerHub />} />
-        <Route path="students" element={<AdminStudents />} />
+        <Route path="students" element={<AdminStudents defaultTab="progress" />} />
         <Route path="students/:id" element={<AdminStudentDetail />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="verifications" element={<AdminVerifications />} />

@@ -181,8 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const adminLinks: SidebarLink[] = [
     { to: "/admin", label: "Admin Overview", icon: LayoutDashboard },
     { to: "/admin/content", label: "Content Manager", icon: Layers, badge: "Hub" },
-    { to: "/admin/students", label: "Student Progress", icon: GraduationCap, badge: "Analytics" },
-    { to: "/admin/users", label: "Manage Users", icon: Users },
+    { to: "/admin/students", label: "Students & Users", icon: Users, badge: "Hub" },
     { to: "/admin/verifications", label: "ID Verifications", icon: ShieldCheck, badge: "Review" },
     { to: "/admin/coding-tests", label: "Coding Tests", icon: Code2 },
     { to: "/admin/taxonomy", label: "Domains & Topics", icon: FolderTree },

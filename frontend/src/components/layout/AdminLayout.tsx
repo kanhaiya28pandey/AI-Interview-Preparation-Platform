@@ -74,7 +74,8 @@ export const AdminLayout: React.FC = () => {
     switch (location.pathname) {
       case "/admin": return "Admin Dashboard Overview";
       case "/admin/content": return "Content Manager Hub";
-      case "/admin/users": return "User Management";
+      case "/admin/students": return "Students & Users Hub";
+      case "/admin/users": return "Students & Users Hub";
       case "/admin/coding-tests": return "Coding Tests Management";
       case "/admin/taxonomy": return "Domains & Topics Taxonomy";
       case "/admin/mock-interviews": return "Mock Interview Track Configs";
