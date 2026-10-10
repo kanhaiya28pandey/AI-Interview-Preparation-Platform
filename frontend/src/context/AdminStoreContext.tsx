@@ -18,6 +18,7 @@ export interface MasterStudent {
   year: string;
   rollNumber: string;
   idCardFrontUrl: string;
+  idCardBackUrl?: string;
   selfieUrl?: string;
   registeredAt: string;
   verificationStatus: "Pending Verification" | "Verified" | "Rejected" | "Pending";
@@ -63,6 +64,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "4th Year",
     rollNumber: "RA2111003010452",
     idCardFrontUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
     registeredAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(), // 2 hrs ago (NEW)
     verificationStatus: "Verified",
     role: "STUDENT",
@@ -91,6 +93,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "3rd Year",
     rollNumber: "21BIT0184",
     idCardFrontUrl: "https://images.unsplash.com/photo-1579389083078-4e7018379f7e?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=80",
     registeredAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(), // 5 hrs ago (NEW)
     verificationStatus: "Pending Verification",
     role: "STUDENT",
@@ -119,6 +122,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "4th Year",
     rollNumber: "2021A7PS0042P",
     idCardFrontUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=80",
     registeredAt: new Date(Date.now() - 12 * 3600 * 1000).toISOString(), // 12 hrs ago (NEW)
     verificationStatus: "Rejected",
     rejectionCategory: "Blurry or Unreadable ID Card",
@@ -149,6 +153,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "2nd Year",
     rollNumber: "CS22M014",
     idCardFrontUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=80",
     registeredAt: "2026-09-20T10:30:00Z",
     verificationStatus: "Verified",
     role: "STUDENT",
@@ -321,7 +326,8 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 year: u.year || "3rd Year",
                 rollNumber: u.rollNumber || v?.rollNumber || "RA2111003010452",
                 idCardFrontUrl: v?.idCardFrontUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
-                selfieUrl: v?.selfieUrl,
+                idCardBackUrl: v?.idCardBackUrl,
+                selfieUrl: v?.selfieUrl || u?.avatar || u?.avatarUrl || u?.profilePicture,
                 registeredAt: u.joinedDate || u.createdAt || new Date().toISOString(),
                 verificationStatus: (v?.status === "Verified" ? "Verified" : v?.status === "Rejected" ? "Rejected" : "Pending Verification") as any,
                 role: "STUDENT",
