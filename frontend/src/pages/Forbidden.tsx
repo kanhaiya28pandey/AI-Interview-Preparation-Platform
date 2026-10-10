@@ -2,9 +2,12 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldAlert, ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/context/AuthContext";
 
 export const Forbidden: React.FC = () => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const isAdminUser = isAdmin();
 
   return (
     <div className="min-h-screen bg-ink text-text-primary flex items-center justify-center p-6">
@@ -25,9 +28,9 @@ export const Forbidden: React.FC = () => {
           <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4" /> Go Back
           </Button>
-          <Link to="/dashboard">
+          <Link to={isAdminUser ? "/admin" : "/dashboard"}>
             <Button variant="primary" size="sm">
-              <Home className="w-4 h-4" /> Return to Dashboard
+              <Home className="w-4 h-4" /> {isAdminUser ? "Return to Admin Console" : "Return to Dashboard"}
             </Button>
           </Link>
         </div>

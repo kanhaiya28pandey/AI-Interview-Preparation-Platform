@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -13,10 +14,13 @@ import com.interviewplatform.backend.dto.AdminUserDto;
 import com.interviewplatform.backend.model.CodingProblem;
 import com.interviewplatform.backend.model.InterviewSession;
 import com.interviewplatform.backend.model.User;
+import com.interviewplatform.backend.model.Verification;
 import com.interviewplatform.backend.repository.CodingProblemRepository;
 import com.interviewplatform.backend.repository.InterviewSessionRepository;
+import com.interviewplatform.backend.repository.NotificationRepository;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
+import com.interviewplatform.backend.repository.VerificationRepository;
 
 @Service
 @SuppressWarnings("null")
@@ -26,15 +30,21 @@ public class AdminDashboardService {
     private final InterviewSessionRepository interviewSessionRepository;
     private final CodingProblemRepository codingProblemRepository;
     private final UserProfileRepository userProfileRepository;
+    private final VerificationRepository verificationRepository;
+    private final NotificationRepository notificationRepository;
 
     public AdminDashboardService(UserRepository userRepository,
                                  InterviewSessionRepository interviewSessionRepository,
                                  CodingProblemRepository codingProblemRepository,
-                                 UserProfileRepository userProfileRepository) {
+                                 UserProfileRepository userProfileRepository,
+                                 VerificationRepository verificationRepository,
+                                 NotificationRepository notificationRepository) {
         this.userRepository = userRepository;
         this.interviewSessionRepository = interviewSessionRepository;
         this.codingProblemRepository = codingProblemRepository;
         this.userProfileRepository = userProfileRepository;
+        this.verificationRepository = verificationRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     public List<AdminUserDto> getUsers() {
@@ -80,12 +90,83 @@ public class AdminDashboardService {
         );
     }
 
-    public boolean deleteUser(String userId) {
-        if (!userRepository.existsById(userId)) {
+    public boolean deleteUser(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
             return false;
         }
-        userRepository.deleteById(userId);
-        userProfileRepository.deleteByUserId(userId);
+        String cleanId = identifier.trim();
+        String lowerEmail = cleanId.toLowerCase();
+
+        // 1. Locate User by id or email
+        Optional<User> userOpt = userRepository.findById(cleanId)
+                .or(() -> userRepository.findByEmail(lowerEmail));
+
+        // If not directly found in userRepository, check if identifier is a verification record or verification ID
+        if (userOpt.isEmpty()) {
+            Optional<Verification> vOpt = verificationRepository.findById(cleanId)
+                    .or(() -> verificationRepository.findByVerificationId(cleanId));
+            if (vOpt.isPresent()) {
+                Verification v = vOpt.get();
+                if (v.getUserId() != null && !v.getUserId().isBlank()) {
+                    userOpt = userRepository.findById(v.getUserId());
+                }
+                if (userOpt.isEmpty() && v.getEmail() != null && !v.getEmail().isBlank()) {
+                    userOpt = userRepository.findByEmail(v.getEmail().toLowerCase());
+                }
+            }
+        }
+
+        String targetUserId = cleanId;
+        String targetEmail = null;
+
+        if (userOpt.isPresent()) {
+            User u = userOpt.get();
+            // Protect system admin accounts from accidental deletion
+            if ("ADMIN".equalsIgnoreCase(u.getRole()) ||
+                "ananya.admin@aiinterviewprep.com".equalsIgnoreCase(u.getEmail()) ||
+                "admin@aiprep.com".equalsIgnoreCase(u.getEmail())) {
+                throw new IllegalArgumentException("System admin accounts cannot be deleted.");
+            }
+            targetUserId = u.getId();
+            targetEmail = u.getEmail() != null ? u.getEmail().toLowerCase() : null;
+            userRepository.delete(u);
+        }
+
+        // 2. Delete all profiles
+        if (targetUserId != null && !targetUserId.isBlank()) {
+            userProfileRepository.deleteByUserId(targetUserId);
+        }
+        if (targetEmail != null && !targetEmail.isBlank()) {
+            userProfileRepository.deleteByEmail(targetEmail);
+        }
+
+        // 3. Delete all verifications for this user (both by userId, email, and ID)
+        if (targetUserId != null && !targetUserId.isBlank()) {
+            verificationRepository.deleteByUserId(targetUserId);
+        }
+        if (targetEmail != null && !targetEmail.isBlank()) {
+            verificationRepository.deleteByEmail(targetEmail);
+        }
+        verificationRepository.deleteById(cleanId);
+        verificationRepository.findByVerificationId(cleanId).ifPresent(verificationRepository::delete);
+
+        // 4. Delete notifications for this user
+        if (targetUserId != null && !targetUserId.isBlank()) {
+            notificationRepository.deleteByUserId(targetUserId);
+        }
+
+        // 5. Delete interview sessions
+        if (targetUserId != null && !targetUserId.isBlank()) {
+            try {
+                interviewSessionRepository.deleteByUserId(targetUserId);
+            } catch (Exception ignored) {}
+        }
+        if (targetEmail != null && !targetEmail.isBlank()) {
+            try {
+                interviewSessionRepository.deleteByEmail(targetEmail);
+            } catch (Exception ignored) {}
+        }
+
         return true;
     }
 

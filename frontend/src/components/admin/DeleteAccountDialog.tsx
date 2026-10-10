@@ -181,7 +181,7 @@ export const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({
           await Promise.all(
             batch.map(async (st) => {
               try {
-                deleteStudent(st.id);
+                await deleteStudent(st.id);
                 deletedResults.push(st);
               } catch (err: any) {
                 failedResults.push({ student: st, error: err?.message || "Failed to delete" });

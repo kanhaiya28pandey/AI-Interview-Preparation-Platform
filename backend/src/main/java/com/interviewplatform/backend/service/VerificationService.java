@@ -186,26 +186,53 @@ public class VerificationService {
     public void deleteRejectedVerification(String id, String adminId) {
         Verification verification = verificationRepository.findById(id)
                 .or(() -> verificationRepository.findByVerificationId(id))
-                .orElseThrow(() -> new IllegalArgumentException("Verification record not found: " + id));
+                .or(() -> verificationRepository.findTopByUserIdOrderBySubmittedAtDesc(id))
+                .or(() -> verificationRepository.findTopByEmailOrderBySubmittedAtDesc(id.trim().toLowerCase()))
+                .orElse(null);
 
-        String status = verification.getStatus();
-        if (!"Rejected".equalsIgnoreCase(status) && !"REJECTED".equalsIgnoreCase(status)) {
-            throw new IllegalArgumentException("Cannot delete verification record. Only REJECTED profiles can be deleted. Current status: " + status);
+        String userId = verification != null ? verification.getUserId() : id;
+        String email = verification != null ? verification.getEmail() : null;
+
+        // If not found in verification, try finding user to get their details
+        if (email == null) {
+            Optional<User> uOpt = userRepository.findById(id).or(() -> userRepository.findByEmail(id.trim().toLowerCase()));
+            if (uOpt.isPresent()) {
+                userId = uOpt.get().getId();
+                email = uOpt.get().getEmail();
+            }
         }
 
-        String userId = verification.getUserId();
-
-        // Delete verification record
-        verificationRepository.delete(verification);
-
-        // Delete associated user and profile if present
+        // Delete verification record(s)
+        if (verification != null) {
+            verificationRepository.delete(verification);
+        }
         if (userId != null && !userId.isBlank()) {
-            userRepository.deleteById(userId);
+            verificationRepository.deleteByUserId(userId);
+        }
+        if (email != null && !email.isBlank()) {
+            verificationRepository.deleteByEmail(email.trim().toLowerCase());
+        }
+
+        // Permanently delete user document from users collection (so email can register cleanly again)
+        if (userId != null && !userId.isBlank()) {
+            userRepository.findById(userId).ifPresent(u -> {
+                if (!"ADMIN".equalsIgnoreCase(u.getRole())) {
+                    userRepository.delete(u);
+                }
+            });
             userProfileRepository.deleteByUserId(userId);
         }
+        if (email != null && !email.isBlank()) {
+            userRepository.findByEmail(email.trim().toLowerCase()).ifPresent(u -> {
+                if (!"ADMIN".equalsIgnoreCase(u.getRole())) {
+                    userRepository.delete(u);
+                }
+            });
+            userProfileRepository.deleteByEmail(email.trim().toLowerCase());
+        }
 
-        logger.info("AUDIT LOG: Admin [{}] deleted REJECTED verification record [{}] and student profile [{}] at [{}]",
-                adminId, id, userId, LocalDateTime.now());
+        logger.info("AUDIT LOG: Admin [{}] permanently deleted REJECTED verification record [{}] and user [{}] ({}) at [{}]",
+                adminId, id, userId, email, LocalDateTime.now());
     }
 
     public int deleteBulkRejectedVerifications(List<String> ids, String adminId) {

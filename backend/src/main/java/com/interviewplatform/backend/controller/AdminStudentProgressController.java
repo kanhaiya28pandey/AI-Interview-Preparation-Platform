@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.interviewplatform.backend.dto.CohortAnalyticsDto;
 import com.interviewplatform.backend.dto.StudentProgressDto;
 import com.interviewplatform.backend.model.TeacherNote;
+import com.interviewplatform.backend.service.AdminDashboardService;
 import com.interviewplatform.backend.service.StudentProgressService;
 
 @RestController
@@ -24,9 +26,12 @@ import com.interviewplatform.backend.service.StudentProgressService;
 public class AdminStudentProgressController {
 
     private final StudentProgressService studentProgressService;
+    private final AdminDashboardService adminDashboardService;
 
-    public AdminStudentProgressController(StudentProgressService studentProgressService) {
+    public AdminStudentProgressController(StudentProgressService studentProgressService,
+                                         AdminDashboardService adminDashboardService) {
         this.studentProgressService = studentProgressService;
+        this.adminDashboardService = adminDashboardService;
     }
 
     @GetMapping("/students")
@@ -51,5 +56,15 @@ public class AdminStudentProgressController {
     @GetMapping("/cohort-analytics")
     public ResponseEntity<CohortAnalyticsDto> getCohortAnalytics() {
         return ResponseEntity.ok(studentProgressService.getCohortAnalytics());
+    }
+
+    @DeleteMapping("/students/{id}")
+    public ResponseEntity<Map<String, Object>> deleteStudent(@PathVariable String id) {
+        boolean deleted = adminDashboardService.deleteUser(id);
+        return ResponseEntity.ok(Map.of(
+            "success", deleted,
+            "message", deleted ? "Student account permanently deleted" : "Student not found",
+            "id", id
+        ));
     }
 }

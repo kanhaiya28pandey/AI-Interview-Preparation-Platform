@@ -26,4 +26,8 @@ public interface VerificationRepository extends MongoRepository<Verification, St
     boolean existsByUserId(String userId);
 
     boolean existsByEmail(String email);
+
+    void deleteByUserId(String userId);
+
+    void deleteByEmail(String email);
 }

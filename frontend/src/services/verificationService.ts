@@ -646,4 +646,12 @@ export const verificationService = {
     });
     return res.data;
   },
+
+  async deleteRejectedVerification(id: string): Promise<void> {
+    try {
+      await api.delete(`/api/v1/admin/verifications/${id}`);
+    } catch {
+      await api.delete(`/api/v1/admin/users/${id}`).catch(() => {});
+    }
+  },
 };

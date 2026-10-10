@@ -204,37 +204,10 @@ export const AdminVerifications: React.FC = () => {
       setSelectedStudent(null);
     }
 
-    toast.custom(
-      (t) => (
-        <div className="flex items-center justify-between gap-4 p-4 bg-surface-raised border border-cyan-500/40 rounded-xl shadow-2xl text-text-primary text-xs font-mono max-w-md w-full">
-          <div className="flex items-center gap-2">
-            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>
-              {count === 1
-                ? `Removed account "${deletedList[0].name}".`
-                : `Removed ${count} student accounts.`}
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              if (count === 1) {
-                restoreStudent(deletedList[0]);
-              } else {
-                restoreStudents(deletedList);
-              }
-              toast.dismiss(t);
-              toast.success(
-                `Restored ${count === 1 ? deletedList[0].name : `${count} accounts`} successfully.`
-              );
-            }}
-            className="px-3 py-1.5 bg-cyan-400 text-slate-950 font-bold rounded-lg hover:bg-cyan-300 transition-colors flex items-center gap-1 shrink-0"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Undo
-          </button>
-        </div>
-      ),
-      { duration: 8000 }
+    toast.success(
+      count === 1
+        ? `Permanently deleted account "${deletedList[0].name}" from database.`
+        : `Permanently deleted ${count} student accounts from database.`
     );
   };
 

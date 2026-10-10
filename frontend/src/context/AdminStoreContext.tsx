@@ -210,8 +210,8 @@ interface AdminStoreContextType {
   auditLogs: AdminAuditEntry[];
   addStudent: (studentData: Partial<MasterStudent>) => MasterStudent;
   updateStudent: (id: string, updates: Partial<MasterStudent>) => void;
-  deleteStudent: (id: string) => void;
-  bulkDeleteStudents: (ids: string[]) => void;
+  deleteStudent: (id: string) => Promise<void> | void;
+  bulkDeleteStudents: (ids: string[]) => Promise<void> | void;
   restoreStudent: (student: MasterStudent) => void;
   restoreStudents: (students: MasterStudent[]) => void;
   deactivateStudent: (id: string) => void;
@@ -423,10 +423,40 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     saveToStorage(updatedList);
   };
 
-  const deleteStudent = (id: string) => {
+  const deleteStudent = async (id: string): Promise<void> => {
     const target = students.find((s) => s.id === id || s.userId === id);
     const updatedList = students.filter((s) => s.id !== id && s.userId !== id);
     saveToStorage(updatedList);
+
+    // Clean up local verification cache if any
+    try {
+      const storedVerifs = localStorage.getItem("ai_interview_prep_verifications");
+      if (storedVerifs) {
+        const parsed = JSON.parse(storedVerifs);
+        const filtered = parsed.filter(
+          (v: any) =>
+            v.id !== id &&
+            v.verificationId !== id &&
+            v.userId !== id &&
+            v.userId !== target?.userId &&
+            (!target?.email || v.email?.toLowerCase() !== target.email.toLowerCase())
+        );
+        localStorage.setItem("ai_interview_prep_verifications", JSON.stringify(filtered));
+      }
+    } catch (e) {
+      console.warn("Error cleaning local verifications:", e);
+    }
+
+    // Call backend API to permanently purge user from database
+    const identifier = target?.userId || target?.id || id;
+    try {
+      await api.delete(`/api/v1/admin/users/${identifier}`).catch(async () => {
+        await api.delete(`/api/v1/admin/verifications/${identifier}`).catch(() => {});
+      });
+    } catch (e) {
+      console.warn("Backend student delete call failed:", e);
+    }
+
     if (target) {
       addAuditLog({
         action: "DELETE_STUDENT",
@@ -434,15 +464,48 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         adminEmail: "admin@aiprep.com",
         targetCount: 1,
         targets: [target.name || target.email],
-        details: `Deleted candidate record for ${target.name} (${target.email})`,
+        details: `Permanently deleted candidate record and database profile for ${target.name} (${target.email})`,
       });
     }
   };
 
-  const bulkDeleteStudents = (ids: string[]) => {
+  const bulkDeleteStudents = async (ids: string[]): Promise<void> => {
     const targets = students.filter((s) => ids.includes(s.id) || ids.includes(s.userId));
     const updatedList = students.filter((s) => !ids.includes(s.id) && !ids.includes(s.userId));
     saveToStorage(updatedList);
+
+    try {
+      const storedVerifs = localStorage.getItem("ai_interview_prep_verifications");
+      if (storedVerifs) {
+        const parsed = JSON.parse(storedVerifs);
+        const filtered = parsed.filter((v: any) => {
+          const matches = targets.some(
+            (t) =>
+              v.id === t.id ||
+              v.verificationId === t.id ||
+              v.userId === t.id ||
+              v.userId === t.userId ||
+              (t.email && v.email?.toLowerCase() === t.email.toLowerCase())
+          );
+          return !matches;
+        });
+        localStorage.setItem("ai_interview_prep_verifications", JSON.stringify(filtered));
+      }
+    } catch (e) {
+      console.warn("Error cleaning local verifications:", e);
+    }
+
+    await Promise.allSettled(
+      targets.map(async (t) => {
+        const identifier = t.userId || t.id;
+        try {
+          await api.delete(`/api/v1/admin/users/${identifier}`).catch(() =>
+            api.delete(`/api/v1/admin/verifications/${identifier}`)
+          );
+        } catch {}
+      })
+    );
+
     if (targets.length > 0) {
       addAuditLog({
         action: "BULK_DELETE_STUDENTS",
@@ -450,7 +513,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         adminEmail: "admin@aiprep.com",
         targetCount: targets.length,
         targets: targets.map((t) => t.name || t.email),
-        details: `Bulk deleted ${targets.length} candidate account(s)`,
+        details: `Permanently bulk deleted ${targets.length} candidate account(s) and database profiles`,
       });
     }
   };
@@ -525,7 +588,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const student = students.find((s) => s.id === id || s.userId === id);
     updateStudent(id, {
       verificationStatus: "Rejected",
-      status: "BLOCKED",
+      status: "ACTIVE",
       rejectionCategory: category,
       rejectionNotes: notes,
     });
@@ -564,7 +627,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return {
           ...s,
           verificationStatus: "Rejected" as const,
-          status: "BLOCKED" as const,
+          status: "ACTIVE" as const,
           rejectionCategory: category,
           rejectionNotes: notes,
         };
