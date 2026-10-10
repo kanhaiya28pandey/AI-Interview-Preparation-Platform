@@ -68,12 +68,14 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       >
-        {/* Unrestricted Student Routes */}
+        {/* Unrestricted Student Routes (can view status, profile & help) */}
+        <Route path="/dashboard" element={<StudentDashboard />} />
         <Route path="/verify-identity" element={<VerifyIdentity />} />
         <Route path="/help" element={<HelpCenter />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
 
-        {/* Verified-Only Student Routes */}
-        <Route path="/dashboard" element={<VerifiedRoute><StudentDashboard /></VerifiedRoute>} />
+        {/* Action Tasks (Locked until Admin verifies student identity) */}
         <Route path="/onboarding" element={<VerifiedRoute><Onboarding /></VerifiedRoute>} />
         <Route path="/practice" element={<VerifiedRoute><Practice /></VerifiedRoute>} />
         <Route path="/preparation" element={<VerifiedRoute><PreparationRoadmaps /></VerifiedRoute>} />
@@ -83,8 +85,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="/quiz" element={<VerifiedRoute><Quiz /></VerifiedRoute>} />
         <Route path="/articles" element={<VerifiedRoute><Articles /></VerifiedRoute>} />
         <Route path="/leaderboard" element={<VerifiedRoute><Leaderboard /></VerifiedRoute>} />
-        <Route path="/profile" element={<VerifiedRoute><Profile /></VerifiedRoute>} />
-        <Route path="/settings" element={<VerifiedRoute><Settings /></VerifiedRoute>} />
       </Route>
 
       {/* Protected Admin Routes */}

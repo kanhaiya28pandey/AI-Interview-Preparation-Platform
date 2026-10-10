@@ -132,6 +132,8 @@ public class VerificationService {
     public Verification reviewVerification(String verificationId, ReviewVerificationRequest request) {
         Verification verification = verificationRepository.findByVerificationId(verificationId)
                 .or(() -> verificationRepository.findById(verificationId))
+                .or(() -> verificationRepository.findTopByUserIdOrderBySubmittedAtDesc(verificationId))
+                .or(() -> verificationRepository.findTopByEmailOrderBySubmittedAtDesc(verificationId.trim().toLowerCase()))
                 .orElseThrow(() -> new IllegalArgumentException("Verification request not found with id: " + verificationId));
 
         String newStatus;

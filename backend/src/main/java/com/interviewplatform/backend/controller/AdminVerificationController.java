@@ -43,12 +43,14 @@ public class AdminVerificationController {
         return ResponseEntity.ok(list);
     }
 
-    @PostMapping("/{verificationId}/review")
+    @PostMapping({"/{verificationId}/review", "/student/{userId}/review"})
     public ResponseEntity<Verification> reviewVerification(
-            @PathVariable String verificationId,
+            @PathVariable(required = false) String verificationId,
+            @PathVariable(required = false) String userId,
             @Valid @RequestBody ReviewVerificationRequest request
     ) {
-        Verification reviewed = verificationService.reviewVerification(verificationId, request);
+        String targetId = (verificationId != null && !verificationId.isBlank()) ? verificationId : userId;
+        Verification reviewed = verificationService.reviewVerification(targetId, request);
         if (reviewed != null && reviewed.getUserId() != null) {
             try {
                 boolean isVerified = "Verified".equalsIgnoreCase(reviewed.getStatus());
