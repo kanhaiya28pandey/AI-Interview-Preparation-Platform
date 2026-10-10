@@ -7,6 +7,7 @@ export interface InterviewRole {
   description: string;
   icon: string;
   totalQuestions: number;
+  status?: "ACTIVE" | "INACTIVE";
 }
 
 export interface InterviewQuestion {
@@ -19,17 +20,32 @@ export interface InterviewQuestion {
   followUpPrompt: string;
 }
 
+export interface QuestionReviewItem {
+  questionId: string;
+  questionNumber: number;
+  question: string;
+  category: string;
+  candidateAnswer: string;
+  score: number;
+  aiFeedback: string;
+  sampleAnswer?: string;
+  strengths?: string[];
+  improvements?: string[];
+}
+
 export interface InterviewFeedback {
   sessionId: string;
   roleTitle: string;
   date: string;
   overallScore: number;
+  performanceBand?: "Strong Hire" | "Hire" | "Needs Practice" | string;
   scores: {
     technicalAccuracy: number;
     communicationClarity: number;
     problemSolving: number;
     confidence: number;
   };
+  dimensionScores?: Record<string, number>;
   strengths: string[];
   areasForImprovement: string[];
   detailedFeedback: string;
@@ -38,6 +54,7 @@ export interface InterviewFeedback {
     text: string;
     timestamp: string;
   }[];
+  questionReviews?: QuestionReviewItem[];
 }
 
 export const mockInterviewRoles: InterviewRole[] = [

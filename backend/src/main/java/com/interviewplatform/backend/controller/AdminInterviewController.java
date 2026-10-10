@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import com.interviewplatform.backend.model.InterviewQuestion;
+import com.interviewplatform.backend.model.InterviewSession;
 import com.interviewplatform.backend.service.AiInterviewService;
 
 @RestController
@@ -88,5 +89,37 @@ public class AdminInterviewController {
 
         List<InterviewQuestion> questions = aiInterviewService.generateQuestions(roleTitle, subject, topics, difficulty, count);
         return ResponseEntity.ok(questions);
+    }
+
+    @GetMapping("/{roleId}/questions")
+    public ResponseEntity<List<InterviewQuestion>> getQuestionsForRole(@PathVariable String roleId) {
+        List<InterviewQuestion> questions = interviewService.getQuestionsByRoleId(roleId);
+        return ResponseEntity.ok(questions);
+    }
+
+    @PostMapping("/{roleId}/questions")
+    public ResponseEntity<InterviewQuestion> addQuestionToRole(@PathVariable String roleId, @RequestBody InterviewQuestion question) {
+        question.setRoleId(roleId);
+        InterviewQuestion saved = interviewService.saveQuestion(question);
+        return ResponseEntity.ok(saved);
+    }
+
+    @PutMapping("/{roleId}/questions/{questionId}")
+    public ResponseEntity<InterviewQuestion> updateQuestion(@PathVariable String roleId, @PathVariable String questionId, @RequestBody InterviewQuestion question) {
+        question.setId(questionId);
+        question.setRoleId(roleId);
+        InterviewQuestion updated = interviewService.saveQuestion(question);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{roleId}/questions/{questionId}")
+    public ResponseEntity<Map<String, String>> deleteQuestion(@PathVariable String roleId, @PathVariable String questionId) {
+        interviewService.deleteQuestion(questionId);
+        return ResponseEntity.ok(Map.of("message", "Question removed successfully", "id", questionId));
+    }
+
+    @GetMapping("/sessions")
+    public ResponseEntity<List<InterviewSession>> getAllSessions() {
+        return ResponseEntity.ok(interviewService.getAllSessions());
     }
 }

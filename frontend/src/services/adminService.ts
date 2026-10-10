@@ -88,6 +88,16 @@ export const adminService = {
     return res.data;
   },
 
+  async deleteMockInterview(id: string): Promise<boolean> {
+    try {
+      await api.delete(`/api/v1/admin/mock-interviews/${encodeURIComponent(id)}`);
+      return true;
+    } catch (e) {
+      console.warn("Backend delete mock interview error:", e);
+      return false;
+    }
+  },
+
   async getReports(): Promise<AdminReportData> {
     try {
       const res = await api.get("/api/v1/admin/reports");

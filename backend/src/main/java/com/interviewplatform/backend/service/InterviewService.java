@@ -187,5 +187,38 @@ public class InterviewService {
 
     public void deleteRole(String roleId) {
         interviewRoleRepository.deleteById(roleId);
+        // Also clean up any associated questions
+        List<InterviewQuestion> qs = interviewQuestionRepository.findByRoleIdOrderByQuestionNumberAsc(roleId);
+        interviewQuestionRepository.deleteAll(qs);
+    }
+
+    public InterviewQuestion saveQuestion(InterviewQuestion question) {
+        if (question.getId() == null || question.getId().isBlank()) {
+            question.setId("q-" + System.currentTimeMillis());
+        }
+        InterviewQuestion saved = interviewQuestionRepository.save(question);
+        // Update role totalQuestions count
+        interviewRoleRepository.findById(question.getRoleId()).ifPresent(role -> {
+            List<InterviewQuestion> qs = interviewQuestionRepository.findByRoleIdOrderByQuestionNumberAsc(role.getId());
+            role.setTotalQuestions(qs.size());
+            interviewRoleRepository.save(role);
+        });
+        return saved;
+    }
+
+    public void deleteQuestion(String questionId) {
+        interviewQuestionRepository.findById(questionId).ifPresent(q -> {
+            String roleId = q.getRoleId();
+            interviewQuestionRepository.deleteById(questionId);
+            interviewRoleRepository.findById(roleId).ifPresent(role -> {
+                List<InterviewQuestion> qs = interviewQuestionRepository.findByRoleIdOrderByQuestionNumberAsc(role.getId());
+                role.setTotalQuestions(qs.size());
+                interviewRoleRepository.save(role);
+            });
+        });
+    }
+
+    public List<InterviewSession> getAllSessions() {
+        return interviewSessionRepository.findAll();
     }
 }
