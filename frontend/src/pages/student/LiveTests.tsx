@@ -152,8 +152,35 @@ export const LiveTests: React.FC = () => {
     toast.success("Successfully registered for this live placement test! Countdown reminder active.");
   };
 
-  // Click "Enter Arena" -> Open Pre-test Instruction Modal
+  // Helper to check if current student has already attempted this contest
+  const getExistingSubmission = (contestId: string): LiveTestSubmission | undefined => {
+    const currentEmail = user?.email || "karan.sharma@campus.edu";
+    const currentUserId = user?.userId || "student-user";
+    const currentName = user?.name || "Karan Sharma";
+
+    return (
+      liveTestService.getStudentSubmission(contestId, currentUserId) ||
+      liveTestService.getStudentSubmission(contestId, currentEmail) ||
+      allSubmissions.find(
+        (s) =>
+          s.testId === contestId &&
+          (s.userId === currentUserId ||
+            s.email?.toLowerCase() === currentEmail.toLowerCase() ||
+            s.studentName?.toLowerCase() === currentName.toLowerCase())
+      )
+    );
+  };
+
+  // Click "Enter Arena" -> Open Pre-test Instruction Modal (with Single Attempt check)
   const promptEnterArena = (test: LiveTestContest) => {
+    const existing = getExistingSubmission(test.id);
+    if (existing) {
+      toast.error("Single Attempt Policy: You have already submitted this test. Re-attempts are strictly prohibited.");
+      setSelectedSubmissionToReview(existing);
+      setSelectedContestForReview(test);
+      setReviewResultModalOpen(true);
+      return;
+    }
     setTestToStart(test);
     setAgreedToRules(false);
     setPreTestModalOpen(true);
@@ -162,6 +189,14 @@ export const LiveTests: React.FC = () => {
   // Confirmed Pre-test Agreement -> Enter Fullscreen & Start Arena
   const startConfirmedTest = () => {
     if (!testToStart) return;
+
+    const existing = getExistingSubmission(testToStart.id);
+    if (existing) {
+      toast.error("Single Attempt Policy: You have already completed this test.");
+      setPreTestModalOpen(false);
+      return;
+    }
+
     setPreTestModalOpen(false);
 
     // Request browser Fullscreen
@@ -651,16 +686,47 @@ export const LiveTests: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-border flex items-center justify-between gap-3 relative z-10">
+                  <div className="pt-3 border-t border-border flex items-center justify-between gap-3 relative z-10 flex-wrap">
                     <span className="text-xs font-mono text-text-muted">Total Marks: {contest.totalMarks || 100} pts</span>
-                    <Button
-                      variant="teal-cyan"
-                      size="sm"
-                      onClick={() => promptEnterArena(contest)}
-                      className="text-xs font-bold px-5 py-2.5 bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white shadow-lg flex items-center gap-2"
-                    >
-                      <Zap className="w-4 h-4 fill-white" /> Enter Proctored Arena
-                    </Button>
+
+                    {(() => {
+                      const existingSub = getExistingSubmission(contest.id);
+                      if (existingSub) {
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge
+                              variant="active"
+                              className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[11px] font-mono flex items-center gap-1.5 py-1 px-2.5"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Attempt Completed ({existingSub.score}/{existingSub.totalMarks} pts - {existingSub.percentage}%)
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSubmissionToReview(existingSub);
+                                setSelectedContestForReview(contest);
+                                setReviewResultModalOpen(true);
+                              }}
+                              className="text-xs font-mono border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-1.5"
+                            >
+                              <Trophy className="w-3.5 h-3.5" /> View Scorecard
+                            </Button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <Button
+                          variant="teal-cyan"
+                          size="sm"
+                          onClick={() => promptEnterArena(contest)}
+                          className="text-xs font-bold px-5 py-2.5 bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white shadow-lg flex items-center gap-2"
+                        >
+                          <Zap className="w-4 h-4 fill-white" /> Enter Proctored Arena
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </Card>
               ))}
@@ -925,6 +991,14 @@ export const LiveTests: React.FC = () => {
               <div>
                 <strong className="text-text-primary block">Time Limit & Auto-Submission:</strong>
                 The contest clock will count down from {testToStart?.durationMinutes} minutes. When the time expires, your answers and code will be submitted automatically.
+              </div>
+            </div>
+
+            <div className="p-3 bg-surface-raised border border-rose-500/30 rounded-xl flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 font-bold">5</span>
+              <div>
+                <strong className="text-rose-400 block font-bold">Single Attempt Only (Strict Policy):</strong>
+                You are granted strictly <strong>one attempt</strong> for this assessment. Once submitted or terminated by anti-cheating violations, the test cannot be re-opened or re-taken.
               </div>
             </div>
           </div>

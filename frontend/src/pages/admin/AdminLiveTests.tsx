@@ -12,6 +12,7 @@ import {
   liveTestService,
   LiveTestContest,
   LiveTestQuestion,
+  LiveTestOption,
   LiveTestSection,
   LiveTestSubmission,
 } from "@/services/liveTestService";
@@ -48,6 +49,7 @@ import {
   Eye,
   Trophy,
   Award,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -138,6 +140,42 @@ export const AdminLiveTests: React.FC = () => {
   const [leaderboardSearchQuery, setLeaderboardSearchQuery] = useState("");
   const [selectedCandidateDetail, setSelectedCandidateDetail] = useState<LiveTestSubmission | null>(null);
   const [candidateDetailModalOpen, setCandidateDetailModalOpen] = useState(false);
+
+  // Question Builder Modal State
+  const [questionModalOpen, setQuestionModalOpen] = useState(false);
+  const [editingSectionIdx, setEditingSectionIdx] = useState<number>(0);
+  const [editingQuestionIdx, setEditingQuestionIdx] = useState<number | null>(null);
+  const [questionModalType, setQuestionModalType] = useState<"MCQ" | "CODING">("MCQ");
+
+  // Common Question Form Fields
+  const [qTitle, setQTitle] = useState("");
+  const [qCategory, setQCategory] = useState("Aptitude");
+  const [qMarks, setQMarks] = useState(10);
+  const [qNegativeMarks, setQNegativeMarks] = useState(0);
+  const [qText, setQText] = useState("");
+
+  // MCQ Specific Fields
+  const [qOptionA, setQOptionA] = useState("");
+  const [qOptionB, setQOptionB] = useState("");
+  const [qOptionC, setQOptionC] = useState("");
+  const [qOptionD, setQOptionD] = useState("");
+  const [qCorrectOpt, setQCorrectOpt] = useState<"A" | "B" | "C" | "D">("A");
+  const [qExplanation, setQExplanation] = useState("");
+
+  // Coding Specific Fields
+  const [codeDifficulty, setCodeDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
+  const [codeConstraints, setCodeConstraints] = useState("1 <= N <= 10^5\n-10^9 <= arr[i] <= 10^9");
+  const [codeSampleInput, setCodeSampleInput] = useState("nums = [2, 7, 11, 15], target = 9");
+  const [codeSampleOutput, setCodeSampleOutput] = useState("[0, 1]");
+  const [codeSampleExplanation, setCodeSampleExplanation] = useState("nums[0] + nums[1] = 2 + 7 = 9");
+  const [codeSelectedLangTab, setCodeSelectedLangTab] = useState<"python" | "java" | "javascript" | "cpp" | "sql">("python");
+  const [codeStarters, setCodeStarters] = useState<Record<string, string>>({
+    python: "def solve(nums: list[int], target: int) -> list[int]:\n    # Write your optimal solution here\n    pass",
+    java: "class Solution {\n    public static int[] solve(int[] nums, int target) {\n        // Write your solution here\n        return new int[]{};\n    }\n}",
+    javascript: "function solve(nums, target) {\n    // Write your solution here\n    return [];\n}",
+    cpp: "class Solution {\npublic:\n    vector<int> solve(vector<int>& nums, int target) {\n        // Write your solution here\n        return {};\n    }\n};",
+    sql: "-- Write your SQL query statement below\nSELECT * FROM solution;",
+  });
 
   // Single participant removal modal
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
@@ -361,58 +399,198 @@ export const AdminLiveTests: React.FC = () => {
     setCreateContestModalOpen(true);
   };
 
-  // Add Question to Section in Form
-  const addMcqQuestionToSection = (secIdx: number) => {
-    const newQ: LiveTestQuestion = {
-      id: `q-${Date.now()}`,
-      type: "MCQ",
-      title: "New Concept Question",
-      questionText: "Enter the question prompt here...",
-      marks: 5,
-      negativeMarks: 1,
-      category: "Aptitude",
-      options: [
-        { id: "A", text: "Option A" },
-        { id: "B", text: "Option B" },
-        { id: "C", text: "Option C" },
-        { id: "D", text: "Option D" },
-      ],
-      correctOptionId: "A",
-      explanation: "Add answer explanation here.",
-    };
+  // Open Add Question Modal for a specific section
+  const openAddQuestionModal = (secIdx: number, type: "MCQ" | "CODING") => {
+    setEditingSectionIdx(secIdx);
+    setEditingQuestionIdx(null);
+    setQuestionModalType(type);
 
+    if (type === "MCQ") {
+      setQTitle(`Section ${secIdx + 1} Multiple Choice Question`);
+      setQCategory(formSections[secIdx]?.title.includes("Aptitude") ? "Aptitude" : "Core Computer Science");
+      setQMarks(10);
+      setQNegativeMarks(0);
+      setQText("");
+      setQOptionA("");
+      setQOptionB("");
+      setQOptionC("");
+      setQOptionD("");
+      setQCorrectOpt("A");
+      setQExplanation("");
+    } else {
+      setQTitle(`Coding Challenge ${formSections[secIdx]?.questions.length + 1}`);
+      setQCategory("Coding");
+      setQMarks(25);
+      setCodeDifficulty("Medium");
+      setQText("Given an input, implement an optimal solution satisfying all runtime and memory constraints.");
+      setCodeConstraints("1 <= N <= 10^5\n-10^9 <= arr[i] <= 10^9");
+      setCodeSampleInput("nums = [2, 7, 11, 15], target = 9");
+      setCodeSampleOutput("[0, 1]");
+      setCodeSampleExplanation("nums[0] + nums[1] = 2 + 7 = 9");
+      setCodeStarters({
+        python: "def solve(nums: list[int], target: int) -> list[int]:\n    # Write your optimal solution here\n    pass",
+        java: "class Solution {\n    public static int[] solve(int[] nums, int target) {\n        // Write your solution here\n        return new int[]{};\n    }\n}",
+        javascript: "function solve(nums, target) {\n    // Write your solution here\n    return [];\n}",
+        cpp: "class Solution {\npublic:\n    vector<int> solve(vector<int>& nums, int target) {\n        // Write your solution here\n        return {};\n    }\n};",
+        sql: "-- Write your SQL query statement below\nSELECT * FROM solution;",
+      });
+    }
+    setQuestionModalOpen(true);
+  };
+
+  // Open Edit Question Modal
+  const openEditQuestionModal = (secIdx: number, qIdx: number) => {
+    const targetQ = formSections[secIdx]?.questions[qIdx];
+    if (!targetQ) return;
+
+    setEditingSectionIdx(secIdx);
+    setEditingQuestionIdx(qIdx);
+    setQuestionModalType(targetQ.type);
+    setQTitle(targetQ.title || "");
+    setQCategory(targetQ.category || (targetQ.type === "CODING" ? "Coding" : "Aptitude"));
+    setQMarks(targetQ.marks || 10);
+    setQNegativeMarks(targetQ.negativeMarks || 0);
+    setQText(targetQ.questionText || "");
+
+    if (targetQ.type === "MCQ") {
+      const opts = targetQ.options || [];
+      setQOptionA(opts.find((o) => o.id === "A")?.text || "");
+      setQOptionB(opts.find((o) => o.id === "B")?.text || "");
+      setQOptionC(opts.find((o) => o.id === "C")?.text || "");
+      setQOptionD(opts.find((o) => o.id === "D")?.text || "");
+      setQCorrectOpt((targetQ.correctOptionId || "A") as any);
+      setQExplanation(targetQ.explanation || "");
+    } else {
+      setCodeDifficulty(targetQ.difficulty || "Medium");
+      setCodeConstraints((targetQ.constraints || ["1 <= N <= 10^5"]).join("\n"));
+      setCodeSampleInput(targetQ.sampleTestCases?.[0]?.input || "");
+      setCodeSampleOutput(targetQ.sampleTestCases?.[0]?.output || "");
+      setCodeSampleExplanation(targetQ.sampleTestCases?.[0]?.explanation || "");
+      setCodeStarters({
+        python: targetQ.starterCode?.python || "def solve():\n    pass",
+        java: targetQ.starterCode?.java || "class Solution {\n    public static void solve() {}\n}",
+        javascript: targetQ.starterCode?.javascript || "function solve() {}",
+        cpp: targetQ.starterCode?.cpp || "class Solution {\npublic:\n    void solve() {}\n};",
+        sql: (targetQ.starterCode as any)?.sql || "SELECT 1;",
+      });
+    }
+    setQuestionModalOpen(true);
+  };
+
+  // Duplicate Question in Section
+  const duplicateQuestion = (secIdx: number, qIdx: number) => {
+    const orig = formSections[secIdx]?.questions[qIdx];
+    if (!orig) return;
+    const duplicated: LiveTestQuestion = {
+      ...JSON.parse(JSON.stringify(orig)),
+      id: `q-dup-${Date.now()}`,
+      title: `${orig.title} (Copy)`,
+    };
     setFormSections((prev) => {
       const copy = [...prev];
-      copy[secIdx].questions.push(newQ);
+      copy[secIdx].questions.splice(qIdx + 1, 0, duplicated);
+      return copy;
+    });
+    toast.success(`Duplicated "${orig.title}"!`);
+  };
+
+  // Remove Question from Section
+  const removeQuestion = (secIdx: number, qIdx: number) => {
+    setFormSections((prev) => {
+      const copy = [...prev];
+      copy[secIdx].questions = copy[secIdx].questions.filter((_, i) => i !== qIdx);
       return copy;
     });
   };
 
-  // Add Coding Question to Section
-  const addCodingQuestionToSection = (secIdx: number) => {
-    const newQ: LiveTestQuestion = {
-      id: `q-code-${Date.now()}`,
-      type: "CODING",
-      title: "Two Sum Target Problem",
-      difficulty: "Easy",
-      marks: 20,
-      category: "Coding",
-      questionText: "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.",
-      constraints: ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9"],
-      starterCode: {
-        java: "class Solution {\n  public int[] twoSum(int[] nums, int target) {\n    return new int[]{};\n  }\n}",
-        python: "def twoSum(nums: list[int], target: int) -> list[int]:\n  pass",
-        javascript: "function twoSum(nums, target) {\n  return [];\n}",
-        cpp: "class Solution {\npublic:\n  vector<int> twoSum(vector<int>& nums, int target) {\n    return {};\n  }\n};",
-      },
-      sampleTestCases: [{ input: "nums = [2,7,11,15], target = 9", output: "[0,1]" }],
-    };
+  // Save Question from Modal into Section
+  const handleSaveQuestion = () => {
+    if (!qTitle.trim()) {
+      toast.error("Please enter a question title.");
+      return;
+    }
+    if (!qText.trim()) {
+      toast.error("Please enter the question statement.");
+      return;
+    }
+
+    let preparedQ: LiveTestQuestion;
+    if (questionModalType === "MCQ") {
+      if (!qOptionA.trim() || !qOptionB.trim()) {
+        toast.error("Please provide at least Option A and Option B.");
+        return;
+      }
+      const options: LiveTestOption[] = [
+        { id: "A", text: qOptionA.trim() },
+        { id: "B", text: qOptionB.trim() },
+      ];
+      if (qOptionC.trim()) options.push({ id: "C", text: qOptionC.trim() });
+      if (qOptionD.trim()) options.push({ id: "D", text: qOptionD.trim() });
+
+      preparedQ = {
+        id:
+          editingQuestionIdx !== null && formSections[editingSectionIdx]?.questions[editingQuestionIdx]?.id
+            ? formSections[editingSectionIdx].questions[editingQuestionIdx].id
+            : `q-mcq-${Date.now()}`,
+        type: "MCQ",
+        title: qTitle.trim(),
+        category: qCategory.trim() || "Aptitude",
+        marks: Number(qMarks) || 10,
+        negativeMarks: Number(qNegativeMarks) || 0,
+        questionText: qText.trim(),
+        options,
+        correctOptionId: qCorrectOpt,
+        explanation: qExplanation.trim(),
+      };
+    } else {
+      const constraintsArr = codeConstraints.split("\n").map((s) => s.trim()).filter(Boolean);
+      preparedQ = {
+        id:
+          editingQuestionIdx !== null && formSections[editingSectionIdx]?.questions[editingQuestionIdx]?.id
+            ? formSections[editingSectionIdx].questions[editingQuestionIdx].id
+            : `q-code-${Date.now()}`,
+        type: "CODING",
+        title: qTitle.trim(),
+        category: qCategory.trim() || "Coding",
+        difficulty: codeDifficulty,
+        marks: Number(qMarks) || 25,
+        questionText: qText.trim(),
+        constraints: constraintsArr.length > 0 ? constraintsArr : ["1 <= N <= 10^5"],
+        starterCode: {
+          python: codeStarters.python,
+          java: codeStarters.java,
+          javascript: codeStarters.javascript,
+          cpp: codeStarters.cpp,
+          sql: codeStarters.sql,
+        },
+        sampleTestCases: [
+          {
+            input: codeSampleInput.trim() || "Input 1",
+            output: codeSampleOutput.trim() || "Output 1",
+            explanation: codeSampleExplanation.trim(),
+          },
+        ],
+        source: "CUSTOM",
+      };
+    }
 
     setFormSections((prev) => {
       const copy = [...prev];
-      copy[secIdx].questions.push(newQ);
+      if (!copy[editingSectionIdx]) return prev;
+      if (editingQuestionIdx !== null) {
+        copy[editingSectionIdx].questions[editingQuestionIdx] = preparedQ;
+      } else {
+        copy[editingSectionIdx].questions.push(preparedQ);
+      }
       return copy;
     });
+
+    setQuestionModalOpen(false);
+    toast.success(
+      editingQuestionIdx !== null
+        ? `Updated question "${qTitle}" successfully!`
+        : `Added new ${questionModalType} "${qTitle}" to section!`
+    );
   };
 
   // Open External Problem Search (LeetCode / GFG / Codeforces)
@@ -1641,23 +1819,32 @@ export const AdminLiveTests: React.FC = () => {
                       className="bg-surface max-w-md font-bold text-xs"
                     />
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => addMcqQuestionToSection(secIdx)}
-                        className="text-xs h-7 text-cyan-400 border-cyan-500/40"
+                        onClick={() => openAddQuestionModal(secIdx, "MCQ")}
+                        className="text-xs h-7 text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/10"
                       >
-                        <Plus className="w-3 h-3 mr-1" /> Add MCQ
+                        <Plus className="w-3 h-3 mr-1" /> Add Custom MCQ
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openAddQuestionModal(secIdx, "CODING")}
+                        className="text-xs h-7 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10"
+                      >
+                        <Code2 className="w-3 h-3 mr-1" /> Add Custom Coding
                       </Button>
 
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => openExternalProblemModal(secIdx)}
-                        className="text-xs h-7 text-emerald-400 border-emerald-500/40"
+                        className="text-xs h-7 text-amber-400 border-amber-500/40 hover:bg-amber-500/10"
                       >
-                        <ExternalLink className="w-3 h-3 mr-1" /> Import Coding (LeetCode/GFG)
+                        <ExternalLink className="w-3 h-3 mr-1" /> Import (LeetCode / GFG)
                       </Button>
 
                       {formSections.length > 1 && (
@@ -1666,6 +1853,7 @@ export const AdminLiveTests: React.FC = () => {
                             setFormSections((prev) => prev.filter((_, i) => i !== secIdx));
                           }}
                           className="text-text-muted hover:text-rose-400 p-1"
+                          title="Delete Section"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1676,38 +1864,151 @@ export const AdminLiveTests: React.FC = () => {
                   {/* Questions in Section */}
                   <div className="space-y-3 pl-3 border-l-2 border-cyan-500/30">
                     {sec.questions.length === 0 ? (
-                      <div className="text-xs text-text-muted italic py-2">
-                        No questions added to this section yet. Click 'Add MCQ' or 'Import Coding'.
+                      <div className="p-4 rounded-xl border border-dashed border-border text-center space-y-3 bg-surface/40">
+                        <HelpCircle className="w-8 h-8 text-text-muted mx-auto opacity-40" />
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-text-primary">No questions in this section yet</p>
+                          <p className="text-[11px] text-text-muted">
+                            Create custom MCQs, build full coding challenges with test cases, or import directly from LeetCode / GFG.
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openAddQuestionModal(secIdx, "MCQ")}
+                            className="text-xs h-7 text-cyan-400 border-cyan-500/40"
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add Custom MCQ
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openAddQuestionModal(secIdx, "CODING")}
+                            className="text-xs h-7 text-emerald-400 border-emerald-500/40"
+                          >
+                            <Code2 className="w-3 h-3 mr-1" /> Add Custom Coding
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openExternalProblemModal(secIdx)}
+                            className="text-xs h-7 text-amber-400 border-amber-500/40"
+                          >
+                            <ExternalLink className="w-3 h-3 mr-1" /> Import Problem
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       sec.questions.map((q, qIdx) => (
-                        <div key={q.id} className="p-3 bg-surface border border-border rounded-lg space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Badge variant={q.type === "CODING" ? "accent" : "medium"} className="text-[10px]">
-                                {q.type}
-                              </Badge>
-                              <strong className="text-text-primary text-xs">{q.title}</strong>
+                        <div
+                          key={q.id}
+                          className="p-3.5 bg-surface border border-border rounded-xl space-y-2.5 transition-all hover:border-cyan-500/30"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-mono font-bold text-text-muted">#{qIdx + 1}</span>
+                                <Badge
+                                  variant={q.type === "CODING" ? "accent" : "medium"}
+                                  className={cn(
+                                    "text-[10px] font-mono",
+                                    q.type === "CODING"
+                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                                      : "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
+                                  )}
+                                >
+                                  {q.type}
+                                </Badge>
+                                {q.type === "CODING" && (
+                                  <Badge
+                                    variant={q.difficulty === "Easy" ? "active" : q.difficulty === "Hard" ? "blocked" : "medium"}
+                                    className="text-[10px]"
+                                  >
+                                    {q.difficulty || "Medium"}
+                                  </Badge>
+                                )}
+                                <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-surface-raised border border-border">
+                                  {q.category || (q.type === "CODING" ? "Coding" : "Aptitude")}
+                                </span>
+                              </div>
+                              <strong className="text-text-primary text-xs font-serif block">{q.title}</strong>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-cyan-400">+{q.marks} pts</span>
-                              <button
-                                onClick={() => {
-                                  setFormSections((prev) => {
-                                    const copy = [...prev];
-                                    copy[secIdx].questions = copy[secIdx].questions.filter((_, i) => i !== qIdx);
-                                    return copy;
-                                  });
-                                }}
-                                className="text-text-muted hover:text-rose-400"
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-xs font-mono font-bold text-cyan-400 mr-1">+{q.marks} pts</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditQuestionModal(secIdx, qIdx)}
+                                className="h-7 px-2 text-xs text-text-secondary hover:text-cyan-400"
+                                title="Edit Question Details"
                               >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                                <Edit className="w-3.5 h-3.5 mr-1" /> Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => duplicateQuestion(secIdx, qIdx)}
+                                className="h-7 px-2 text-xs text-text-secondary hover:text-emerald-400"
+                                title="Duplicate Question"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeQuestion(secIdx, qIdx)}
+                                className="h-7 px-1.5 text-xs text-rose-400 hover:bg-rose-500/10"
+                                title="Delete Question"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
                             </div>
                           </div>
 
-                          <p className="text-text-secondary text-[11px] line-clamp-1">{q.questionText}</p>
+                          <p className="text-text-secondary text-xs line-clamp-2 leading-relaxed">{q.questionText}</p>
+
+                          {/* MCQ Options Preview */}
+                          {q.type === "MCQ" && q.options && q.options.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 text-[11px] font-mono">
+                              {q.options.map((opt) => {
+                                const isCorrect = opt.id === q.correctOptionId;
+                                return (
+                                  <div
+                                    key={opt.id}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-lg border flex items-center gap-2",
+                                      isCorrect
+                                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold"
+                                        : "bg-surface-raised border-border text-text-muted"
+                                    )}
+                                  >
+                                    <span className="font-bold">{opt.id}:</span>
+                                    <span className="truncate">{opt.text}</span>
+                                    {isCorrect && <Check className="w-3.5 h-3.5 text-emerald-400 ml-auto shrink-0" />}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Coding Details Preview */}
+                          {q.type === "CODING" && (
+                            <div className="flex items-center gap-2 flex-wrap pt-1 text-[11px] font-mono text-text-muted">
+                              <span className="px-2 py-0.5 rounded bg-surface-raised border border-border">
+                                Test Cases: <strong className="text-emerald-400">{q.sampleTestCases?.length || 1} defined</strong>
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-surface-raised border border-border">
+                                Languages: <strong className="text-cyan-400">Java, Python, JS, C++, SQL</strong>
+                              </span>
+                              {q.constraints && q.constraints.length > 0 && (
+                                <span className="px-2 py-0.5 rounded bg-surface-raised border border-border truncate max-w-xs">
+                                  Constraints: {q.constraints[0]}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))
                     )}
@@ -1725,6 +2026,7 @@ export const AdminLiveTests: React.FC = () => {
         title="Import Problem from LeetCode / GFG / Codeforces"
         description="Select an algorithm or data structures problem to instantly import into this live contest."
         maxWidthClass="max-w-3xl"
+        zIndexClass="z-[200]"
       >
         <div className="space-y-4">
           <Input
@@ -1774,6 +2076,383 @@ export const AdminLiveTests: React.FC = () => {
                 </div>
               ))}
           </div>
+        </div>
+      </Dialog>
+
+      {/* QUESTION BUILDER MODAL (Add / Edit MCQ & Coding Questions) */}
+      <Dialog
+        isOpen={questionModalOpen}
+        onClose={() => setQuestionModalOpen(false)}
+        title={
+          editingQuestionIdx !== null
+            ? `Edit ${questionModalType} Question (${formSections[editingSectionIdx]?.title || "Section"})`
+            : `Create ${questionModalType} Question (${formSections[editingSectionIdx]?.title || "Section"})`
+        }
+        description={
+          questionModalType === "MCQ"
+            ? "Configure multiple choice prompt, options A through D, mark the correct answer key, and add explanation notes."
+            : "Define coding problem statement, difficulty, time/memory constraints, sample test cases, and multi-language starter code."
+        }
+        maxWidthClass="max-w-4xl"
+        zIndexClass="z-[200]"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <span className="text-[11px] font-mono text-text-muted">
+              Section: <strong className="text-text-primary">{formSections[editingSectionIdx]?.title || "Current Section"}</strong>
+            </span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setQuestionModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="teal-cyan" size="sm" onClick={handleSaveQuestion} className="text-xs font-bold px-5">
+                {editingQuestionIdx !== null ? "Update Question" : "Save Question to Section"}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-5 text-xs font-mono max-h-[75vh] overflow-y-auto pr-1">
+          {/* Question Type Switcher (only for new questions) */}
+          {editingQuestionIdx === null && (
+            <div className="flex items-center gap-2 p-1.5 bg-surface-raised border border-border rounded-xl">
+              <button
+                type="button"
+                onClick={() => setQuestionModalType("MCQ")}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                  questionModalType === "MCQ"
+                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
+                    : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                <HelpCircle className="w-4 h-4" /> Multiple Choice Question (MCQ)
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuestionModalType("CODING")}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2",
+                  questionModalType === "CODING"
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                    : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                <Code2 className="w-4 h-4" /> Practical Coding Challenge
+              </button>
+            </div>
+          )}
+
+          {/* Common Details Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-text-muted block">Question Title / Name</label>
+              <Input
+                value={qTitle}
+                onChange={(e) => setQTitle(e.target.value)}
+                placeholder={questionModalType === "MCQ" ? "e.g. Probability of Rolling a Sum of 7" : "e.g. Reverse Linked List II"}
+                className="bg-surface-raised text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-text-muted block">Category / Domain</label>
+              <Input
+                value={qCategory}
+                onChange={(e) => setQCategory(e.target.value)}
+                placeholder="e.g. Aptitude / Arrays / DBMS"
+                className="bg-surface-raised text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-text-muted block">Marks (Points Earned)</label>
+              <Input
+                type="number"
+                value={qMarks}
+                onChange={(e) => setQMarks(parseInt(e.target.value, 10) || 10)}
+                className="bg-surface-raised text-xs"
+              />
+            </div>
+
+            {questionModalType === "MCQ" ? (
+              <div className="space-y-1">
+                <label className="text-text-muted block">Negative Marks (Penalty)</label>
+                <Input
+                  type="number"
+                  value={qNegativeMarks}
+                  onChange={(e) => setQNegativeMarks(parseInt(e.target.value, 10) || 0)}
+                  className="bg-surface-raised text-xs"
+                />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-text-muted block">Difficulty Rating</label>
+                <select
+                  value={codeDifficulty}
+                  onChange={(e) => setCodeDifficulty(e.target.value as any)}
+                  className="w-full bg-surface-raised border border-border rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none"
+                >
+                  <option value="Easy">Easy (Foundation)</option>
+                  <option value="Medium">Medium (Standard Placement)</option>
+                  <option value="Hard">Hard (Advanced Competitive)</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Question Prompt / Problem Statement */}
+          <div className="space-y-1">
+            <label className="text-text-muted block">
+              {questionModalType === "MCQ" ? "Question Statement / Prompt" : "Problem Statement & Description"}
+            </label>
+            <textarea
+              value={qText}
+              onChange={(e) => setQText(e.target.value)}
+              rows={4}
+              placeholder={
+                questionModalType === "MCQ"
+                  ? "What is the time complexity of searching an element in a balanced binary search tree of N nodes?"
+                  : "Given an integer array nums and an integer k, return the k most frequent elements in the array..."
+              }
+              className="w-full p-3 bg-surface-raised border border-border rounded-xl text-xs font-mono text-text-primary focus:outline-none resize-y"
+            />
+          </div>
+
+          {/* MCQ OPTIONS BUILDER */}
+          {questionModalType === "MCQ" && (
+            <div className="p-4 bg-surface-raised border border-border rounded-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-text-primary flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-400" /> Multiple Choice Options & Answer Key
+                </span>
+                <span className="text-[11px] text-text-muted">Click the circle beside an option to set as correct answer</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Option A */}
+                <div
+                  className={cn(
+                    "p-3 rounded-xl border transition-all space-y-1.5",
+                    qCorrectOpt === "A" ? "bg-emerald-500/10 border-emerald-500/50" : "bg-surface border-border"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-xs flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="correct-opt"
+                        checked={qCorrectOpt === "A"}
+                        onChange={() => setQCorrectOpt("A")}
+                        className="text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span>Option A</span>
+                    </label>
+                    {qCorrectOpt === "A" && (
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Correct Key</span>
+                    )}
+                  </div>
+                  <Input
+                    value={qOptionA}
+                    onChange={(e) => setQOptionA(e.target.value)}
+                    placeholder="Enter text for Option A..."
+                    className="bg-surface-raised text-xs"
+                  />
+                </div>
+
+                {/* Option B */}
+                <div
+                  className={cn(
+                    "p-3 rounded-xl border transition-all space-y-1.5",
+                    qCorrectOpt === "B" ? "bg-emerald-500/10 border-emerald-500/50" : "bg-surface border-border"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-xs flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="correct-opt"
+                        checked={qCorrectOpt === "B"}
+                        onChange={() => setQCorrectOpt("B")}
+                        className="text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span>Option B</span>
+                    </label>
+                    {qCorrectOpt === "B" && (
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Correct Key</span>
+                    )}
+                  </div>
+                  <Input
+                    value={qOptionB}
+                    onChange={(e) => setQOptionB(e.target.value)}
+                    placeholder="Enter text for Option B..."
+                    className="bg-surface-raised text-xs"
+                  />
+                </div>
+
+                {/* Option C */}
+                <div
+                  className={cn(
+                    "p-3 rounded-xl border transition-all space-y-1.5",
+                    qCorrectOpt === "C" ? "bg-emerald-500/10 border-emerald-500/50" : "bg-surface border-border"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-xs flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="correct-opt"
+                        checked={qCorrectOpt === "C"}
+                        onChange={() => setQCorrectOpt("C")}
+                        className="text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span>Option C (Optional)</span>
+                    </label>
+                    {qCorrectOpt === "C" && (
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Correct Key</span>
+                    )}
+                  </div>
+                  <Input
+                    value={qOptionC}
+                    onChange={(e) => setQOptionC(e.target.value)}
+                    placeholder="Enter text for Option C..."
+                    className="bg-surface-raised text-xs"
+                  />
+                </div>
+
+                {/* Option D */}
+                <div
+                  className={cn(
+                    "p-3 rounded-xl border transition-all space-y-1.5",
+                    qCorrectOpt === "D" ? "bg-emerald-500/10 border-emerald-500/50" : "bg-surface border-border"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-xs flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="correct-opt"
+                        checked={qCorrectOpt === "D"}
+                        onChange={() => setQCorrectOpt("D")}
+                        className="text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span>Option D (Optional)</span>
+                    </label>
+                    {qCorrectOpt === "D" && (
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Correct Key</span>
+                    )}
+                  </div>
+                  <Input
+                    value={qOptionD}
+                    onChange={(e) => setQOptionD(e.target.value)}
+                    placeholder="Enter text for Option D..."
+                    className="bg-surface-raised text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Solution Explanation */}
+              <div className="space-y-1 pt-2">
+                <label className="text-text-muted block">Solution Explanation / Answer Justification</label>
+                <textarea
+                  value={qExplanation}
+                  onChange={(e) => setQExplanation(e.target.value)}
+                  rows={2}
+                  placeholder="Explain why this option is correct so students can review it after the test finishes..."
+                  className="w-full p-2.5 bg-surface border border-border rounded-xl text-xs font-mono text-text-primary focus:outline-none resize-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* CODING CHALLENGE BUILDER */}
+          {questionModalType === "CODING" && (
+            <div className="space-y-4">
+              {/* Constraints */}
+              <div className="space-y-1">
+                <label className="text-text-muted block">Problem Constraints (one per line)</label>
+                <textarea
+                  value={codeConstraints}
+                  onChange={(e) => setCodeConstraints(e.target.value)}
+                  rows={2}
+                  placeholder="1 <= nums.length <= 10^5&#10;-10^9 <= nums[i] <= 10^9"
+                  className="w-full p-2.5 bg-surface-raised border border-border rounded-xl text-xs font-mono text-text-primary focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Sample Test Case */}
+              <div className="p-4 bg-surface-raised border border-border rounded-xl space-y-3">
+                <span className="font-bold text-text-primary block">Primary Sample Test Case</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-text-muted block">Sample Input</label>
+                    <Input
+                      value={codeSampleInput}
+                      onChange={(e) => setCodeSampleInput(e.target.value)}
+                      placeholder="e.g. nums = [2,7,11,15], target = 9"
+                      className="bg-surface text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-text-muted block">Expected Output</label>
+                    <Input
+                      value={codeSampleOutput}
+                      onChange={(e) => setCodeSampleOutput(e.target.value)}
+                      placeholder="e.g. [0,1]"
+                      className="bg-surface text-xs font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-text-muted block">Test Case Explanation</label>
+                  <Input
+                    value={codeSampleExplanation}
+                    onChange={(e) => setCodeSampleExplanation(e.target.value)}
+                    placeholder="Because nums[0] + nums[1] == 9, we return [0, 1]."
+                    className="bg-surface text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Multi-Language Starter Code Templates */}
+              <div className="p-4 bg-surface-raised border border-border rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-text-primary block">Starter Code Templates</span>
+                  <div className="flex gap-1 bg-surface p-1 rounded-lg border border-border text-[11px]">
+                    {(["python", "java", "javascript", "cpp", "sql"] as const).map((lang) => (
+                      <button
+                        key={lang}
+                        type="button"
+                        onClick={() => setCodeSelectedLangTab(lang)}
+                        className={cn(
+                          "px-2.5 py-1 rounded transition-colors uppercase font-bold",
+                          codeSelectedLangTab === lang
+                            ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
+                            : "text-text-muted hover:text-text-primary"
+                        )}
+                      >
+                        {lang}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <textarea
+                    value={codeStarters[codeSelectedLangTab] || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCodeStarters((prev) => ({ ...prev, [codeSelectedLangTab]: val }));
+                    }}
+                    rows={6}
+                    className="w-full p-3 bg-surface border border-border rounded-xl text-xs font-mono text-cyan-300 focus:outline-none resize-y"
+                  />
+                  <span className="text-[10px] text-text-muted block">
+                    This skeleton code will be loaded in the student's coding editor when they select {codeSelectedLangTab.toUpperCase()}.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Dialog>
 

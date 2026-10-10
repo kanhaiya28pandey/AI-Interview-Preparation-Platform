@@ -945,6 +945,10 @@ class LiveTestService {
     );
   }
 
+  public hasUserAttempted(testId: string, userIdentifier: string): boolean {
+    return !!this.getStudentSubmission(testId, userIdentifier);
+  }
+
   public getAllSubmissions(): LiveTestSubmission[] {
     return this.getSubmissionsStorage().sort(
       (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
