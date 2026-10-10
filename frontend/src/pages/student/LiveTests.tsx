@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import Editor, { loader } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
@@ -111,6 +112,11 @@ export const LiveTests: React.FC = () => {
   const [warningMessage, setWarningMessage] = useState("");
   const [warningType, setWarningType] = useState<"TAB_SWITCH" | "RESIZE">("TAB_SWITCH");
 
+  // Violation tracking refs (avoids stale closures)
+  const tabSwitchCountRef = useRef(0);
+  const resizeCountRef = useRef(0);
+  const isViolationCooldownRef = useRef(false);
+
   // Arena Submission & Review Modal
   const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
   const [reviewResultModalOpen, setReviewResultModalOpen] = useState(false);
@@ -170,6 +176,9 @@ export const LiveTests: React.FC = () => {
     setActiveQuestionIndex(0);
     setActiveArenaTest(testToStart);
     setArenaTimer(testToStart.durationMinutes * 60);
+
+    tabSwitchCountRef.current = 0;
+    resizeCountRef.current = 0;
     setTabSwitchCount(0);
     setResizeCount(0);
     setShowWarningModal(false);
@@ -210,40 +219,58 @@ export const LiveTests: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeArenaTest]);
 
-  // Anti-Cheating Proctoring Listeners: Tab Switch & Window Blur
+  // Anti-Cheating Proctoring Listeners: Tab Switch, Window Blur & Fullscreen Exit
   useEffect(() => {
     if (!activeArenaTest) return;
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
+      if (document.hidden || document.visibilityState === "hidden") {
         triggerViolation("TAB_SWITCH");
       }
     };
 
     const handleBlur = () => {
-      triggerViolation("TAB_SWITCH");
+      if (!document.hasFocus()) {
+        triggerViolation("TAB_SWITCH");
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        triggerViolation("RESIZE");
+      }
     };
 
     const handleResize = () => {
-      triggerViolation("RESIZE");
+      if (window.innerWidth < 850 || window.innerHeight < 550) {
+        triggerViolation("RESIZE");
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("resize", handleResize);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
       window.removeEventListener("resize", handleResize);
     };
-  }, [activeArenaTest, tabSwitchCount, resizeCount]);
+  }, [activeArenaTest]);
 
   const triggerViolation = (type: "TAB_SWITCH" | "RESIZE") => {
     if (!activeArenaTest) return;
+    if (isViolationCooldownRef.current) return;
+    isViolationCooldownRef.current = true;
+    setTimeout(() => {
+      isViolationCooldownRef.current = false;
+    }, 1000);
 
     if (type === "TAB_SWITCH") {
-      const nextCount = tabSwitchCount + 1;
+      tabSwitchCountRef.current += 1;
+      const nextCount = tabSwitchCountRef.current;
       setTabSwitchCount(nextCount);
       setWarningType("TAB_SWITCH");
 
@@ -255,13 +282,14 @@ export const LiveTests: React.FC = () => {
 
       setWarningMessage(
         nextCount === 1
-          ? "PROCTORING WARNING 1 OF 2: Switching tabs or navigating away from the test window is strictly prohibited. Your next violation will be your final warning!"
-          : "FINAL PROCTORING WARNING 2 OF 2: Tab switch or focus loss detected! ONE MORE violation and your test will be INSTANTLY TERMINATED and auto-submitted."
+          ? "PROCTORING WARNING 1 OF 2: Tab switch or browser focus loss detected! You have 1 warning remaining. Switching away again will result in immediate disqualification and auto-submission."
+          : "FINAL PROCTORING WARNING 2 OF 2: Another tab switch detected! ONE MORE violation will INSTANTLY TERMINATE and submit your assessment."
       );
       setShowWarningModal(true);
-      toast.error(`Proctoring Warning (${nextCount}/2): Tab switch detected!`);
+      toast.error(`Proctoring Strike (${nextCount}/2): Tab switch detected!`);
     } else {
-      const nextResize = resizeCount + 1;
+      resizeCountRef.current += 1;
+      const nextResize = resizeCountRef.current;
       setResizeCount(nextResize);
       setWarningType("RESIZE");
 
@@ -273,11 +301,11 @@ export const LiveTests: React.FC = () => {
 
       setWarningMessage(
         nextResize === 1
-          ? "WINDOW RESIZE DETECTED (Warning 1 of 2): You cannot resize or minimize the test window during the live assessment. Please keep the test maximized."
-          : "FINAL RESIZE WARNING (2 of 2): Another window resize or split-screen attempt will automatically terminate and submit your assessment."
+          ? "FULLSCREEN / WINDOW RESIZE DETECTED (Warning 1 of 2): You cannot minimize, split-screen, or exit fullscreen during this live assessment. Please keep the test maximized."
+          : "FINAL RESIZE WARNING (2 of 2): Another window resize or fullscreen exit will automatically terminate and submit your assessment."
       );
       setShowWarningModal(true);
-      toast.error(`Proctoring Warning (${nextResize}/2): Window resize detected!`);
+      toast.error(`Proctoring Strike (${nextResize}/2): Window resize or fullscreen exit!`);
     }
   };
 
@@ -932,54 +960,89 @@ export const LiveTests: React.FC = () => {
         </div>
       </Dialog>
 
-      {/* FULLSCREEN FOCUSED LIVE ARENA WORKSPACE (Takes over window fluidly) */}
-      {activeArenaTest && (
-        <div className="fixed inset-0 z-[150] bg-ink flex flex-col animate-fade-in overflow-hidden">
+      {/* FULLSCREEN FOCUSED LIVE ARENA WORKSPACE (Takes over window fluidly via createPortal) */}
+      {activeArenaTest && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-[#090d16] flex flex-col overflow-hidden text-text-primary animate-fade-in">
           {/* Top Arena Control Bar */}
-          <div className="h-14 px-4 bg-surface border-b border-border flex items-center justify-between shrink-0">
+          <div className="h-14 px-4 bg-surface border-b border-border flex items-center justify-between shrink-0 shadow-md">
             <div className="flex items-center gap-3">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
-              <div>
-                <h2 className="font-serif font-bold text-sm text-text-primary truncate max-w-sm sm:max-w-md">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping shrink-0" />
+              <div className="min-w-0">
+                <h2 className="font-serif font-bold text-sm sm:text-base text-text-primary truncate max-w-xs sm:max-w-md">
                   {activeArenaTest.title}
                 </h2>
                 <div className="flex items-center gap-2 text-[10px] font-mono text-cyan-400">
-                  <span>Question {activeQuestionIndex + 1} of {allQuestions.length}</span>
+                  <span className="font-bold">Question {activeQuestionIndex + 1} of {allQuestions.length}</span>
                   <span>•</span>
-                  <span>{allQuestions[activeQuestionIndex]?.category || allQuestions[activeQuestionIndex]?.type}</span>
+                  <span className="truncate">{allQuestions[activeQuestionIndex]?.sectionTitle || allQuestions[activeQuestionIndex]?.type}</span>
                 </div>
               </div>
             </div>
 
             {/* Timer, Proctoring Badges & Submit */}
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Countdown Timer */}
-              <div className="flex items-center gap-2 px-3 py-1 bg-surface-raised border border-border rounded-lg text-xs font-mono">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-raised border border-border rounded-lg text-xs font-mono shadow-sm">
                 <Clock className={cn("w-4 h-4", arenaTimer < 300 ? "text-rose-500 animate-pulse" : "text-cyan-400")} />
-                <span className={cn("font-bold", arenaTimer < 300 ? "text-rose-500 animate-pulse" : "text-text-primary")}>
+                <span className={cn("font-bold text-sm", arenaTimer < 300 ? "text-rose-500 animate-pulse" : "text-text-primary")}>
                   {formatTimer(arenaTimer)}
                 </span>
               </div>
 
               {/* Proctoring Tab Switch Count */}
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-surface-raised border border-border rounded-lg text-xs font-mono">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span className="text-text-muted">Warnings:</span>
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all",
+                  tabSwitchCount > 0
+                    ? "bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse font-bold"
+                    : "bg-surface-raised border-border text-emerald-400"
+                )}
+              >
+                <ShieldAlert className={cn("w-4 h-4", tabSwitchCount > 0 ? "text-rose-400" : "text-emerald-400")} />
+                <span className="hidden sm:inline text-text-muted">Tab Warnings:</span>
                 <span className={cn("font-bold", tabSwitchCount > 0 ? "text-rose-400" : "text-emerald-400")}>
-                  {tabSwitchCount}/2 (3rd Auto-Submits)
+                  {tabSwitchCount} / 2
                 </span>
               </div>
+
+              {/* Fullscreen status button */}
+              <button
+                onClick={() => {
+                  try {
+                    if (document.documentElement.requestFullscreen) {
+                      document.documentElement.requestFullscreen().catch(() => {});
+                    }
+                  } catch {}
+                }}
+                className="hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-raised border border-border text-[11px] font-mono text-text-muted hover:text-cyan-400 transition-colors"
+                title="Ensure Fullscreen"
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-cyan-400" /> Fullscreen
+              </button>
 
               <Button
                 variant="teal-cyan"
                 size="sm"
                 onClick={() => setShowSubmitConfirmModal(true)}
-                className="text-xs font-bold px-4 h-8 bg-emerald-500 hover:bg-emerald-600 text-black shadow"
+                className="text-xs font-bold px-4 h-9 bg-emerald-500 hover:bg-emerald-600 text-black shadow-lg ring-2 ring-emerald-500/40 flex items-center gap-1.5"
               >
-                Submit Contest
+                <CheckCircle2 className="w-4 h-4" /> Submit Contest
               </Button>
             </div>
           </div>
+
+          {/* Active Tab Switch Restriction Alert Banner */}
+          {tabSwitchCount > 0 && (
+            <div className="bg-rose-500/20 border-b border-rose-500/50 px-4 py-2 text-xs font-mono text-rose-300 flex items-center justify-between gap-3 shrink-0 animate-pulse">
+              <div className="flex items-center gap-2">
+                <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>
+                  <strong>PROCTORING WARNING:</strong> You have accumulated {tabSwitchCount} of 2 permitted tab switch warnings. The 3rd violation triggers instant contest termination and auto-submission!
+                </span>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-rose-400 shrink-0">Strict Proctoring</span>
+            </div>
+          )}
 
           {/* Arena Content Body: Left Problem/Question + Center Workspace */}
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
@@ -1262,6 +1325,18 @@ export const LiveTests: React.FC = () => {
                               >
                                 <Play className="w-3 h-3 mr-1 fill-white" /> Run Test Cases
                               </Button>
+
+                              <Button
+                                variant="teal-cyan"
+                                size="sm"
+                                onClick={() => {
+                                  handleRunCodeInArena(allQuestions[activeQuestionIndex]);
+                                  toast.success(`Code saved & test cases executed for Q${activeQuestionIndex + 1}!`);
+                                }}
+                                className="h-6 text-xs font-mono px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                              >
+                                <Check className="w-3 h-3 mr-1" /> Save & Submit Code
+                              </Button>
                             </div>
                           </div>
 
@@ -1346,31 +1421,53 @@ export const LiveTests: React.FC = () => {
                 </div>
               </div>
 
-              {/* Prev / Next Action Controls */}
-              <div className="pt-4 border-t border-border flex items-center justify-between gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={activeQuestionIndex === 0}
-                  onClick={() => setActiveQuestionIndex((prev) => Math.max(0, prev - 1))}
-                  className="text-xs font-mono h-8 flex-1"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Prev
-                </Button>
+              {/* Prev / Next & Palette Submit Action Controls */}
+              <div className="pt-4 border-t border-border space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={activeQuestionIndex === 0}
+                    onClick={() => setActiveQuestionIndex((prev) => Math.max(0, prev - 1))}
+                    className="text-xs font-mono h-8 flex-1"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Prev
+                  </Button>
+
+                  {activeQuestionIndex === allQuestions.length - 1 ? (
+                    <Button
+                      variant="teal-cyan"
+                      size="sm"
+                      onClick={() => setShowSubmitConfirmModal(true)}
+                      className="text-xs font-bold font-mono h-8 flex-1 bg-emerald-500 hover:bg-emerald-600 text-black shadow"
+                    >
+                      Submit <Check className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveQuestionIndex((prev) => Math.min(allQuestions.length - 1, prev + 1))}
+                      className="text-xs font-mono h-8 flex-1"
+                    >
+                      Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                    </Button>
+                  )}
+                </div>
 
                 <Button
-                  variant="outline"
+                  variant="teal-cyan"
                   size="sm"
-                  disabled={activeQuestionIndex === allQuestions.length - 1}
-                  onClick={() => setActiveQuestionIndex((prev) => Math.min(allQuestions.length - 1, prev + 1))}
-                  className="text-xs font-mono h-8 flex-1"
+                  onClick={() => setShowSubmitConfirmModal(true)}
+                  className="w-full text-xs font-bold font-mono py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-black shadow-lg flex items-center justify-center gap-1.5"
                 >
-                  Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                  <CheckCircle2 className="w-4 h-4" /> Submit Entire Contest
                 </Button>
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* PROCTORING VIOLATION WARNING MODAL */}
@@ -1379,6 +1476,7 @@ export const LiveTests: React.FC = () => {
         onClose={() => setShowWarningModal(false)}
         title={warningType === "TAB_SWITCH" ? "Tab Switch Violation Detected" : "Window Resize Violation"}
         maxWidthClass="max-w-md"
+        zIndexClass="z-[10005]"
       >
         <div className="space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center mx-auto">
@@ -1412,6 +1510,7 @@ export const LiveTests: React.FC = () => {
         onClose={() => setShowSubmitConfirmModal(false)}
         title="Ready to Submit Contest?"
         maxWidthClass="max-w-md"
+        zIndexClass="z-[10005]"
       >
         <div className="space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto">
