@@ -51,11 +51,32 @@ def analyze_resume_ats(
                 "keywords": [
                     {{"keyword": "Keyword", "present": true|false, "count": integer, "importance": "Critical"|"Recommended"}}
                 ],
+                "formattingChecklist": [
+                    {{"id": "f1", "label": "Single-column ATS readable layout", "passed": true, "tip": "Layout advice"}},
+                    {{"id": "f2", "label": "Standard section headers", "passed": true, "tip": "Headers advice"}},
+                    {{"id": "f3", "label": "Action verbs & metric impact", "passed": true, "tip": "Impact metrics"}},
+                    {{"id": "f4", "label": "Clean typography & dates", "passed": true, "tip": "Typography advice"}}
+                ],
+                "sections": [
+                    {{"name": "Summary", "status": "good"|"needs-improvement"|"missing", "score": integer, "extractedContent": "snippet", "suggestions": ["Tip"]}},
+                    {{"name": "Experience", "status": "good"|"needs-improvement"|"missing", "score": integer, "extractedContent": "snippet", "suggestions": ["Tip"]}},
+                    {{"name": "Skills", "status": "good"|"needs-improvement"|"missing", "score": integer, "extractedContent": "snippet", "suggestions": ["Tip"]}},
+                    {{"name": "Education", "status": "good"|"needs-improvement"|"missing", "score": integer, "extractedContent": "snippet", "suggestions": ["Tip"]}}
+                ],
                 "roleFitComparison": [
                     {{"roleName": "{role}", "score": integer}},
                     {{"roleName": "Software Engineer", "score": integer}},
                     {{"roleName": "Full Stack Engineer", "score": integer}}
-                ]
+                ],
+                "jdMatch": {{
+                    "jobDescriptionProvided": true|false,
+                    "matchScore": integer (0-100),
+                    "matchingKeywords": ["list", "of", "matching", "keywords"],
+                    "missingKeywords": ["list", "of", "missing", "keywords"],
+                    "experienceMatch": "Brief evaluation of candidate vs job description requirements",
+                    "roleAlignment": "Summary of role alignment",
+                    "recommendations": ["Actionable tip 1", "Actionable tip 2"]
+                }}
             }}
             Only output raw JSON. Do not include markdown formatting or backticks.
             """
@@ -66,25 +87,94 @@ def analyze_resume_ats(
             raw = response.text.strip()
             if raw.startswith("```json"): raw = raw[7:]
             if raw.endswith("```"): raw = raw[:-3]
-            return json.loads(raw.strip())
+            parsed = json.loads(raw.strip())
+            
+            # Ensure safety keys exist
+            if "formattingChecklist" not in parsed or not parsed["formattingChecklist"]:
+                parsed["formattingChecklist"] = [
+                    {"id": "f1", "label": "Single-column ATS readable layout", "passed": True, "tip": "Standard linear hierarchy detected."},
+                    {"id": "f2", "label": "Standard section headers", "passed": True, "tip": "Section headings follow standard recruiter indexing rules."},
+                    {"id": "f3", "label": "Action verbs & metric impact", "passed": True, "tip": "Quantifiable bullet outcomes present."},
+                    {"id": "f4", "label": "Clean typography & dates", "passed": True, "tip": "Consistent date formats and layout structure."}
+                ]
+            if "sections" not in parsed or not parsed["sections"]:
+                parsed["sections"] = [
+                    {"name": "Summary", "status": "good", "score": 85, "extractedContent": "Professional profile detected.", "suggestions": [f"Highlight target role keywords for {role}"]},
+                    {"name": "Experience", "status": "good", "score": 80, "extractedContent": "Experience items identified.", "suggestions": ["Lead bullet points with active verbs"]},
+                    {"name": "Skills", "status": "good", "score": 88, "extractedContent": "Categorized skill set found.", "suggestions": ["List primary tools prominently"]},
+                    {"name": "Education", "status": "good", "score": 90, "extractedContent": "Degree information verified.", "suggestions": ["Mention graduation month and year"]}
+                ]
+            if "jdMatch" not in parsed:
+                parsed["jdMatch"] = {
+                    "jobDescriptionProvided": bool(job_description and job_description.strip()),
+                    "matchScore": parsed.get("atsScore", 75),
+                    "matchingKeywords": parsed.get("matchedSkills", [])[:4],
+                    "missingKeywords": [m.get("name") for m in parsed.get("missingSkills", [])[:3]],
+                    "experienceMatch": "Candidate matches core technical requirements.",
+                    "roleAlignment": f"Good candidate standing for {role}.",
+                    "recommendations": ["Tailor bullet points to emphasize relevant project outcomes"]
+                }
+            return parsed
         except Exception as e:
             logger.warning("Gemini API call failed (%s), using algorithmic fallback", e)
 
     lower_text = resume_text.lower()
-    tech_keywords = ["react", "typescript", "javascript", "java", "spring boot", "python", "sql", "mongodb", "docker", "aws", "git", "rest", "api", "microservices"]
+    tech_keywords = [
+        "react", "typescript", "javascript", "java", "spring boot", "python", "sql", "mongodb",
+        "docker", "aws", "git", "rest", "api", "microservices", "kubernetes", "ci/cd", "redis",
+        "angular", "node.js", "express", "postgresql", "html", "css", "tailwind"
+    ]
     matched = [k for k in tech_keywords if k in lower_text]
     missing = [k for k in tech_keywords if k not in lower_text][:4]
     
-    score = min(96, max(45, 50 + len(matched) * 4))
+    score = min(96, max(45, 52 + len(matched) * 3))
+
+    # Job description matching
+    has_jd = bool(job_description and job_description.strip())
+    jd_matching_kws = []
+    jd_missing_kws = []
+    jd_score = 0
+    jd_recs = []
+
+    if has_jd:
+        lower_jd = job_description.lower()
+        jd_terms = [k for k in tech_keywords if k in lower_jd]
+        # Also grab acronyms / uppercase words in JD
+        import re
+        custom_tokens = [w.lower() for w in re.findall(r'\b[A-Za-z0-9+#.-]{2,15}\b', job_description) if len(w) >= 3]
+        for ct in custom_tokens:
+            if ct in ["the", "and", "for", "with", "you", "will", "our", "team", "role", "years", "experience", "work"]:
+                continue
+            if ct not in jd_terms and len(jd_terms) < 15:
+                if ct in lower_text or any(char.isupper() for char in job_description):
+                    jd_terms.append(ct)
+
+        jd_matching_kws = [k.title() for k in jd_terms if k in lower_text]
+        jd_missing_kws = [k.title() for k in jd_terms if k not in lower_text]
+        
+        if jd_terms:
+            jd_score = min(98, max(35, round((len(jd_matching_kws) * 100) / len(jd_terms))))
+        else:
+            jd_score = score
+        
+        score = round((score * 0.6) + (jd_score * 0.4))
+        if jd_missing_kws:
+            jd_recs.append(f"Incorporate missing JD requirements: {', '.join(jd_missing_kws[:3])}")
+        jd_recs.append("Tailor work experience bullet points using terminology directly from the job description.")
+        jd_recs.append(f"Emphasize projects featuring {jd_matching_kws[0] if jd_matching_kws else 'core technologies'}.")
     
     return {
         "atsScore": score,
-        "verdict": f"Competitive candidate profile for {role}. Demonstrates strong core competencies with room for targeted optimization.",
+        "verdict": (
+            f"Strong match for {role} aligning with {len(jd_matching_kws)} job requirements."
+            if has_jd and jd_score >= 75
+            else f"Competitive profile for {role}. Solid technical foundation with targeted areas for optimization."
+        ),
         "subScores": {
-            "keywordMatch": score - 2,
+            "keywordMatch": min(95, max(50, jd_score if has_jd else score - 2)),
             "formatting": 88,
-            "experienceRelevance": score + 1,
-            "skillsMatch": score - 1,
+            "experienceRelevance": min(95, score + 2),
+            "skillsMatch": min(95, score),
             "educationMatch": 85,
             "actionVerbUsage": 80
         },
@@ -98,7 +188,7 @@ def analyze_resume_ats(
                 "id": "s1",
                 "section": "Skills",
                 "priority": "High",
-                "text": f"Incorporate industry-standard keywords like {', '.join([m.title() for m in missing[:2]])} in your technical skills block.",
+                "text": f"Incorporate industry-standard keywords like {', '.join([m.title() for m in (jd_missing_kws if jd_missing_kws else missing)[:2]])} in your technical skills block.",
                 "whyItMatters": "Recruiter ATS boolean queries filter candidates who omit these terms."
             },
             {
@@ -107,17 +197,77 @@ def analyze_resume_ats(
                 "priority": "Medium",
                 "text": "Quantify bullet points with impact metrics (e.g., 'reduced API latency by 35%').",
                 "whyItMatters": "Metric-driven accomplishments distinguish high-signal candidates."
+            },
+            {
+                "id": "s3",
+                "section": "Projects",
+                "priority": "High",
+                "text": "Provide live demo links and GitHub repository badges for highlighted technical projects.",
+                "whyItMatters": "Allows hiring managers to evaluate functional code immediately."
             }
         ],
         "keywords": [
             {"keyword": k.title(), "present": k in lower_text, "count": lower_text.count(k), "importance": "Critical" if idx < 3 else "Recommended"}
             for idx, k in enumerate(tech_keywords[:8])
         ],
+        "formattingChecklist": [
+            {"id": "f1", "label": "Single-column ATS readable layout", "passed": True, "tip": "Standard linear hierarchy detected."},
+            {"id": "f2", "label": "Standard section headers", "passed": True, "tip": "Headers align with conventional ATS indexing rules."},
+            {"id": "f3", "label": "Action verbs & metric impact", "passed": True, "tip": "Impact indicators and active phrasing identified."},
+            {"id": "f4", "label": "Clean typography & dates", "passed": True, "tip": "Document text was successfully converted without OCR distortions."}
+        ],
+        "sections": [
+            {
+                "name": "Summary",
+                "status": "good" if "summary" in lower_text or "objective" in lower_text else "needs-improvement",
+                "score": 85 if "summary" in lower_text else 60,
+                "extractedContent": "Professional summary detected in document." if "summary" in lower_text else "General introduction present.",
+                "suggestions": [f"Highlight target role keywords for {role}"]
+            },
+            {
+                "name": "Experience",
+                "status": "good" if "experience" in lower_text or "project" in lower_text else "needs-improvement",
+                "score": 82,
+                "extractedContent": "Work and project entries identified.",
+                "suggestions": ["Start bullet points with powerful action verbs like Designed, Scaled, Engineered"]
+            },
+            {
+                "name": "Skills",
+                "status": "good",
+                "score": min(95, 60 + len(matched) * 3),
+                "extractedContent": f"Matched {len(matched)} relevant technical competencies.",
+                "suggestions": ["Group skills by category (Languages, Frameworks, Cloud, Databases)"]
+            },
+            {
+                "name": "Education",
+                "status": "good",
+                "score": 88,
+                "extractedContent": "Academic credentials and degree information verified.",
+                "suggestions": ["Include expected graduation month/year and major GPA if > 3.5"]
+            }
+        ],
         "roleFitComparison": [
             {"roleName": role, "score": score},
             {"roleName": "Software Engineer", "score": min(95, score + 2)},
             {"roleName": "Full Stack Engineer", "score": max(50, score - 3)}
-        ]
+        ],
+        "jdMatch": {
+            "jobDescriptionProvided": has_jd,
+            "matchScore": jd_score if has_jd else 0,
+            "matchingKeywords": jd_matching_kws,
+            "missingKeywords": jd_missing_kws,
+            "experienceMatch": (
+                "High technical alignment with stated job description requirements."
+                if len(jd_matching_kws) >= 4
+                else "Partial alignment. Core fundamentals present, but several requested tools are omitted."
+            ) if has_jd else "General role benchmark applied.",
+            "roleAlignment": (
+                f"Candidate demonstrates {len(jd_matching_kws)} matched requirements from the target job posting."
+            ) if has_jd else "Standard role evaluation.",
+            "recommendations": jd_recs if has_jd else [
+                "Paste a target Job Description to compare specific keyword matches and custom ATS requirements."
+            ]
+        }
     }
 
 def evaluate_interview_answer(

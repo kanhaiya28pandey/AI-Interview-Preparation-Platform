@@ -171,7 +171,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: "/coding", label: "Coding Arena", icon: Code2, locked: !isVerified },
     { to: "/live-tests", label: "Live Tests", icon: Radio, badge: "Live", locked: !isVerified },
     { to: "/mock-interview", label: "Mock Interview", icon: Video, badge: "AI", locked: !isVerified },
-    { to: "/quiz", label: "MCQ Quizzes", icon: HelpCircle, locked: !isVerified },
     { to: "/resume-analyzer", label: "Resume Analyzer", icon: Sparkles, badge: "AI", locked: !isVerified },
     { to: "/leaderboard", label: "Leaderboard", icon: Trophy, locked: !isVerified },
     { to: "/profile", label: "My Profile", icon: User, locked: !isVerified },
