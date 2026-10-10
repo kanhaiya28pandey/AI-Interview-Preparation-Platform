@@ -3,17 +3,19 @@ import React from "react";
 const KEYWORDS = new Set([
   "function", "return", "const", "let", "var", "if", "else", "for", "while",
   "class", "import", "from", "export", "def", "elif", "in", "is", "not",
-  "public", "private", "static", "void", "int", "double", "bool", "vector",
-  "using", "namespace", "include", "template", "typename", "new", "try",
-  "catch", "throw", "typeof", "instanceof", "async", "await", "yield",
-  "switch", "case", "break", "continue", "default", "struct", "auto"
+  "public", "private", "static", "void", "int", "double", "float", "long", "char",
+  "bool", "vector", "using", "namespace", "include", "template", "typename",
+  "new", "delete", "try", "catch", "throw", "typeof", "instanceof", "async", "await", "yield",
+  "switch", "case", "break", "continue", "default", "struct", "auto", "typedef",
+  "sizeof", "unsigned", "signed"
 ]);
 
 const BUILTINS = new Set([
   "Map", "Set", "Array", "Object", "Math", "String", "Number", "Boolean",
   "console", "List", "HashMap", "HashSet", "ArrayList", "Stack", "Queue",
-  "ListNode", "TreeNode", "std", "cout", "cin", "endl", "nullptr", "null",
-  "undefined", "true", "false", "True", "False", "None", "self"
+  "ListNode", "TreeNode", "std", "cout", "cin", "endl", "nullptr", "null", "NULL",
+  "undefined", "true", "false", "True", "False", "None", "self",
+  "malloc", "free", "printf", "scanf", "strlen", "strcpy", "memset", "size_t"
 ]);
 
 export const highlightLineTokens = (line: string): React.ReactNode => {

@@ -160,6 +160,7 @@ export const adminService = {
         python: `# Solve ${request.title}\ndef solve(input):\n  return input`,
         java: `class Solution {\n  public Object solve(Object input) { return input; }\n}`,
         cpp: `int solve(int input) { return input; }`,
+        c: `#include <stdio.h>\n#include <stdlib.h>\n\n// Solve ${request.title}\nint solve(int input) {\n  return input;\n}`,
       },
       testCases: [{ id: 1, inputStr: "1", expectedStr: "1" }],
     };
@@ -170,6 +171,9 @@ export const adminService = {
         stored.push(demoSaved);
         localStorage.setItem("demo_imported_coding_problems", JSON.stringify(stored));
       }
+      const deletedIds = JSON.parse(localStorage.getItem("demo_deleted_coding_problem_ids") || "[]");
+      const filteredDeleted = deletedIds.filter((id: string) => id !== demoSaved.id);
+      localStorage.setItem("demo_deleted_coding_problem_ids", JSON.stringify(filteredDeleted));
     } catch {}
 
     return demoSaved;
@@ -200,6 +204,12 @@ export const adminService = {
       const stored = JSON.parse(localStorage.getItem("demo_imported_coding_problems") || "[]");
       const filtered = stored.filter((p: any) => p.id !== problemId);
       localStorage.setItem("demo_imported_coding_problems", JSON.stringify(filtered));
+
+      const deletedIds = JSON.parse(localStorage.getItem("demo_deleted_coding_problem_ids") || "[]");
+      if (!deletedIds.includes(problemId)) {
+        deletedIds.push(problemId);
+        localStorage.setItem("demo_deleted_coding_problem_ids", JSON.stringify(deletedIds));
+      }
     } catch {}
 
     return true;

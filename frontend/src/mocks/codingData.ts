@@ -49,6 +49,7 @@ export interface CodingProblem {
     python: string;
     java: string;
     cpp: string;
+    c?: string;
   };
   fnName: string;
   xpReward: number;
