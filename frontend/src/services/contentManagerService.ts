@@ -122,6 +122,8 @@ export interface StudentTestSubmission {
   isPassed: boolean;
   rank: number;
   totalAttendees: number;
+  xpEarned?: number;
+  xpBreakdown?: string;
   answers: Record<string, number | string>; // questionId -> chosenIndex or text
   detailedReview: Array<{
     questionId: string;
@@ -1477,6 +1479,19 @@ export const contentManagerService = {
     const percentile = Math.max(0.02, (100 - percentage) / 100);
     const computedRank = Math.max(1, Math.min(Math.round(percentile * newTotalAttendees), newTotalAttendees));
 
+    // Dynamic Question-Weighted XP Reward Calculation
+    const difficultyMultiplier =
+      test.difficulty === "Hard" ? 20 : test.difficulty === "Easy" ? 10 : 15;
+    const correctXp = correctCount * difficultyMultiplier;
+    const passBonus = isPassed ? 25 : 0;
+    const perfectBonus = percentage === 100 ? 30 : 0;
+    const participationBase = 5;
+    const totalXpEarned = correctXp + passBonus + perfectBonus + participationBase;
+
+    const xpBreakdown = `${correctCount} correct (${correctXp} XP) + ${participationBase} XP base${
+      passBonus ? ` + ${passBonus} XP pass bonus` : ""
+    }${perfectBonus ? ` + ${perfectBonus} XP perfect bonus` : ""}`;
+
     const record: StudentTestSubmission = {
       submissionId: `sub-${Date.now()}`,
       testId: test.id,
@@ -1493,6 +1508,8 @@ export const contentManagerService = {
       isPassed,
       rank: computedRank,
       totalAttendees: newTotalAttendees,
+      xpEarned: totalXpEarned,
+      xpBreakdown,
       answers: submission.answers,
       detailedReview,
     };
@@ -1512,14 +1529,13 @@ export const contentManagerService = {
     });
 
     // 3. Award XP & Dynamically update student progress & MasterStudent in Admin
-    const xpAward = isPassed ? 30 : 10;
     progressService.recordQuizAttempt(submission.userId, {
       quizId: test.id,
       quizTitle: test.title,
       category: test.subject,
       score: percentage,
       totalQuestions,
-      xpEarned: xpAward,
+      xpEarned: totalXpEarned,
     });
 
     return record;

@@ -43,6 +43,7 @@ import {
   Zap,
   GraduationCap,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // Dynamic domain icon resolver
 const getDomainIcon = (iconName: string) => {
@@ -418,6 +419,9 @@ export const Practice: React.FC = () => {
       setActiveTest(null);
       setArenaQuestions([]);
       setAnalysisResult(result);
+      toast.success(`Assessment Completed! +${result.xpEarned || 25} XP Earned`, {
+        description: `${result.score} of ${result.totalMarks} questions solved correct (${result.percentage}%).`,
+      });
       loadData();
     } catch (err) {
       console.error("Submission failed:", err);
@@ -1032,10 +1036,10 @@ export const Practice: React.FC = () => {
                   Experience Earned
                 </span>
                 <div className="text-lg font-bold font-mono text-emerald-400">
-                  +{analysisResult.isPassed ? 30 : 10} XP Added
+                  +{analysisResult.xpEarned ?? (analysisResult.isPassed ? 30 : 10)} XP Added
                 </div>
-                <p className="text-[11px] text-text-muted">
-                  Synced with Profile & Leaderboard
+                <p className="text-[11px] text-text-muted font-mono leading-tight">
+                  {analysisResult.xpBreakdown || `${analysisResult.score} correct + participation`}
                 </p>
               </div>
             </div>

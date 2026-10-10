@@ -220,7 +220,7 @@ export const Profile: React.FC = () => {
               <Flame className="w-3.5 h-3.5 fill-live" /> {profile.stats.currentStreak} Day Streak
             </span>
             <span className="text-xs font-mono text-text-muted">
-              {profile.stats.codingProblemsSolved} Problems Solved &bull; {profile.stats.mockInterviewsCompleted} Mock Rounds
+              {profile.stats.codingProblemsSolved} Solved &bull; {profile.stats.mockInterviewsCompleted} Mock Rounds &bull; {profile.stats.quizzesCompleted || 0} Tests &bull; <span className="text-emerald-400 font-semibold">{profile.stats.totalXP || 0} XP</span>
             </span>
           </div>
 

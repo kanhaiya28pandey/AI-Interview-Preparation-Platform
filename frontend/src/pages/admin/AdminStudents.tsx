@@ -1244,8 +1244,11 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
 
                           {/* Quiz Score */}
                           <td className="p-3.5 whitespace-nowrap">
-                            <span className="font-mono font-bold text-xs text-text-primary">
+                            <span className="font-mono font-bold text-xs text-text-primary block">
                               {s.avgQuizScore}%
+                            </span>
+                            <span className="text-[10px] text-text-muted font-mono">
+                              {s.testsAttended || 0} tests attended
                             </span>
                           </td>
 
@@ -1696,6 +1699,9 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
                     <span className="text-[10px] text-text-muted uppercase block">Quiz Mastery</span>
                     <span className="text-base font-bold text-emerald-400">
                       {selectedUserDetail.avgQuizScore}%
+                    </span>
+                    <span className="text-[10px] text-text-muted block">
+                      {selectedUserDetail.testsAttended || 0} tests attended
                     </span>
                   </div>
                   <div className="p-2.5 bg-surface border border-border rounded-lg">

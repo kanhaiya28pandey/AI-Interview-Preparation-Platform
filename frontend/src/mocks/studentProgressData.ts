@@ -27,10 +27,14 @@ export interface CodingHistoryRecord {
 export interface QuizHistoryRecord {
   id: string;
   topic: string;
+  domain?: string;
   scorePct: number;
   questions: number;
+  correctCount?: number;
   date: string;
   timeTaken: string;
+  xpEarned?: number;
+  isPassed?: boolean;
 }
 
 export interface ResumeHistoryRecord {

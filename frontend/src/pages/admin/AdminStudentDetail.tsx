@@ -561,22 +561,51 @@ export const AdminStudentDetail: React.FC = () => {
               <table className="w-full text-left">
                 <thead className="bg-surface-raised border-b border-border text-text-muted font-mono uppercase text-[11px]">
                   <tr>
-                    <th className="p-3">Quiz Topic</th>
-                    <th className="p-3">Score</th>
-                    <th className="p-3">Questions</th>
+                    <th className="p-3">Quiz / Test Topic</th>
+                    <th className="p-3">Score & Status</th>
+                    <th className="p-3">Questions Solved</th>
+                    <th className="p-3">XP Earned</th>
                     <th className="p-3">Time Taken</th>
                     <th className="p-3">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {student.quizHistory.length === 0 ? (
-                    <tr><td colSpan={5} className="p-6 text-center text-text-muted font-mono">No quiz records found.</td></tr>
+                    <tr><td colSpan={6} className="p-6 text-center text-text-muted font-mono">No quiz or test records found.</td></tr>
                   ) : (
                     student.quizHistory.map((qz) => (
                       <tr key={qz.id} className="hover:bg-surface-raised/60">
-                        <td className="p-3 font-semibold text-text-primary">{qz.topic}</td>
-                        <td className="p-3 font-mono font-bold text-cyan-400">{qz.scorePct}%</td>
-                        <td className="p-3 font-mono text-text-secondary">{qz.questions} Qs</td>
+                        <td className="p-3">
+                          <span className="font-semibold text-text-primary block">{qz.topic}</span>
+                          {qz.domain && (
+                            <span className="text-[10px] text-cyan-400 font-mono">{qz.domain}</span>
+                          )}
+                        </td>
+                        <td className="p-3 font-mono">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-cyan-400">{qz.scorePct}%</span>
+                            <span
+                              className={cn(
+                                "text-[9px] px-1.5 py-0.5 rounded font-bold font-sans",
+                                (qz.isPassed ?? qz.scorePct >= 70)
+                                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                  : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                              )}
+                            >
+                              {(qz.isPassed ?? qz.scorePct >= 70) ? "PASSED" : "FAILED"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3 font-mono text-text-secondary">
+                          {qz.correctCount !== undefined
+                            ? `${qz.correctCount} / ${qz.questions} solved`
+                            : `${qz.questions} Qs`}
+                        </td>
+                        <td className="p-3 font-mono">
+                          <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-xs">
+                            <Zap className="w-3 h-3 text-emerald-400" /> +{qz.xpEarned || Math.round(qz.scorePct * 0.8 + 15)} XP
+                          </span>
+                        </td>
                         <td className="p-3 font-mono text-text-muted">{qz.timeTaken}</td>
                         <td className="p-3 font-mono text-text-muted">{qz.date}</td>
                       </tr>

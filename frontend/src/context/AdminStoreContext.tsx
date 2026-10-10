@@ -34,6 +34,8 @@ export interface MasterStudent {
   interviewsCompleted: number;
   avgInterviewScore: number;
   avgQuizScore: number;
+  testsAttended?: number;
+  totalXp?: number;
   bestAtsScore: number;
   lastActive: string;
 }

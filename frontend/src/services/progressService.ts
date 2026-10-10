@@ -228,8 +228,10 @@ export const progressService = {
     this.incrementStat(userId, "quizzesCompleted");
     this.syncMasterStudentRecord(userId, {
       problemsDelta: attempt.score > 0 ? Math.max(1, Math.round(attempt.totalQuestions * (attempt.score / 100))) : 0,
+      testsDelta: 1,
+      xpDelta: attempt.xpEarned || 50,
       newQuizScore: attempt.score,
-      activityDelta: 3,
+      activityDelta: 4,
     });
 
     return newEntry;
@@ -397,6 +399,8 @@ export const progressService = {
     update: {
       problemsDelta?: number;
       interviewsDelta?: number;
+      testsDelta?: number;
+      xpDelta?: number;
       newInterviewScore?: number;
       newQuizScore?: number;
       activityDelta?: number;
@@ -433,6 +437,12 @@ export const progressService = {
 
       if (update.problemsDelta) {
         student.problemsSolved = (student.problemsSolved || 0) + update.problemsDelta;
+      }
+      if (update.testsDelta) {
+        student.testsAttended = (student.testsAttended || 0) + update.testsDelta;
+      }
+      if (update.xpDelta) {
+        student.totalXp = (student.totalXp || 0) + update.xpDelta;
       }
       if (update.interviewsDelta) {
         student.interviewsCompleted = (student.interviewsCompleted || 0) + update.interviewsDelta;
