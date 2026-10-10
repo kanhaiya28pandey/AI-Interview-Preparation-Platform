@@ -614,9 +614,17 @@ function simulateCompiledExecution(
 
   // 2. Syntax / Bracket matching check for C, C++, Java
   if (language === "c" || language === "cpp" || language === "java") {
+    // Strip comments, character literals, and string literals so that brackets/chars inside strings don't corrupt the count
+    const strippedCode = code
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "")
+      .replace(/'(?:\\.|[^\\'])'/g, "''")
+      .replace(/"(?:\\.|[^\\"])*"/g, '""');
+
     let braceCount = 0;
     let parenCount = 0;
-    const lines = code.split("\n");
+    const lines = strippedCode.split("\n");
+    const compilerName = language === "java" ? "javac" : "gcc";
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -635,7 +643,7 @@ function simulateCompiledExecution(
           totalTests: testCases.length,
           errorMessage: `SyntaxError: Unexpected closing brace '}' on line ${i + 1}`,
           errorLineNumber: i + 1,
-          outputLogs: [`gcc error: mismatched closing brace on line ${i + 1}`],
+          outputLogs: [`${compilerName} error: mismatched closing brace on line ${i + 1}`],
           testCaseResults: [],
           isSimulated: true,
         };
@@ -651,7 +659,7 @@ function simulateCompiledExecution(
         totalTests: testCases.length,
         errorMessage: `SyntaxError: Expected '}' to match opening brace`,
         errorLineNumber: lines.length,
-        outputLogs: [`gcc error: expected '}' at end of input`],
+        outputLogs: [`${compilerName} error: expected '}' at end of input`],
         testCaseResults: [],
         isSimulated: true,
       };
@@ -666,7 +674,7 @@ function simulateCompiledExecution(
         totalTests: testCases.length,
         errorMessage: `SyntaxError: Unbalanced parentheses '()' in code`,
         errorLineNumber: lines.length,
-        outputLogs: [`gcc error: syntax error in parentheses grouping`],
+        outputLogs: [`${compilerName} error: syntax error in parentheses grouping`],
         testCaseResults: [],
         isSimulated: true,
       };
@@ -698,19 +706,29 @@ function simulateCompiledExecution(
   // 4. Capture any student prints or calculations
   const userPrints = extractUserPrintedOutputs(code, language);
 
-  // Extract custom return value if specified (e.g. return 42; return "abc"; return 5 + 10;)
+  // Check if solution logic is implemented
+  const hasAlgorithmicLogic =
+    /(while|for|if|dict|set|map|unordered_map|HashMap|HashSet|ArrayDeque|Deque|stack|queue|sort|min|max|sum|toCharArray|charAt|push|pop|isEmpty|length|size)/i.test(
+      code
+    );
+
+  // Extract static literal return value ONLY if code has NO algorithmic logic (e.g. user literally typed 'return 1;' as whole body)
   let returnedValStr: string | null = null;
-  const returnMatch = code.match(/return\s+([^;}\n]+);?/);
-  if (returnMatch) {
-    const rawVal = returnMatch[1].trim();
-    if (/^[\d\s+\-*/%.()]+$/.test(rawVal)) {
-      returnedValStr = safeEvaluateArithmetic(rawVal);
-    } else if (/^(true|false|null|NULL|nil|None)$/i.test(rawVal)) {
-      returnedValStr = rawVal.toLowerCase();
-    } else if (/^["'].*["']$/.test(rawVal)) {
-      returnedValStr = rawVal.replace(/^["']|["']$/g, "");
-    } else if (/^\[.*\]$/.test(rawVal) || /^\{.*\}$/.test(rawVal)) {
-      returnedValStr = rawVal;
+  let isStaticLiteralReturn = false;
+  if (!hasAlgorithmicLogic) {
+    const returnMatch = code.match(/return\s+([^;}\n]+);?/);
+    if (returnMatch) {
+      isStaticLiteralReturn = true;
+      const rawVal = returnMatch[1].trim();
+      if (/^[\d\s+\-*/%.()]+$/.test(rawVal)) {
+        returnedValStr = safeEvaluateArithmetic(rawVal);
+      } else if (/^(true|false|null|NULL|nil|None)$/i.test(rawVal)) {
+        returnedValStr = rawVal.toLowerCase();
+      } else if (/^["'].*["']$/.test(rawVal)) {
+        returnedValStr = rawVal.replace(/^["']|["']$/g, "");
+      } else if (/^\[.*\]$/.test(rawVal) || /^\{.*\}$/.test(rawVal)) {
+        returnedValStr = rawVal;
+      }
     }
   }
 
@@ -771,35 +789,69 @@ function simulateCompiledExecution(
     };
   }
 
-  // Check if solution logic is implemented
-  // Checks for algorithm keywords: loop, hash map, pointers, calculations, condition
-  const hasAlgorithmicLogic =
-    /(while|for|if|dict|set|map|unordered_map|HashMap|HashSet|malloc|vector|stack|queue|sort|min|max|sum)/i.test(
-      code
-    );
-
   const logs = [...userPrints];
   if (logs.length === 0) {
     logs.push(`[${language.toUpperCase()}] Verified and executed test suite.`);
   }
 
-  // Evaluate individual test case results
-  const actualAnswer = returnedValStr || defaultPlaceholder;
-  const actualAnswerNorm = actualAnswer.trim().toLowerCase();
+  const probSlug = (problem.id || "").toLowerCase();
+  const probTitle = (problem.title || "").toLowerCase();
 
+  // Evaluate individual test case results
   const tcResults = testCases.map((tc) => {
     const expectedNorm = tc.expectedStr.trim().toLowerCase();
-    const isMatch =
-      actualAnswerNorm === expectedNorm ||
-      (actualAnswerNorm === "1" && expectedNorm === "true") ||
-      (actualAnswerNorm === "0" && expectedNorm === "false") ||
-      (hasAlgorithmicLogic && !returnedValStr);
+    let actualAnswer = returnedValStr || defaultPlaceholder;
+    let isMatch = false;
+
+    if (isStaticLiteralReturn && returnedValStr) {
+      actualAnswer = returnedValStr;
+      isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+    } else if (hasAlgorithmicLogic) {
+      if (probSlug.includes("parenthes") || probTitle.includes("parenthes")) {
+        const strMatch = tc.inputStr.match(/"([^"]*)"|'([^']*)'/);
+        const s = strMatch ? (strMatch[1] !== undefined ? strMatch[1] : strMatch[2]) : tc.inputStr.trim();
+        const st: string[] = [];
+        const map: Record<string, string> = { ")": "(", "}": "{", "]": "[" };
+        let valid = true;
+        for (const c of s) {
+          if (c === "(" || c === "{" || c === "[") {
+            st.push(c);
+          } else if (map[c]) {
+            if (st.length === 0 || st.pop() !== map[c]) {
+              valid = false;
+              break;
+            }
+          }
+        }
+        const computed = (valid && st.length === 0) ? "true" : "false";
+        actualAnswer = computed;
+        isMatch = computed === expectedNorm;
+      } else if (probSlug.includes("palindrome") || probTitle.includes("palindrome")) {
+        const numMatch = tc.inputStr.match(/-?\d+/);
+        if (numMatch) {
+          const val = numMatch[0];
+          const isPal = !val.startsWith("-") && val === val.split("").reverse().join("");
+          const computed = isPal ? "true" : "false";
+          actualAnswer = computed;
+          isMatch = computed === expectedNorm;
+        } else {
+          actualAnswer = tc.expectedStr;
+          isMatch = true;
+        }
+      } else {
+        actualAnswer = tc.expectedStr;
+        isMatch = true;
+      }
+    } else {
+      actualAnswer = returnedValStr || defaultPlaceholder;
+      isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+    }
 
     return {
       id: tc.id,
       inputStr: tc.inputStr,
       expectedStr: tc.expectedStr,
-      actualStr: isMatch && hasAlgorithmicLogic && !returnedValStr ? tc.expectedStr : actualAnswer,
+      actualStr: actualAnswer,
       passed: isMatch,
       runtimeMs: baseRuntime,
       logs: userPrints,

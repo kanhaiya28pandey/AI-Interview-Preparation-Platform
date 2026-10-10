@@ -317,6 +317,27 @@ public class CodingJudgeService {
             }
         } else if (probSlug.contains("two-sum") || probTitle.contains("two sum")) {
             return "[0,1]";
+        } else if (probSlug.contains("parenthes") || probTitle.contains("parenthes")) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"([^\"]*)\"|'([^']*)'").matcher(inputStr);
+            String str = inputStr;
+            if (m.find()) {
+                str = m.group(1) != null ? m.group(1) : m.group(2);
+            }
+            java.util.Deque<Character> st = new java.util.ArrayDeque<>();
+            boolean valid = true;
+            for (char c : str.toCharArray()) {
+                if (c == '(' || c == '{' || c == '[') {
+                    st.push(c);
+                } else if (c == ')' || c == '}' || c == ']') {
+                    if (st.isEmpty()) { valid = false; break; }
+                    char top = st.pop();
+                    if ((c == ')' && top != '(') || (c == '}' && top != '{') || (c == ']' && top != '[')) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+            return (valid && st.isEmpty()) ? "true" : "false";
         }
 
         if (literalReturn != null) {
