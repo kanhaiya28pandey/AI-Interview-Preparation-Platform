@@ -85,6 +85,9 @@ export interface StudentProgress {
   resumeAnalyses: number;
   bestAtsScore: number;
   leaderboardRank: number;
+  liveTestsAttended?: number;
+  totalXp?: number;
+  codingBreakdown?: { easy: number; medium: number; hard: number };
   activityHistory30d: { date: string; score: number; count: number }[];
   topicBreakdown: TopicScore[];
   interviewHistory: MockInterviewRecord[];

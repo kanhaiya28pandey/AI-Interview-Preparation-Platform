@@ -6,6 +6,7 @@ import {
   AdminReportData,
 } from "@/mocks/adminData";
 import { RICH_PROBLEM_CATALOG, RichProblemDefinition } from "@/mocks/richProblemBank";
+import { liveTestService } from "@/services/liveTestService";
 
 export const adminService = {
   async getUsers(): Promise<AdminUser[]> {
@@ -312,6 +313,14 @@ export const adminService = {
     } catch {}
 
     return true;
+  },
+
+  async getLiveTests(): Promise<any[]> {
+    try {
+      return liveTestService.getAllTests();
+    } catch {
+      return [];
+    }
   },
 };
 

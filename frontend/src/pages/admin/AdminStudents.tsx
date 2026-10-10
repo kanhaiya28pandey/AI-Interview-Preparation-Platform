@@ -524,10 +524,10 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
             </Badge>
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary flex items-center gap-2.5 mt-1">
-            <Users className="w-7 h-7 text-cyan-400" /> Students & Users Hub
+            <Users className="w-7 h-7 text-cyan-400" /> Candidate Profiles & Performance
           </h1>
           <p className="text-xs text-text-secondary mt-0.5">
-            Unified directory for user administration, security controls, and student placement readiness analytics.
+            Unified directory for candidate administration, verification controls, and placement readiness performance.
           </p>
         </div>
 

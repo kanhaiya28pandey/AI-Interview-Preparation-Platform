@@ -28,14 +28,22 @@ function generateTrend(baseScore: number, isDeclining = false) {
   return res;
 }
 
-function generateHeatmap(activeLevel: number): HeatmapDay[] {
+function generateHeatmap(activeLevel: number, streakDays: number = 7): HeatmapDay[] {
   const res: HeatmapDay[] = [];
-  for (let i = 89; i >= 0; i--) {
-    const prob = activeLevel / 100;
-    const count = Math.random() < prob ? Math.floor(Math.random() * 6) + 1 : 0;
+  for (let i = 364; i >= 0; i--) {
+    let count = 0;
+    if (i < streakDays) {
+      count = Math.max(1, (i % 3) + 1);
+    } else {
+      const prob = activeLevel / 100;
+      const rand = ((i * 17 + activeLevel * 3) % 100) / 100;
+      if (rand < prob * 0.7) {
+        count = ((i * 7 + activeLevel) % 4) + 1;
+      }
+    }
     res.push({
       date: getPastDate(i),
-      count: count,
+      count,
     });
   }
   return res;
