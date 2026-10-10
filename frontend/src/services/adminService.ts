@@ -167,14 +167,7 @@ export const adminService = {
   },
 
   async importExternalProblem(request: ExternalProblemImportRequest): Promise<any> {
-    try {
-      const res = await api.post("/api/v1/admin/coding-import/import", request);
-      if (res.data) return res.data;
-    } catch (e) {
-      // Backend import endpoint unavailable, registering locally
-    }
-
-    // Look up rich structured definition if available in catalog
+    // 1. Look up rich structured definition if available in catalog
     const richMatch = RICH_PROBLEM_CATALOG.find(
       (p) =>
         p.slug === request.slug ||
@@ -204,45 +197,57 @@ export const adminService = {
         solution: richMatch.solution,
         fnName: richMatch.fnName,
         xpReward: richMatch.xpReward,
-        type: richMatch.type || (richMatch.category.includes("SQL") ? "SQL" : "CODING"),
+        type: richMatch.type || (richMatch.category.includes("SQL") || richMatch.category.includes("Database") ? "SQL" : "CODING"),
         tags: richMatch.tags,
       };
     } else {
-      const isSql =
-        request.category?.toLowerCase().includes("sql") ||
-        request.category?.toLowerCase().includes("database");
+      try {
+        const res = await api.post("/api/v1/admin/coding-import/import", request);
+        if (res.data && res.data.title) {
+          demoSaved = res.data;
+        }
+      } catch (e) {
+        // Backend import endpoint unavailable, registering locally
+      }
 
-      demoSaved = {
-        id: request.slug || `prob-${Date.now()}`,
-        title: request.title || "Custom Problem",
-        difficulty: request.difficulty || "Medium",
-        category: request.category || (isSql ? "Database & SQL" : "Algorithms"),
-        acceptance: "72%",
-        description: request.description || `Problem statement for ${request.title}.`,
-        inputFormat: "Standard inputs",
-        outputFormat: "Standard output format",
-        constraints: ["1 <= N <= 10^5", "Expected Time: O(N)"],
-        examples: [{ input: "Sample input", output: "Sample output", explanation: "Sample case." }],
-        hints: ["Think about optimal time complexity."],
-        testCases: [{ id: 1, inputStr: "Sample input", expectedStr: "Sample output", params: [1], expectedVal: "Sample output" }],
-        starterCode: isSql
-          ? {
-              mysql: "-- Write your MySQL query below\nSELECT ...\nFROM ...;",
-              postgresql: "-- Write your PostgreSQL query below\nSELECT ...\nFROM ...;",
-              sql: "-- Write your standard SQL query below\nSELECT ...\nFROM ...;",
-            }
-          : {
-              javascript: `function solve(input) {\n  // Write solution here\n  return input;\n}`,
-              python: `def solve(input):\n    # Write solution here\n    pass`,
-              java: `class Solution {\n    public Object solve(Object input) {\n        return null;\n    }\n}`,
-              cpp: `int solve(int input) {\n    return 0;\n}`,
-              c: `#include <stdio.h>\nint solve(int input) {\n    return 0;\n}`,
-            },
-        fnName: "solve",
-        xpReward: request.difficulty === "Hard" ? 200 : request.difficulty === "Medium" ? 100 : 50,
-        type: isSql ? "SQL" : "CODING",
-        tags: request.topicTags || request.tags || [],
-      };
+      if (!demoSaved) {
+        const isSql =
+          request.category?.toLowerCase().includes("sql") ||
+          request.category?.toLowerCase().includes("database") ||
+          request.category?.toLowerCase().includes("dbms");
+
+        demoSaved = {
+          id: request.slug || `prob-${Date.now()}`,
+          title: request.title || "Custom Problem",
+          difficulty: request.difficulty || "Medium",
+          category: request.category || (isSql ? "Database & SQL" : "Algorithms"),
+          acceptance: "72%",
+          description: request.description || `Problem statement for ${request.title}.`,
+          inputFormat: "Standard inputs",
+          outputFormat: "Standard output format",
+          constraints: ["1 <= N <= 10^5", "Expected Time: O(N)"],
+          examples: [{ input: "Sample input", output: "Sample output", explanation: "Sample case." }],
+          hints: ["Break down the problem into smaller subproblems.", "Consider optimal space and time complexities."],
+          testCases: [{ id: 1, inputStr: "Sample input", expectedStr: "Sample output", params: [1], expectedVal: "Sample output" }],
+          starterCode: isSql
+            ? {
+                mysql: "-- Write your MySQL query below\nSELECT \nFROM \n",
+                postgresql: "-- Write your PostgreSQL query below\nSELECT \nFROM \n",
+                sql: "-- Write your standard SQL query below\nSELECT \nFROM \n",
+              }
+            : {
+                javascript: `function solve(input) {\n  // Write your solution below\n  \n}`,
+                python: `def solve(input):\n    # Write your solution below\n    pass`,
+                java: `class Solution {\n    public Object solve(Object input) {\n        // Write your solution below\n        return null;\n    }\n}`,
+                cpp: `int solve(int input) {\n    // Write your solution below\n    return 0;\n}`,
+                c: `#include <stdio.h>\nint solve(int input) {\n    // Write your solution below\n    return 0;\n}`,
+              },
+          fnName: "solve",
+          xpReward: request.difficulty === "Hard" ? 200 : request.difficulty === "Medium" ? 100 : 50,
+          type: isSql ? "SQL" : "CODING",
+          tags: request.topicTags || request.tags || [],
+        };
+      }
     }
 
     try {

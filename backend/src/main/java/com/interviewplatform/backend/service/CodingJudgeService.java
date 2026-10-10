@@ -111,6 +111,52 @@ public class CodingJudgeService {
             );
         }
 
+        Map<String, String> starters = problem.getStarterCode();
+        String starter = starters != null ? starters.getOrDefault(lang, "") : "";
+        String trimmedCode = code.trim();
+        String trimmedStarter = starter != null ? starter.trim() : "";
+
+        String normCode = trimmedCode.replaceAll("\\s+", " ");
+        String normStarter = trimmedStarter.replaceAll("\\s+", " ");
+
+        boolean isStub = trimmedCode.length() < 12
+                || normCode.equals(normStarter)
+                || normCode.endsWith("{ }")
+                || normCode.endsWith("pass")
+                || normCode.endsWith("return null;")
+                || normCode.endsWith("return 0;")
+                || normCode.endsWith("return {};")
+                || (lang.contains("sql") && !normCode.toUpperCase().contains("SELECT"));
+
+        if (isStub) {
+            ExecutionResult executionResult = new ExecutionResult();
+            executionResult.setStatus("WRONG_ANSWER");
+            executionResult.setRuntimeMs(8.0);
+            executionResult.setMemoryMb(32);
+            executionResult.setPassedTests(0);
+            executionResult.setTotalTests(testCases.size());
+            executionResult.setOutputLogs(List.of(
+                    "Execution halted: No solution logic detected.",
+                    "You must write your solution logic before running test cases. The unmodified starter template cannot pass."
+            ));
+            List<TestCaseResult> stubResults = new ArrayList<>();
+            for (int i = 0; i < testCases.size(); i++) {
+                TestCase tc = testCases.get(i);
+                stubResults.add(new TestCaseResult(
+                        tc.getId() > 0 ? tc.getId() : (i + 1),
+                        tc.getInputStr(),
+                        tc.getExpectedStr(),
+                        "No return value (unmodified starter template)",
+                        false,
+                        0.0
+                ));
+            }
+            executionResult.setTestCaseResults(stubResults);
+            executionResult.setHasNestedLoopsAdvisory(false);
+            executionResult.setSimulated(true);
+            return executionResult;
+        }
+
         List<TestCaseResult> results = new ArrayList<>();
         int passedCount = 0;
 
@@ -121,11 +167,6 @@ public class CodingJudgeService {
 
             boolean passed = true;
             String actual = tc.getExpectedStr() != null ? tc.getExpectedStr() : "Accepted";
-
-            if (code.trim().length() < 10) {
-                passed = false;
-                actual = "Error: Incomplete function implementation";
-            }
 
             if (passed) passedCount++;
 

@@ -782,36 +782,18 @@ Address:
       },
     ],
     hints: [
-      "Since we want all persons from Person table even if they lack an address in Address table, what type of JOIN should we use?",
-      "Use `LEFT JOIN Address ON Person.personId = Address.personId`.",
-      "Select firstName, lastName, city, state.",
+      "Think about which SQL JOIN preserves all records from the primary table even if there is no matching entry in the second table.",
+      "Specify which columns belong to which table using table aliases or explicit column names.",
     ],
     starterCode: {
-      javascript: `// SQL Query
-SELECT firstName, lastName, city, state
-FROM Person
-LEFT JOIN Address ON Person.personId = Address.personId;
-`,
-      python: `# Python / Pandas SQL alternative
-import pandas as pd
-def combine_two_tables(person: pd.DataFrame, address: pd.DataFrame) -> pd.DataFrame:
-    return pd.merge(person, address, on='personId', how='left')[['firstName', 'lastName', 'city', 'state']]
-`,
-      java: `-- SQL Solution
-SELECT p.firstName, p.lastName, a.city, a.state
-FROM Person p
-LEFT JOIN Address a ON p.personId = a.personId;
-`,
-      cpp: `-- SQL Solution
-SELECT p.firstName, p.lastName, a.city, a.state
-FROM Person p
-LEFT JOIN Address a ON p.personId = a.personId;
-`,
-      c: `-- SQL Solution
-SELECT p.firstName, p.lastName, a.city, a.state
-FROM Person p
-LEFT JOIN Address a ON p.personId = a.personId;
-`,
+      mysql: `-- Write your MySQL query statement below\nSELECT \nFROM \n`,
+      postgresql: `-- Write your PostgreSQL query statement below\nSELECT \nFROM \n`,
+      sql: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      javascript: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      python: `# Write your SQL query statement below\n`,
+      java: `-- Write your SQL query statement below\n`,
+      cpp: `-- Write your SQL query statement below\n`,
+      c: `-- Write your SQL query statement below\n`,
     },
     fnName: "combineTwoTables",
     solution: {
@@ -899,23 +881,18 @@ Write a solution to find the **second highest distinct salary** from the \`Emplo
       },
     ],
     hints: [
-      "You can filter out the maximum salary: `SELECT MAX(salary) FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee)`.",
-      "Alternatively, use `LIMIT 1 OFFSET 1` with `ORDER BY salary DESC` inside a subquery to handle NULL gracefully.",
+      "How can you find the highest salary that is strictly less than the maximum salary in the table?",
+      "Consider what happens if there is only 1 distinct salary in the table—the query should safely evaluate to NULL.",
     ],
     starterCode: {
-      javascript: `-- Write your SQL statement below
-SELECT MAX(salary) AS SecondHighestSalary
-FROM Employee
-WHERE salary < (SELECT MAX(salary) FROM Employee);
-`,
-      python: `# Python / Pandas SQL alternative
-`,
-      java: `-- SQL Solution
-`,
-      cpp: `-- SQL Solution
-`,
-      c: `-- SQL Solution
-`,
+      mysql: `-- Write your MySQL query statement below\nSELECT \nFROM \n`,
+      postgresql: `-- Write your PostgreSQL query statement below\nSELECT \nFROM \n`,
+      sql: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      javascript: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      python: `# Write your SQL query statement below\n`,
+      java: `-- Write your SQL query statement below\n`,
+      cpp: `-- Write your SQL query statement below\n`,
+      c: `-- Write your SQL query statement below\n`,
     },
     fnName: "secondHighestSalary",
     solution: {
@@ -991,24 +968,18 @@ Return the result table in any order.`,
       { input: "Person = [[1, 'a@b.com'], [2, 'c@d.com'], [3, 'a@b.com']]", output: "a@b.com", explanation: "a@b.com is repeated two times." },
     ],
     hints: [
-      "Group records by email using `GROUP BY email`.",
-      "Filter the groups using `HAVING COUNT(email) > 1`.",
+      "How can you count the occurrences of each email address?",
+      "Which SQL clause is used to filter aggregated group results after a GROUP BY statement?",
     ],
     starterCode: {
-      javascript: `-- Write your SQL query statement below
-SELECT email AS Email
-FROM Person
-GROUP BY email
-HAVING COUNT(email) > 1;
-`,
-      python: `# Python / SQL
-`,
-      java: `-- SQL
-`,
-      cpp: `-- SQL
-`,
-      c: `-- SQL
-`,
+      mysql: `-- Write your MySQL query statement below\nSELECT \nFROM \n`,
+      postgresql: `-- Write your PostgreSQL query statement below\nSELECT \nFROM \n`,
+      sql: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      javascript: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      python: `# Write your SQL query statement below\n`,
+      java: `-- Write your SQL query statement below\n`,
+      cpp: `-- Write your SQL query statement below\n`,
+      c: `-- Write your SQL query statement below\n`,
     },
     fnName: "duplicateEmails",
     solution: {
@@ -1098,23 +1069,18 @@ Return the result table in any order.`,
       },
     ],
     hints: [
-      "Use `WHERE area >= 3000000 OR population >= 25000000`.",
-      "Select only `name`, `population`, `area`.",
+      "Look at the condition: an area of at least 3,000,000 OR a population of at least 25,000,000.",
+      "Filter the records with a standard WHERE clause using the logical OR operator.",
     ],
     starterCode: {
-      javascript: `-- Write your SQL query statement below
-SELECT name, population, area
-FROM World
-WHERE area >= 3000000 OR population >= 25000000;
-`,
-      python: `# Python
-`,
-      java: `-- SQL
-`,
-      cpp: `-- SQL
-`,
-      c: `-- SQL
-`,
+      mysql: `-- Write your MySQL query statement below\nSELECT \nFROM \n`,
+      postgresql: `-- Write your PostgreSQL query statement below\nSELECT \nFROM \n`,
+      sql: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      javascript: `-- Write your SQL query statement below\nSELECT \nFROM \n`,
+      python: `# Write your SQL query statement below\n`,
+      java: `-- Write your SQL query statement below\n`,
+      cpp: `-- Write your SQL query statement below\n`,
+      c: `-- Write your SQL query statement below\n`,
     },
     fnName: "bigCountries",
     solution: {

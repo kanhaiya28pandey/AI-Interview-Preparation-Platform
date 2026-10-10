@@ -256,26 +256,13 @@ export const codingService = {
         ]
       : problem.testCases;
 
-    // First try backend execution if backend judge is configured
-    try {
-      const response = await api.post<ExecutionResult>("/api/v1/coding/run", {
-        problemId,
-        language,
-        code,
-        customTestCase,
-      });
-      if (response.data && response.data.status) {
-        return response.data;
-      }
-    } catch (err) {
-      // Backend judge not available, fallback to client runner
-    }
-
     const isSql =
       language === "sql" ||
       language === "mysql" ||
       language === "postgresql" ||
       problem.category?.toLowerCase().includes("sql") ||
+      problem.category?.toLowerCase().includes("database") ||
+      problem.category?.toLowerCase().includes("dbms") ||
       (problem as any).type === "SQL";
 
     if (isSql) {
@@ -335,32 +322,20 @@ export const codingService = {
       };
     }
 
-    // Try backend submission first
-    try {
-      const response = await api.post<ExecutionResult>("/api/v1/coding/submit", {
-        problemId,
-        language,
-        code,
-      });
-      if (response.data && response.data.status) {
-        return response.data;
-      }
-    } catch (err) {
-      // Fallback to client runner
-    }
-
     const isSql =
       language === "sql" ||
       language === "mysql" ||
       language === "postgresql" ||
       problem.category?.toLowerCase().includes("sql") ||
+      problem.category?.toLowerCase().includes("database") ||
+      problem.category?.toLowerCase().includes("dbms") ||
       (problem as any).type === "SQL";
 
-    if (isSql) {
-      return evaluateSqlQuery(language, code, problem, problem.testCases);
-    }
+    let result: ExecutionResult;
 
-    if (language === "javascript") {
+    if (isSql) {
+      result = evaluateSqlQuery(language, code, problem, problem.testCases);
+    } else if (language === "javascript") {
       const trimmed = code.trim();
       const defaultStarter = ((problem.starterCode as any)?.javascript || "").trim();
       if (!trimmed || trimmed === defaultStarter) {
@@ -384,14 +359,22 @@ export const codingService = {
         };
       }
 
-      const result = await executeJSInSandbox(code, problem.fnName, problem.testCases);
-      return {
-        ...result,
-        isSimulated: true,
-      };
+      result = await executeJSInSandbox(code, problem.fnName, problem.testCases);
+      result.isSimulated = true;
+    } else {
+      result = simulateCompiledExecution(language, code, problem, problem.testCases, true);
     }
 
-    return simulateCompiledExecution(language, code, problem, problem.testCases, true);
+    // If accepted, asynchronously notify backend to save submission and stats
+    if (result.status === "ACCEPTED") {
+      api.post("/api/v1/coding/submit", {
+        problemId,
+        language,
+        code,
+      }).catch(() => {});
+    }
+
+    return result;
   },
 };
 

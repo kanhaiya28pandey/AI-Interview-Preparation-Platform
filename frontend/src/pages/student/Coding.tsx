@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import Editor from "@monaco-editor/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { codingService } from "@/services/codingService";
 import { progressService } from "@/services/progressService";
 import { notificationService } from "@/services/notificationService";
@@ -12,8 +15,6 @@ import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { CustomSelect, CustomSelectOption } from "@/components/ui/CustomSelect";
 import { Dialog } from "@/components/ui/Dialog";
-import { highlightLineTokens } from "@/lib/syntaxHighlight";
-import { CodeIntellisense, SuggestionItem } from "@/components/common/CodeIntellisense";
 import { useAuth } from "@/context/AuthContext";
 import { getScopedItem, setScopedItem } from "@/lib/userScope";
 import {
@@ -47,6 +48,29 @@ import { cn } from "@/lib/utils";
 type CodingLanguage = "javascript" | "python" | "java" | "cpp" | "c";
 type SqlLanguage = "mysql" | "postgresql" | "sql";
 type AnySupportedLanguage = CodingLanguage | SqlLanguage;
+
+const getMonacoLanguage = (lang: string): string => {
+  switch (lang) {
+    case "javascript":
+      return "javascript";
+    case "python":
+      return "python";
+    case "java":
+      return "java";
+    case "cpp":
+      return "cpp";
+    case "c":
+      return "c";
+    case "mysql":
+      return "mysql";
+    case "postgresql":
+      return "pgsql";
+    case "sql":
+      return "sql";
+    default:
+      return "javascript";
+  }
+};
 
 const CODING_LANGUAGE_OPTIONS: CustomSelectOption<CodingLanguage>[] = [
   { value: "javascript", label: "JavaScript (Node 20)" },
@@ -126,11 +150,6 @@ export const Coding: React.FC = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [execResult, setExecResult] = useState<ExecutionResult | null>(null);
 
-  // IntelliSense State
-  const [intellisenseWord, setIntellisenseWord] = useState<string>("");
-  const [showIntellisense, setShowIntellisense] = useState<boolean>(false);
-  const [intellisenseIndex, setIntellisenseIndex] = useState<number>(0);
-
   // Problem Left Dossier Tabs: "description" | "submissions" (Strictly NO solution tab)
   const [activeDossierTab, setActiveDossierTab] = useState<"description" | "submissions">("description");
 
@@ -149,9 +168,7 @@ export const Coding: React.FC = () => {
   const [localStates, setLocalStates] = useState<Record<string, ProblemLocalState>>({});
   const [xpAwardMessage, setXpAwardMessage] = useState<string | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const gutterRef = useRef<HTMLDivElement>(null);
-  const preRef = useRef<HTMLPreElement>(null);
+  const editorRef = useRef<any>(null);
 
   // Fetch problems and load scoped user state
   const loadProblems = async () => {
@@ -188,11 +205,21 @@ export const Coding: React.FC = () => {
     loadProblems();
   }, [user?.userId]);
 
+  const checkProblemIsSql = (p?: CodingProblem | null): boolean => {
+    if (!p) return false;
+    return Boolean(
+      p.category?.toLowerCase().includes("sql") ||
+      p.category?.toLowerCase().includes("database") ||
+      p.category?.toLowerCase().includes("dbms") ||
+      (p as any)?.type === "SQL" ||
+      (p as any)?.subject?.toLowerCase().includes("sql") ||
+      (p as any)?.subject?.toLowerCase().includes("database") ||
+      (p as any)?.subject?.toLowerCase().includes("dbms")
+    );
+  };
+
   // Determine if the current selected problem is a SQL/Database challenge
-  const isSqlProblem =
-    selectedProblem?.category?.toLowerCase().includes("sql") ||
-    selectedProblem?.category?.toLowerCase().includes("database") ||
-    (selectedProblem as any)?.type === "SQL";
+  const isSqlProblem = checkProblemIsSql(selectedProblem);
 
   // When selected problem changes, adapt the language choices dynamically!
   useEffect(() => {
@@ -234,30 +261,7 @@ export const Coding: React.FC = () => {
     }
   }, [selectedProblem?.id, language]);
 
-  // Sync scroll for textarea and syntax-highlighted pre/gutter
-  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
-    const { scrollTop, scrollLeft } = e.currentTarget;
-    if (gutterRef.current) gutterRef.current.scrollTop = scrollTop;
-    if (preRef.current) {
-      preRef.current.scrollTop = scrollTop;
-      preRef.current.scrollLeft = scrollLeft;
-    }
-  };
-
-  // Extract word under cursor for IntelliSense suggestions
-  const updateIntellisenseContext = (text: string, cursorPos: number) => {
-    const textBefore = text.slice(0, cursorPos);
-    const match = textBefore.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/);
-    if (match && match[1].length >= 2) {
-      setIntellisenseWord(match[1]);
-      setShowIntellisense(true);
-    } else {
-      setShowIntellisense(false);
-      setIntellisenseWord("");
-    }
-  };
-
-  // Code editor updates with auto-save & IntelliSense
+  // Code editor updates with auto-save
   const handleCodeChange = (newVal: string) => {
     setCode(newVal);
     if (!selectedProblem) return;
@@ -279,96 +283,20 @@ export const Coding: React.FC = () => {
     const newMap = { ...localStates, [selectedProblem.id]: updatedState };
     setLocalStates(newMap);
     setScopedItem(user?.userId, `coding_state_${selectedProblem.id}`, updatedState);
-
-    // Update IntelliSense
-    if (textareaRef.current) {
-      updateIntellisenseContext(newVal, textareaRef.current.selectionStart);
-    }
-  };
-
-  // Handle keyboard events (Tab indent, Auto-close pairs, IntelliSense navigation)
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-
-    // IntelliSense Keyboard Controls
-    if (showIntellisense) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setIntellisenseIndex((prev) => prev + 1);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setIntellisenseIndex((prev) => (prev > 0 ? prev - 1 : 0));
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setShowIntellisense(false);
-        return;
-      }
-    }
-
-    // Auto-Closing Pairs for brackets and quotes: (), {}, [], "", ''
-    const pairs: Record<string, string> = {
-      "(": ")",
-      "{": "}",
-      "[": "]",
-      '"': '"',
-      "'": "'",
-    };
-
-    if (pairs[e.key] && start === end) {
-      e.preventDefault();
-      const closeChar = pairs[e.key];
-      const nextCode = code.slice(0, start) + e.key + closeChar + code.slice(end);
-      handleCodeChange(nextCode);
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 1;
-      }, 0);
-      return;
-    }
-
-    // Tab key indent (2 spaces)
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const nextCode = code.slice(0, start) + "  " + code.slice(end);
-      handleCodeChange(nextCode);
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 2;
-      }, 0);
-    }
-  };
-
-  // Insert IntelliSense suggestion into code
-  const handleSelectSuggestion = (item: SuggestionItem) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const textBefore = code.slice(0, start);
-    const textAfter = code.slice(start);
-
-    // Replace the current partial word with insertText
-    const replacedBefore = textBefore.replace(/([a-zA-Z_][a-zA-Z0-9_]*)$/, item.insertText);
-    const nextCode = replacedBefore + textAfter;
-
-    handleCodeChange(nextCode);
-    setShowIntellisense(false);
-    setIntellisenseWord("");
-
-    setTimeout(() => {
-      textarea.focus();
-      textarea.selectionStart = textarea.selectionEnd = replacedBefore.length;
-    }, 0);
   };
 
   // Open problem in dedicated IDE workspace
   const handleOpenProblem = (p: CodingProblem) => {
+    const isSql = checkProblemIsSql(p);
+    if (isSql) {
+      if (language !== "mysql" && language !== "postgresql" && language !== "sql") {
+        setLanguage("mysql");
+      }
+    } else {
+      if (language === "mysql" || language === "postgresql" || language === "sql") {
+        setLanguage("javascript");
+      }
+    }
     setSelectedProblem(p);
     setViewMode("editor");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -384,7 +312,18 @@ export const Coding: React.FC = () => {
     if (targetIndex < 0) targetIndex = problems.length - 1;
     if (targetIndex >= problems.length) targetIndex = 0;
 
-    setSelectedProblem(problems[targetIndex]);
+    const nextProb = problems[targetIndex];
+    const isSql = checkProblemIsSql(nextProb);
+    if (isSql) {
+      if (language !== "mysql" && language !== "postgresql" && language !== "sql") {
+        setLanguage("mysql");
+      }
+    } else {
+      if (language === "mysql" || language === "postgresql" || language === "sql") {
+        setLanguage("javascript");
+      }
+    }
+    setSelectedProblem(nextProb);
   };
 
   // Run Code
@@ -1187,8 +1126,10 @@ export const Coding: React.FC = () => {
                   <h3 className="font-serif text-lg font-medium text-text-primary">
                     {selectedProblem.title}
                   </h3>
-                  <div className="text-text-secondary whitespace-pre-line leading-relaxed text-xs font-sans">
-                    {selectedProblem.description}
+                  <div className="text-text-secondary leading-relaxed text-xs font-sans prose prose-invert max-w-none space-y-2">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {selectedProblem.description}
+                    </ReactMarkdown>
                   </div>
                 </div>
 
@@ -1418,76 +1359,39 @@ export const Coding: React.FC = () => {
               </div>
             </div>
 
-            {/* VS Code Theme Editor Pane with Syntax Highlight & IntelliSense */}
-            <div className="flex bg-[#1e1e1e] font-mono text-xs overflow-hidden h-[420px] relative">
-              {/* Line Numbers Gutter */}
-              <div
-                ref={gutterRef}
-                className="py-4 px-2 text-right bg-[#1e1e1e] text-[#858585] select-none border-r border-[#333333] overflow-hidden shrink-0 min-w-[48px]"
-              >
-                {lineNumbers.map((num) => {
-                  const isErrorLine = execResult?.errorLineNumber === num;
-                  return (
-                    <div
-                      key={num}
-                      className={cn(
-                        "h-6 leading-6 font-mono text-xs px-1 rounded transition-colors",
-                        isErrorLine
-                          ? "bg-rose-500/40 text-rose-200 font-bold border border-rose-500/60"
-                          : "text-[#858585]"
-                      )}
-                    >
-                      {num}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Editor Code Area */}
-              <div className="relative flex-1 bg-[#1e1e1e] overflow-hidden">
-                <pre
-                  ref={preRef}
-                  aria-hidden="true"
-                  className="absolute inset-0 w-full h-full p-4 pointer-events-none font-mono text-xs leading-6 whitespace-pre tab-size-2 overflow-hidden m-0 border-0 text-[#d4d4d4]"
-                >
-                  <code>
-                    {code.split("\n").map((line, idx) => {
-                      const isErrorLine = execResult?.errorLineNumber === idx + 1;
-                      return (
-                        <div
-                          key={idx}
-                          className={cn(
-                            "h-6 leading-6 transition-colors px-1 rounded",
-                            isErrorLine ? "bg-rose-500/25 border-l-2 border-rose-500 text-rose-100" : ""
-                          )}
-                        >
-                          {highlightLineTokens(line)}
-                        </div>
-                      );
-                    })}
-                  </code>
-                </pre>
-
-                <textarea
-                  ref={textareaRef}
-                  value={code}
-                  onChange={(e) => handleCodeChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onScroll={handleScroll}
-                  spellCheck={false}
-                  className="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-cyan-400 focus:outline-none resize-none font-mono text-xs leading-6 whitespace-pre tab-size-2 m-0 border-0"
-                />
-
-                {/* Floating VS Code IntelliSense Suggestions */}
-                <CodeIntellisense
-                  language={language}
-                  currentWord={intellisenseWord}
-                  visible={showIntellisense}
-                  selectedIndex={intellisenseIndex}
-                  onSelect={handleSelectSuggestion}
-                  onClose={() => setShowIntellisense(false)}
-                />
-              </div>
+            {/* VS Code Monaco Editor */}
+            <div className="bg-[#1e1e1e] overflow-hidden min-h-[440px] relative border-b border-[#2d2d2d]">
+              <Editor
+                height="440px"
+                theme="vs-dark"
+                language={getMonacoLanguage(language)}
+                value={code}
+                onChange={(value) => handleCodeChange(value || "")}
+                onMount={(editor) => {
+                  editorRef.current = editor;
+                }}
+                options={{
+                  fontSize: 13,
+                  fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', 'Courier New', monospace",
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  tabSize: 2,
+                  lineNumbers: "on",
+                  glyphMargin: false,
+                  folding: true,
+                  matchBrackets: "always",
+                  autoClosingBrackets: "always",
+                  autoClosingQuotes: "always",
+                  suggestOnTriggerCharacters: true,
+                  quickSuggestions: { other: true, comments: false, strings: true },
+                  formatOnType: true,
+                  cursorBlinking: "smooth",
+                  smoothScrolling: true,
+                  renderLineHighlight: "all",
+                  wordWrap: "on",
+                }}
+              />
             </div>
           </Card>
 
