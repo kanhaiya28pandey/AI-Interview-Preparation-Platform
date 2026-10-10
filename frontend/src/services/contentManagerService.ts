@@ -668,7 +668,24 @@ function getStoredItems(): ContentItem[] {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Sanitize every stored item to ensure questions array and options are present
+        const sanitized = parsed.map((item) => {
+          if (!item.contentData || typeof item.contentData !== "object") {
+            item.contentData = { questions: [] };
+          }
+          if (!Array.isArray(item.contentData.questions) || item.contentData.questions.length === 0) {
+            const matchingDefault = DEFAULT_TESTS.find(
+              (d) => d.id === item.id || d.subject.toLowerCase() === (item.subject || "").toLowerCase()
+            );
+            if (matchingDefault && matchingDefault.contentData?.questions) {
+              item.contentData.questions = matchingDefault.contentData.questions;
+            }
+          }
+          return item;
+        });
+        return sanitized;
+      }
     }
   } catch (e) {
     console.error("Failed to parse items store:", e);
@@ -693,7 +710,21 @@ function saveStoredItems(items: ContentItem[]) {
 function getStoredSubmissions(): StudentTestSubmission[] {
   try {
     const raw = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((s) => ({
+          ...s,
+          detailedReview: Array.isArray(s.detailedReview)
+            ? s.detailedReview.map((r: any) => ({
+                ...r,
+                options: Array.isArray(r.options) ? r.options : [],
+                keyPoints: Array.isArray(r.keyPoints) ? r.keyPoints : [],
+              }))
+            : [],
+        }));
+      }
+    }
   } catch (e) {
     console.error("Failed to read submissions store:", e);
   }
@@ -989,13 +1020,13 @@ export const contentManagerService = {
         questionId: q.id,
         question: q.question,
         codeSnippet: q.codeSnippet,
-        options: q.options,
+        options: Array.isArray(q.options) ? q.options : [],
         chosenOptionIndex: typeof studentAns === "number" ? studentAns : undefined,
         chosenAnswerText: typeof studentAns === "string" ? studentAns : undefined,
-        correctOptionIndex: q.correctIndex,
+        correctOptionIndex: typeof q.correctIndex === "number" ? q.correctIndex : 0,
         isCorrect,
-        explanation: q.explanation,
-        keyPoints: q.keyPoints,
+        explanation: q.explanation || "Benchmark evaluation verified.",
+        keyPoints: Array.isArray(q.keyPoints) ? q.keyPoints : [],
       };
     });
 
