@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/Progress";
 import { Dialog } from "@/components/ui/Dialog";
 import { RoleBadge } from "@/components/common/RoleBadge";
 import { useAdminStore } from "@/context/AdminStoreContext";
+import { liveTestService } from "@/services/liveTestService";
 import {
   Play,
   Pause,
@@ -137,22 +138,26 @@ export const AdminLiveTests: React.FC = () => {
   // Actions
   const handleStartLive = () => {
     setTestStatus("Live");
+    liveTestService.updateTestStatus("live-test-01", "Live");
     toast.success("Live test monitoring started!");
   };
 
   const handlePause = () => {
     setTestStatus("Paused");
+    liveTestService.updateTestStatus("live-test-01", "Paused");
     toast.warning("Test paused for all active participants.");
   };
 
   const handleResume = () => {
     setTestStatus("Live");
+    liveTestService.updateTestStatus("live-test-01", "Live");
     toast.success("Test resumed for all participants.");
   };
 
   const handleEndTest = () => {
     if (window.confirm("Are you sure you want to end this live test session now for all participants?")) {
       setTestStatus("Completed");
+      liveTestService.updateTestStatus("live-test-01", "Completed");
       toast.info("Live test ended. Results generated.");
     }
   };
@@ -168,6 +173,7 @@ export const AdminLiveTests: React.FC = () => {
 
   const handleSendBroadcast = () => {
     if (!broadcastText.trim()) return;
+    liveTestService.addBroadcast("live-test-01", broadcastText.trim());
     setBroadcastModalOpen(false);
     setBroadcastText("");
     toast.success("Broadcast message sent to all active student screens!");

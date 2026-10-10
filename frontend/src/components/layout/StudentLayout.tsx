@@ -81,14 +81,18 @@ export const StudentLayout: React.FC = () => {
   const getTitle = () => {
     switch (location.pathname) {
       case "/dashboard": return "Student Dashboard";
+      case "/preparation": return "Prep Roadmaps";
       case "/practice": return "Practice Tracks";
+      case "/articles": return "Articles & Guides";
       case "/coding": return "Coding Arena";
+      case "/live-tests": return "Live Tests & Contests";
       case "/mock-interview": return "AI Mock Interview";
       case "/quiz": return "MCQ Quizzes";
-      case "/articles": return "Articles & Guides";
+      case "/resume-analyzer": return "Resume Analyzer";
       case "/leaderboard": return "Campus Leaderboard";
       case "/profile": return "My Profile";
       case "/settings": return "Settings";
+      case "/help": return "Help & Support";
       default: return "Dashboard";
     }
   };

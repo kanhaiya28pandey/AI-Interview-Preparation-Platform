@@ -31,6 +31,7 @@ import { Settings } from "@/pages/student/Settings";
 import { HelpCenter } from "@/pages/student/HelpCenter";
 import { VerifyIdentity } from "@/pages/student/VerifyIdentity";
 import { PreparationRoadmaps } from "@/pages/student/PreparationRoadmaps";
+import { LiveTests } from "@/pages/student/LiveTests";
 
 // Admin Pages
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
@@ -81,6 +82,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/preparation" element={<VerifiedRoute><PreparationRoadmaps /></VerifiedRoute>} />
         <Route path="/resume-analyzer" element={<VerifiedRoute><ResumeAnalyzer /></VerifiedRoute>} />
         <Route path="/coding" element={<VerifiedRoute><Coding /></VerifiedRoute>} />
+        <Route path="/live-tests" element={<VerifiedRoute><LiveTests /></VerifiedRoute>} />
         <Route path="/mock-interview" element={<VerifiedRoute><MockInterview /></VerifiedRoute>} />
         <Route path="/quiz" element={<VerifiedRoute><Quiz /></VerifiedRoute>} />
         <Route path="/articles" element={<VerifiedRoute><Articles /></VerifiedRoute>} />
