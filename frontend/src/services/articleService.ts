@@ -63,6 +63,7 @@ export const articleService = {
     if (id.startsWith("cnt-")) {
       try {
         const item = await contentManagerService.getContentById(id);
+        if (!item) return undefined;
         let cat: Article["category"] = "Interview Prep";
         if (item.subject === "System Design") cat = "System Design";
         else if (item.subject === "DSA") cat = "Coding Advice";

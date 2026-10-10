@@ -1,120 +1,96 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import {
   Plus,
   Search,
   Filter,
-  SlidersHorizontal,
-  MoreVertical,
-  Edit2,
-  Copy,
-  Send,
   Eye,
-  Archive,
   Trash2,
-  Download,
-  History,
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  Code2,
   Video,
-  BookOpen,
-  FileText,
-  Radio,
   Layers,
   Sparkles,
+  Clock,
+  Users,
+  Play,
+  Pause,
+  BarChart3,
+  Calendar,
   RotateCw,
+  FolderTree,
+  ChevronRight,
+  ExternalLink,
+  Edit2,
+  Check,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Dialog } from "@/components/ui/Dialog";
 import {
   ContentItem,
   ContentType,
   ContentStatus,
   ContentSummary,
-  ContentAuditLog,
   contentManagerService,
 } from "@/services/contentManagerService";
-import { SharedContentWizard } from "@/components/admin/content/SharedContentWizard";
-import { StudentPreviewModal } from "@/components/admin/content/StudentPreviewModal";
-import { VersionHistoryModal } from "@/components/admin/content/VersionHistoryModal";
-import { RowActions } from "@/components/common/RowActions";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 
 export const ContentManagerHub: React.FC = () => {
   const { domains } = useTaxonomy();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [summary, setSummary] = useState<ContentSummary | null>(null);
-  const [auditLogs, setAuditLogs] = useState<ContentAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"INVENTORY" | "AUDIT">("INVENTORY");
 
   // Filters & Search
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
-  const [subjectFilter, setSubjectFilter] = useState("ALL");
+  const [domainFilter, setDomainFilter] = useState("ALL");
   const [difficultyFilter, setDifficultyFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [sortBy, setSortBy] = useState("updatedAt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Bulk Selection
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // AI Generator Modal State
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiType, setAiType] = useState<"QUIZ" | "MOCK_TEST" | "MOCK_INTERVIEW" | "PRACTICE_TOPIC">("QUIZ");
+  const [aiDomain, setAiDomain] = useState<string>("dsa");
+  const [aiTopic, setAiTopic] = useState<string>("");
+  const [aiDifficulty, setAiDifficulty] = useState<"Easy" | "Medium" | "Hard" | "Mixed">("Medium");
+  const [aiQuestionCount, setAiQuestionCount] = useState<number>(5);
+  const [aiDurationMinutes, setAiDurationMinutes] = useState<number>(30);
+  const [aiPassPercentage, setAiPassPercentage] = useState<number>(70);
+  const [aiNegativeMarking, setAiNegativeMarking] = useState<boolean>(true);
 
-  // Wizard state
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [wizardType, setWizardType] = useState<ContentType>("QUIZ");
-  const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
-
-  // Modals state
+  // Preview & Delete Modals
   const [previewItem, setPreviewItem] = useState<ContentItem | null>(null);
-  const [historyItem, setHistoryItem] = useState<ContentItem | null>(null);
-
-  // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<ContentItem | null>(null);
-  const [forceDeleteConfirm, setForceDeleteConfirm] = useState(false);
 
-  // Error state
-  const [error, setError] = useState<{
-    message: string;
-    is403: boolean;
-    isNetworkError: boolean;
-  } | null>(null);
+  // Edit Modal State
+  const [editItem, setEditItem] = useState<ContentItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDuration, setEditDuration] = useState(30);
+  const [editPassMark, setEditPassMark] = useState(70);
 
   const loadData = async () => {
     setIsLoading(true);
-    setError(null);
     try {
-      const [contentData, summaryData, logsData] = await Promise.all([
+      const [contentData, summaryData] = await Promise.all([
         contentManagerService.listContent({
           type: typeFilter,
-          subject: subjectFilter,
+          subject: domainFilter,
           difficulty: difficultyFilter,
           status: statusFilter,
           search,
-          sortBy,
-          sortDir,
         }),
         contentManagerService.getSummary(),
-        contentManagerService.getAuditLogs(),
       ]);
       setItems(contentData);
       setSummary(summaryData);
-      setAuditLogs(logsData);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Load content data error:", err);
-      const is403 = err?.response?.status === 403;
-      const isNetworkError = !err?.response || err?.code === "ERR_NETWORK";
-      let message = "An error occurred while loading content.";
-      if (isNetworkError) {
-        message = "Could not reach the server. Make sure the backend is running.";
-      } else if (is403) {
-        message = "You do not have permission to view this page.";
-      } else if (err?.response?.data?.message) {
-        message = err.response.data.message;
-      }
-      setError({ message, is403, isNetworkError });
     } finally {
       setIsLoading(false);
     }
@@ -122,798 +98,804 @@ export const ContentManagerHub: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [typeFilter, subjectFilter, difficultyFilter, statusFilter, sortBy, sortDir]);
+    const handleUpdate = () => loadData();
+    window.addEventListener("content-updated", handleUpdate);
+    return () => window.removeEventListener("content-updated", handleUpdate);
+  }, [typeFilter, domainFilter, difficultyFilter, statusFilter, search]);
 
-  // Debounced search
+  // Set default domain topic when domain changes in AI modal
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const matched = domains.find((d) => d.slug === aiDomain);
+    if (matched && matched.topics?.length > 0) {
+      setAiTopic(matched.topics[0].name);
+    } else {
+      setAiTopic("Core Fundamentals");
+    }
+  }, [aiDomain, domains]);
+
+  // 1-Click AI Test Generation
+  const handleGenerateAiTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGenerating(true);
+    try {
+      const created = await contentManagerService.generateAiTest({
+        type: aiType,
+        domain: aiDomain,
+        topic: aiTopic || "Core Concepts",
+        difficulty: aiDifficulty,
+        questionCount: aiQuestionCount,
+        durationMinutes: aiDurationMinutes,
+        passPercentage: aiPassPercentage,
+        negativeMarking: aiNegativeMarking,
+      });
+
+      setShowAiModal(false);
       loadData();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  const handleOpenWizard = (type: ContentType) => {
-    setWizardType(type);
-    setEditingItem(null);
-    setIsWizardOpen(true);
-  };
-
-  const handleEditItem = (item: ContentItem) => {
-    setEditingItem(item);
-    setWizardType(item.type);
-    setIsWizardOpen(true);
-  };
-
-  const handleDuplicate = async (item: ContentItem) => {
-    try {
-      await contentManagerService.duplicateContent(item.id);
-      await loadData();
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error("Failed to generate test:", err);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const handleTogglePublish = async (item: ContentItem) => {
+  // Toggle Pause / Resume
+  const handleTogglePause = async (item: ContentItem) => {
     try {
-      if (item.status === "PUBLISHED") {
-        await contentManagerService.unpublishContent(item.id);
-      } else {
-        await contentManagerService.publishContent(item.id);
-      }
-      await loadData();
-    } catch (e) {
-      console.error(e);
+      await contentManagerService.togglePauseContent(item.id);
+      loadData();
+    } catch (err) {
+      console.error("Toggle pause error:", err);
     }
   };
 
-  const handleArchive = async (item: ContentItem) => {
-    try {
-      await contentManagerService.archiveContent(item.id);
-      await loadData();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
+  // Delete
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await contentManagerService.deleteContent(deleteTarget.id, forceDeleteConfirm);
+      await contentManagerService.deleteContent(deleteTarget.id);
       setDeleteTarget(null);
-      setForceDeleteConfirm(false);
-      await loadData();
-    } catch (err: any) {
-      alert(err.message || "Failed to delete item");
+      loadData();
+    } catch (err) {
+      console.error("Delete error:", err);
     }
   };
 
-  const handleBulkAction = async (action: "PUBLISH" | "UNPUBLISH" | "ARCHIVE" | "DELETE") => {
-    if (selectedIds.length === 0) return;
+  // Edit save
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editItem) return;
     try {
-      await contentManagerService.bulkAction(selectedIds, action);
-      setSelectedIds([]);
-      await loadData();
-    } catch (e) {
-      console.error(e);
+      await contentManagerService.updateContent(editItem.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        durationMinutes: editDuration,
+        passMarkPercent: editPassMark,
+        settings: {
+          ...editItem.settings,
+          durationMinutes: editDuration,
+          passPercentage: editPassMark,
+        },
+      });
+      setEditItem(null);
+      loadData();
+    } catch (err) {
+      console.error("Save edit error:", err);
     }
   };
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedIds(items.map((i) => i.id));
-    } else {
-      setSelectedIds([]);
+  const getTypeBadge = (type: string) => {
+    const t = type.toUpperCase();
+    if (t.includes("QUIZ")) {
+      return {
+        label: "MCQ Quiz",
+        icon: HelpCircle,
+        className: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+      };
     }
-  };
-
-  const handleToggleSelect = (id: string) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter((x) => x !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
+    if (t.includes("MOCK_TEST") || t.includes("MOCK TEST")) {
+      return {
+        label: "Mock Test",
+        icon: Clock,
+        className: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+      };
     }
+    if (t.includes("INTERVIEW")) {
+      return {
+        label: "AI Mock Interview",
+        icon: Video,
+        className: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+      };
+    }
+    return {
+      label: "Practice Track",
+      icon: Sparkles,
+      className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    };
   };
-
-  const handleDownloadJson = (item: ContentItem) => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(item, null, 2));
-    const dlAnchor = document.createElement("a");
-    dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `content-${item.id}.json`);
-    dlAnchor.click();
-  };
-
-  // Content type card definitions
-  const contentTypeCards: Array<{
-    type: ContentType;
-    label: string;
-    icon: any;
-    desc: string;
-  }> = [
-    { type: "QUIZ", label: "MCQ Quizzes", icon: HelpCircle, desc: "Timed tests & topic banks" },
-    { type: "MOCK_TEST", label: "Mock Tests", icon: Radio, desc: "Multi-section full placement tests" },
-    { type: "CODING_PROBLEM", label: "Coding Arena", icon: Code2, desc: "Algorithmic problems & tests" },
-    { type: "MOCK_INTERVIEW", label: "Mock Interviews", icon: Video, desc: "AI-led conversational tracks" },
-    { type: "PRACTICE_TOPIC", label: "Practice Tracks", icon: BookOpen, desc: "Topic progression hierarchies" },
-    { type: "ARTICLE", label: "Articles & Guides", icon: FileText, desc: "Markdown learning guides" },
-  ];
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-      {/* PAGE HEADER */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-in pb-16">
+      {/* Top Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
-            Content Manager Hub
-          </h1>
-          <p className="text-xs sm:text-sm text-text-muted mt-1">
-            Centrally author, curate, version, and publish all student learning content & assessments without code seeding.
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+                  Tests & Practice Content Manager
+                </h1>
+                <Badge variant="accent" className="font-mono text-xs">
+                  {items.length} Modules
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                AI-driven test authoring center: synthesize quizzes, mock tests, AI domain interviews, and practice tracks with real-time attendee telemetry.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
-            onClick={() => handleOpenWizard("QUIZ")}
-            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4 py-2 flex items-center gap-1.5 shadow-lg shadow-cyan-500/20"
+            onClick={() => setShowAiModal(true)}
+            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4 py-2 flex items-center gap-1.5 shadow-md shadow-cyan-500/20"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Create Content
+            <Sparkles className="w-3.5 h-3.5 fill-black" />
+            1-Click AI Test Synthesizer
           </Button>
         </div>
       </div>
 
-      {/* TOP CONTENT TYPE CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-        {contentTypeCards.map((c) => {
-          const stats = summary?.statsByType?.[c.type] || { total: 0, draft: 0, published: 0, archived: 0 };
-          const Icon = c.icon;
-          return (
-            <div
-              key={c.type}
-              className="bg-surface border border-border hover:border-cyan-500/40 rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between shadow-sm hover:shadow-md"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-xs font-mono font-bold text-text-primary">
-                    {stats.total} total
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-bold text-text-primary truncate">{c.label}</h3>
-                  <p className="text-[10px] text-text-muted truncate">{c.desc}</p>
-                </div>
-
-                <div className="flex items-center gap-2 text-[10px] font-mono pt-1">
-                  <span className="text-emerald-400">{stats.published} pub</span>
-                  <span className="text-text-muted">•</span>
-                  <span className="text-amber-400">{stats.draft} draft</span>
-                </div>
-              </div>
-
-              <div className="pt-3 mt-3 border-t border-border/60">
-                <Button
-                  onClick={() => handleOpenWizard(c.type)}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-[11px] py-1 h-7 border-border hover:bg-surface-raised hover:border-cyan-500/40 text-cyan-300 flex items-center justify-center gap-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  Create
-                </Button>
-              </div>
+      {/* Summary Telemetry Metrics Banner */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
+              Total Tests
+            </span>
+            <div className="text-xl font-bold text-text-primary font-mono mt-1">
+              {summary.totalItems}
             </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider block">
+              Active / Published
+            </span>
+            <div className="text-xl font-bold text-emerald-400 font-mono mt-1">
+              {summary.totalPublished}
+            </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block">
+              Paused / Draft
+            </span>
+            <div className="text-xl font-bold text-amber-400 font-mono mt-1">
+              {summary.totalDrafts}
+            </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider block">
+              Total Student Attempts
+            </span>
+            <div className="text-xl font-bold text-cyan-400 font-mono mt-1 flex items-center gap-1">
+              <Users className="w-4 h-4" /> {summary.totalAttendees}
+            </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border col-span-2 sm:col-span-1">
+            <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider block">
+              Avg Pass Rate
+            </span>
+            <div className="text-xl font-bold text-purple-400 font-mono mt-1">
+              {summary.avgPlatformPassRate}%
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Type Filter Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border text-xs">
+        {[
+          { id: "ALL", label: "All Tests & Tracks" },
+          { id: "QUIZ", label: "MCQ Quizzes", icon: HelpCircle },
+          { id: "MOCK_TEST", label: "Mock Tests", icon: Clock },
+          { id: "MOCK_INTERVIEW", label: "AI Mock Interviews", icon: Video },
+          { id: "PRACTICE_TOPIC", label: "Practice Tracks", icon: Sparkles },
+        ].map((tab) => {
+          const isSelected = typeFilter === tab.id;
+          const Icon = tab.icon;
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setTypeFilter(tab.id)}
+              className={`pb-2.5 px-3 font-medium transition-colors flex items-center gap-1.5 shrink-0 border-b-2 ${
+                isSelected
+                  ? "border-cyan-400 text-cyan-400 font-semibold"
+                  : "border-transparent text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {Icon && <Icon className="w-3.5 h-3.5" />}
+              {tab.label}
+            </button>
           );
         })}
       </div>
 
-      {/* HUB NAVIGATION TABS */}
-      <div className="border-b border-border flex items-center gap-4 text-xs font-medium">
-        <button
-          onClick={() => setActiveTab("INVENTORY")}
-          className={`pb-3 px-1 transition-colors flex items-center gap-2 ${
-            activeTab === "INVENTORY"
-              ? "text-cyan-400 border-b-2 border-cyan-400 font-bold"
-              : "text-text-muted hover:text-text-primary"
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          Content Inventory ({items.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("AUDIT")}
-          className={`pb-3 px-1 transition-colors flex items-center gap-2 ${
-            activeTab === "AUDIT"
-              ? "text-cyan-400 border-b-2 border-cyan-400 font-bold"
-              : "text-text-muted hover:text-text-primary"
-          }`}
-        >
-          <History className="w-4 h-4" />
-          Activity & Audit Logs
-        </button>
+      {/* Filter & Search Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-surface p-3 rounded-2xl border border-border">
+        {/* Search */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tests by title, topic..."
+            className="w-full pl-9 pr-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400"
+          />
+        </div>
+
+        {/* Domain Filter */}
+        <div>
+          <select
+            value={domainFilter}
+            onChange={(e) => setDomainFilter(e.target.value)}
+            className="w-full px-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400"
+          >
+            <option value="ALL">All Domains</option>
+            {domains.map((d) => (
+              <option key={d.slug} value={d.slug}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Difficulty Filter */}
+        <div>
+          <select
+            value={difficultyFilter}
+            onChange={(e) => setDifficultyFilter(e.target.value)}
+            className="w-full px-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400"
+          >
+            <option value="ALL">All Difficulties</option>
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
+        </div>
+
+        {/* Status Filter */}
+        <div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="PUBLISHED">Active / Published</option>
+            <option value="DRAFT">Paused / Draft</option>
+          </select>
+        </div>
       </div>
 
-      {/* TAB 1: INVENTORY TABLE & FILTERS */}
-      {activeTab === "INVENTORY" && (
-        <div className="space-y-4">
-          {/* FILTER & SEARCH BAR */}
-          <div className="p-4 bg-surface border border-border rounded-2xl flex flex-wrap items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by title, subject, or tag..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-surface-raised border border-border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-500"
-              />
+      {/* Tests Grid */}
+      {isLoading ? (
+        <div className="py-16 text-center text-xs font-mono text-text-muted">
+          Loading tests and assessment modules...
+        </div>
+      ) : items.length === 0 ? (
+        <Card className="p-12 text-center bg-surface border-border">
+          <Layers className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-40" />
+          <h3 className="font-bold text-base text-text-primary">No Tests Found</h3>
+          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+            Try adjusting your search criteria or click "1-Click AI Test Synthesizer" to generate a new test immediately.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => {
+            const isPublished = item.status === "PUBLISHED" || item.status === "Published";
+            const typeBadge = getTypeBadge(item.type);
+            const TypeIcon = typeBadge.icon;
+            const qCount = item.questionsCount || item.contentData?.questions?.length || 5;
+            const timer = item.durationMinutes || item.settings?.durationMinutes || 30;
+            const attempts = item.studentAttempts || 0;
+            const avgScore = item.avgScorePercent || 75;
+
+            return (
+              <Card
+                key={item.id}
+                className="p-5 bg-surface border-border hover:border-cyan-500/40 transition-all flex flex-col justify-between space-y-4 group"
+              >
+                <div className="space-y-3">
+                  {/* Top Bar: Type Badge & Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border flex items-center gap-1 font-semibold ${typeBadge.className}`}
+                    >
+                      <TypeIcon className="w-3 h-3" />
+                      {typeBadge.label}
+                    </span>
+
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
+                        isPublished
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                          : "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                      }`}
+                    >
+                      {isPublished ? (
+                        <>
+                          <CheckCircle2 className="w-2.5 h-2.5" /> Active
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="w-2.5 h-2.5" /> Paused
+                        </>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Title & Description */}
+                  <div>
+                    <h3 className="font-bold text-sm text-text-primary group-hover:text-cyan-400 transition-colors line-clamp-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-text-muted mt-1 line-clamp-2 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  {/* Domain & Topic Chips */}
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-cyan-300 px-2 py-0.5 rounded">
+                      {item.subject.toUpperCase()}
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded">
+                      {item.difficulty}
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" /> {timer}m
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded">
+                      {qCount} Qs
+                    </span>
+                  </div>
+                </div>
+
+                {/* Telemetry Footer & Action Buttons */}
+                <div className="pt-3 border-t border-border space-y-3">
+                  {/* Telemetry numbers */}
+                  <div className="flex items-center justify-between text-[11px] font-mono text-text-muted">
+                    <span className="flex items-center gap-1 text-cyan-400 font-semibold">
+                      <Users className="w-3.5 h-3.5" /> {attempts} Attended
+                    </span>
+                    <span className="text-text-primary">
+                      {avgScore}% Avg Score
+                    </span>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex items-center justify-between gap-1.5 pt-1">
+                    <div className="flex items-center gap-1">
+                      {/* Pause / Resume Button */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleTogglePause(item)}
+                        className={`text-xs h-7 px-2 border-border flex items-center gap-1 ${
+                          isPublished
+                            ? "text-amber-400 hover:bg-amber-500/10"
+                            : "text-emerald-400 hover:bg-emerald-500/10"
+                        }`}
+                        title={isPublished ? "Pause test (hide from students)" : "Resume test (make available)"}
+                      >
+                        {isPublished ? (
+                          <>
+                            <Pause className="w-3 h-3" /> Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3 h-3 fill-emerald-400" /> Resume
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Edit */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditItem(item);
+                          setEditTitle(item.title);
+                          setEditDescription(item.description);
+                          setEditDuration(item.durationMinutes || 30);
+                          setEditPassMark(item.passMarkPercent || 70);
+                        }}
+                        className="text-xs h-7 px-2 border-border text-text-muted hover:text-text-primary"
+                        title="Edit title or settings"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+
+                      {/* Preview */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPreviewItem(item)}
+                        className="text-xs h-7 px-2 border-border text-text-muted hover:text-text-primary"
+                        title="Preview questions"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                    </div>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(item)}
+                      className="p-1.5 text-text-muted hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                      title="Delete test"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* MODAL 1: 1-CLICK AI TEST SYNTHESIZER */}
+      <Dialog
+        isOpen={showAiModal}
+        onClose={() => setShowAiModal(false)}
+        title="1-Click AI Test Synthesizer"
+        description="Generate complete quizzes, mock tests, and interviews with questions, options, code snippets, and explanations automatically using AI."
+        maxWidthClass="max-w-lg"
+      >
+        <form onSubmit={handleGenerateAiTest} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">
+                Test / Module Type *
+              </label>
+              <select
+                value={aiType}
+                onChange={(e) => setAiType(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-semibold"
+              >
+                <option value="QUIZ">MCQ Quiz</option>
+                <option value="MOCK_TEST">Full Mock Test</option>
+                <option value="MOCK_INTERVIEW">AI Mock Interview</option>
+                <option value="PRACTICE_TOPIC">Practice Track</option>
+              </select>
             </div>
 
-            {/* Dropdown Filters */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">
+                Target Domain *
+              </label>
               <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
+                value={aiDomain}
+                onChange={(e) => setAiDomain(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-semibold"
               >
-                <option value="ALL">All Types</option>
-                <option value="QUIZ">MCQ Quizzes</option>
-                <option value="MOCK_TEST">Mock Tests</option>
-                <option value="CODING_PROBLEM">Coding Problems</option>
-                <option value="CODING_TEST">Coding Tests</option>
-                <option value="MOCK_INTERVIEW">Mock Interviews</option>
-                <option value="PRACTICE_TOPIC">Practice Topics</option>
-                <option value="ARTICLE">Articles</option>
-              </select>
-
-              <select
-                value={subjectFilter}
-                onChange={(e) => setSubjectFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
-              >
-                <option value="ALL">All Subjects</option>
                 {domains.map((d) => (
-                  <option key={d.id} value={d.name}>
+                  <option key={d.slug} value={d.slug}>
                     {d.name}
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
 
+          <div>
+            <label className="block text-xs font-medium text-text-muted mb-1">
+              Topic / Skill Focus
+            </label>
+            <input
+              type="text"
+              value={aiTopic}
+              onChange={(e) => setAiTopic(e.target.value)}
+              placeholder="e.g. Sliding Window Invariants or Fiber Reconciliation"
+              className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">
+                Difficulty
+              </label>
               <select
-                value={difficultyFilter}
-                onChange={(e) => setDifficultyFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
+                value={aiDifficulty}
+                onChange={(e) => setAiDifficulty(e.target.value as any)}
+                className="w-full px-2.5 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
               >
-                <option value="ALL">All Difficulties</option>
                 <option value="Easy">Easy</option>
                 <option value="Medium">Medium</option>
                 <option value="Hard">Hard</option>
                 <option value="Mixed">Mixed</option>
               </select>
+            </div>
 
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">
+                Questions
+              </label>
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
+                value={aiQuestionCount}
+                onChange={(e) => setAiQuestionCount(Number(e.target.value))}
+                className="w-full px-2.5 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
               >
-                <option value="ALL">All Statuses</option>
-                <option value="PUBLISHED">Published</option>
-                <option value="DRAFT">Draft</option>
-                <option value="ARCHIVED">Archived</option>
+                <option value={5}>5 Questions</option>
+                <option value={10}>10 Questions</option>
+                <option value={15}>15 Questions</option>
+                <option value={20}>20 Questions</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">
+                Timer (Mins)
+              </label>
+              <select
+                value={aiDurationMinutes}
+                onChange={(e) => setAiDurationMinutes(Number(e.target.value))}
+                className="w-full px-2.5 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              >
+                <option value={15}>15 Mins</option>
+                <option value={25}>25 Mins</option>
+                <option value={30}>30 Mins</option>
+                <option value={45}>45 Mins</option>
+                <option value={60}>60 Mins</option>
               </select>
             </div>
           </div>
 
-          {/* BULK ACTIONS TOOLBAR */}
-          {selectedIds.length > 0 && (
-            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-center justify-between text-xs animate-fade-in">
-              <span className="font-semibold text-cyan-300">
-                {selectedIds.length} item{selectedIds.length > 1 ? "s" : ""} selected
-              </span>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleBulkAction("PUBLISH")}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold py-1 h-7"
-                >
-                  Publish Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkAction("UNPUBLISH")}
-                  className="text-xs py-1 h-7 border-border hover:bg-surface text-amber-400"
-                >
-                  Unpublish Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkAction("ARCHIVE")}
-                  className="text-xs py-1 h-7 border-border hover:bg-surface text-text-muted"
-                >
-                  Archive Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkAction("DELETE")}
-                  className="text-xs py-1 h-7 border-red-500/30 hover:bg-red-500/10 text-red-400"
-                >
-                  Delete Selected
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* ERROR BANNER */}
-          {error && (
-            <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-200 animate-fade-in">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm text-red-300">
-                    {error.isNetworkError
-                      ? "Could not reach the server. Make sure the backend is running."
-                      : error.is403
-                      ? "You do not have permission to view this page."
-                      : error.message}
-                  </p>
-                  <p className="text-xs text-red-400/80">
-                    {error.isNetworkError
-                      ? "Backend service at http://localhost:8080 is unreachable. Make sure backend is running with ./mvnw.cmd spring-boot:run"
-                      : error.is403
-                      ? "Access is restricted to authorized administrators."
-                      : "Please check your network connection and retry."}
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => loadData()}
-                className="border-red-500/40 text-red-300 hover:bg-red-500/20 text-xs shrink-0 flex items-center gap-1.5"
-              >
-                <RotateCw className="w-3.5 h-3.5" /> Retry
-              </Button>
-            </div>
-          )}
-
-          {/* UNIFIED CONTENT TABLE */}
-          <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface-raised border-b border-border text-text-muted uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="p-4 w-10">
-                      <input
-                        type="checkbox"
-                        checked={items.length > 0 && selectedIds.length === items.length}
-                        onChange={handleSelectAll}
-                        className="accent-cyan-400 rounded"
-                      />
-                    </th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("title");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Title
-                    </th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("type");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Type
-                    </th>
-                    <th className="p-4 font-semibold">Domain</th>
-                    <th className="p-4 font-semibold">Difficulty</th>
-                    <th className="p-4 font-semibold">Status</th>
-                    <th className="p-4 font-semibold">Created By</th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("attempts");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Attempts
-                    </th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("updatedAt");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Last Updated
-                    </th>
-                    <th className="p-4 text-right font-semibold w-[240px] min-w-[240px] whitespace-nowrap">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-border">
-                  {isLoading ? (
-                    Array.from({ length: 5 }).map((_, idx) => (
-                      <tr key={idx} className="animate-pulse border-b border-border/50">
-                        <td className="p-4"><div className="w-4 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-48 h-4 bg-surface-raised rounded mb-1.5" /><div className="w-32 h-3 bg-surface-raised/60 rounded" /></td>
-                        <td className="p-4"><div className="w-16 h-5 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-20 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-14 h-5 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-24 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-12 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-20 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4 text-right"><div className="w-24 h-7 bg-surface-raised rounded ml-auto" /></td>
-                      </tr>
-                    ))
-                  ) : error ? (
-                    <tr>
-                      <td colSpan={10} className="p-12 text-center text-text-muted space-y-3">
-                        <AlertCircle className="w-8 h-8 mx-auto text-red-400" />
-                        <p className="text-sm font-semibold text-text-primary">
-                          {error.isNetworkError
-                            ? "Could not reach the server. Make sure the backend is running."
-                            : error.is403
-                            ? "You do not have permission to view this page."
-                            : error.message}
-                        </p>
-                        <Button
-                          size="sm"
-                          onClick={() => loadData()}
-                          className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs py-1.5 px-3 mx-auto flex items-center gap-1.5"
-                        >
-                          <RotateCw className="w-3.5 h-3.5" /> Retry
-                        </Button>
-                      </td>
-                    </tr>
-                  ) : items.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="p-12 text-center text-text-muted space-y-3">
-                        <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
-                          <Plus className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-text-primary">No content items found</p>
-                          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
-                            {search || typeFilter !== "ALL" || subjectFilter !== "ALL"
-                              ? "No items match your active filters. Try clearing them or create a new assessment."
-                              : "Your content repository is currently empty. Get started by creating your first assessment."}
-                          </p>
-                        </div>
-                        <Button
-                          onClick={() => handleOpenWizard("QUIZ")}
-                          className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs py-1.5 px-4 mx-auto flex items-center gap-1.5"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Create
-                        </Button>
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((item) => {
-                      const isSelected = selectedIds.includes(item.id);
-                      return (
-                        <tr
-                          key={item.id}
-                          className={`hover:bg-surface-raised/60 transition-colors ${
-                            isSelected ? "bg-cyan-500/5" : ""
-                          }`}
-                        >
-                          <td className="p-4">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleToggleSelect(item.id)}
-                              className="accent-cyan-400 rounded"
-                            />
-                          </td>
-
-                          <td className="p-4 max-w-xs">
-                            <div className="font-semibold text-text-primary truncate">{item.title}</div>
-                            {item.description && (
-                              <div className="text-[11px] text-text-muted truncate mt-0.5">{item.description}</div>
-                            )}
-                          </td>
-
-                          <td className="p-4">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-surface-raised border border-border text-cyan-300">
-                              {item.type}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-text-muted">{item.subject}</td>
-
-                          <td className="p-4">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                item.difficulty === "Easy"
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                  : item.difficulty === "Medium"
-                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                  : "bg-red-500/10 text-red-400 border border-red-500/20"
-                              }`}
-                            >
-                              {item.difficulty}
-                            </span>
-                          </td>
-
-                          <td className="p-4">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                item.status === "PUBLISHED"
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                                  : item.status === "DRAFT"
-                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                                  : "bg-slate-500/10 text-slate-400 border border-slate-500/30"
-                              }`}
-                            >
-                              {item.status}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-text-muted font-mono">{item.createdBy}</td>
-
-                          <td className="p-4 font-mono">
-                            <span
-                              className={`font-semibold ${
-                                item.studentAttempts > 0 ? "text-cyan-400" : "text-text-muted"
-                              }`}
-                            >
-                              {item.studentAttempts}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-text-muted font-mono text-[11px] whitespace-nowrap">
-                            {new Date(item.updatedAt).toLocaleDateString()}
-                          </td>
-
-                          <td className="p-4 text-right w-[240px] min-w-[240px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                            <RowActions className="gap-1">
-                              {/* Preview as Student */}
-                              <button
-                                onClick={() => setPreviewItem(item)}
-                                title="Preview as student"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Edit */}
-                              <button
-                                onClick={() => handleEditItem(item)}
-                                title="Edit assessment"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Version History */}
-                              <button
-                                onClick={() => setHistoryItem(item)}
-                                title="Version history"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <History className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Duplicate */}
-                              <button
-                                onClick={() => handleDuplicate(item)}
-                                title="Duplicate"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Publish / Unpublish */}
-                              <button
-                                onClick={() => handleTogglePublish(item)}
-                                title={item.status === "PUBLISHED" ? "Unpublish to draft" : "Publish to students"}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                  item.status === "PUBLISHED"
-                                    ? "text-emerald-400 hover:bg-emerald-500/10"
-                                    : "text-amber-400 hover:bg-amber-500/10"
-                                }`}
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Archive */}
-                              <button
-                                onClick={() => handleArchive(item)}
-                                title="Archive"
-                                className="p-1.5 text-text-muted hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
-                              >
-                                <Archive className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Delete */}
-                              <button
-                                onClick={() => {
-                                  setDeleteTarget(item);
-                                  setForceDeleteConfirm(false);
-                                }}
-                                title="Delete"
-                                className="p-1.5 text-text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </RowActions>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: AUDIT LOGS */}
-      {activeTab === "AUDIT" && (
-        <div className="bg-surface border border-border rounded-2xl p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
-              <h3 className="text-sm font-semibold text-text-primary">Content Activity & Audit Log</h3>
-              <p className="text-xs text-text-muted">
-                Immutable trace of who created, edited, published, scheduled, or deleted assessments.
-              </p>
+              <label className="block text-xs font-medium text-text-muted mb-1">
+                Passing Score (%)
+              </label>
+              <input
+                type="number"
+                min={40}
+                max={100}
+                value={aiPassPercentage}
+                onChange={(e) => setAiPassPercentage(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
             </div>
-            <span className="text-xs text-text-muted font-mono">{auditLogs.length} events recorded</span>
+
+            <div className="flex items-center gap-2 pt-5">
+              <input
+                type="checkbox"
+                id="negMark"
+                checked={aiNegativeMarking}
+                onChange={(e) => setAiNegativeMarking(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-0 cursor-pointer"
+              />
+              <label htmlFor="negMark" className="text-xs text-text-muted select-none cursor-pointer">
+                Negative Marking (-0.25)
+              </label>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            {auditLogs.map((log) => (
+          <div className="flex justify-end gap-2 pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAiModal(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isGenerating}
+              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4 flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 fill-black" />
+              {isGenerating ? "Synthesizing Test..." : "Generate Test with AI"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 2: EDIT TEST SETTINGS */}
+      <Dialog
+        isOpen={editItem !== null}
+        onClose={() => setEditItem(null)}
+        title="Edit Test Details"
+        description="Update title, description, time limit, and passing score."
+        maxWidthClass="max-w-md"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-text-muted mb-1">Title</label>
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-semibold"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-text-muted mb-1">Description</label>
+            <textarea
+              rows={2}
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">Timer (Minutes)</label>
+              <input
+                type="number"
+                min={5}
+                max={180}
+                value={editDuration}
+                onChange={(e) => setEditDuration(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">Pass Mark (%)</label>
+              <input
+                type="number"
+                min={30}
+                max={100}
+                value={editPassMark}
+                onChange={(e) => setEditPassMark(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditItem(null)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4"
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 3: PREVIEW QUESTIONS */}
+      {previewItem && (
+        <Dialog
+          isOpen={previewItem !== null}
+          onClose={() => setPreviewItem(null)}
+          title={`Preview: ${previewItem.title}`}
+          description={`${previewItem.subject.toUpperCase()} · ${previewItem.durationMinutes} Mins · ${
+            previewItem.contentData?.questions?.length || 0
+          } Questions`}
+          maxWidthClass="max-w-2xl"
+        >
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+            {previewItem.contentData?.questions?.map((q: any, idx: number) => (
               <div
-                key={log.id}
-                className="p-3 bg-surface-raised border border-border rounded-xl flex items-center justify-between gap-4 text-xs"
+                key={q.id || idx}
+                className="p-3.5 bg-surface-raised border border-border rounded-xl space-y-2 text-xs"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                        log.action === "PUBLISH"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : log.action === "DELETE"
-                          ? "bg-red-500/20 text-red-400"
-                          : "bg-cyan-500/20 text-cyan-400"
-                      }`}
-                    >
-                      {log.action}
-                    </span>
-                    <span className="font-semibold text-text-primary">{log.contentTitle}</span>
-                    <span className="text-text-muted font-mono text-[11px]">({log.contentType})</span>
-                  </div>
-                  <p className="text-text-muted text-[11px]">{log.details}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-text-primary">
+                    {idx + 1}. {q.question}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {q.difficulty}
+                  </Badge>
                 </div>
 
-                <div className="text-right text-[11px] text-text-muted font-mono shrink-0">
-                  <div>by {log.performedBy || "Admin"}</div>
-                  <div>{new Date(log.timestamp).toLocaleString()}</div>
-                </div>
+                {q.codeSnippet && (
+                  <pre className="p-2.5 bg-ink rounded-lg font-mono text-[11px] text-cyan-300 overflow-x-auto border border-border/80">
+                    {q.codeSnippet}
+                  </pre>
+                )}
+
+                {q.options && (
+                  <div className="space-y-1 pt-1">
+                    {q.options.map((opt: string, optIdx: number) => (
+                      <div
+                        key={optIdx}
+                        className={`p-2 rounded-lg border font-mono text-[11px] flex items-center gap-2 ${
+                          optIdx === q.correctIndex
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 font-semibold"
+                            : "bg-surface border-border text-text-muted"
+                        }`}
+                      >
+                        <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[9px] shrink-0">
+                          {String.fromCharCode(65 + optIdx)}
+                        </span>
+                        <span>{opt}</span>
+                        {optIdx === q.correctIndex && (
+                          <span className="ml-auto text-[10px] text-emerald-400 font-bold">
+                            ✓ Correct
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {q.explanation && (
+                  <p className="text-[11px] text-text-muted bg-surface/60 p-2 rounded border border-border/60">
+                    <span className="text-cyan-400 font-semibold">Explanation: </span>
+                    {q.explanation}
+                  </p>
+                )}
               </div>
             ))}
           </div>
-        </div>
+        </Dialog>
       )}
 
-      {/* SHARED AUTHORING WIZARD MODAL */}
-      <SharedContentWizard
-        isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
-        initialType={wizardType}
-        editingItem={editingItem}
-        onSaved={async () => {
-          await loadData();
-        }}
-      />
+      {/* MODAL 4: CONFIRM DELETE */}
+      <Dialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Confirm Delete Test"
+        description="Are you sure you want to delete this test?"
+        maxWidthClass="max-w-sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-muted">
+            Are you sure you want to permanently delete{" "}
+            <span className="font-bold text-text-primary">
+              {deleteTarget?.title}
+            </span>
+            ? This will remove all associated student attempt records and telemetry.
+          </p>
 
-      {/* STUDENT PERSPECTIVE PREVIEW MODAL */}
-      <StudentPreviewModal
-        isOpen={!!previewItem}
-        item={previewItem}
-        onClose={() => setPreviewItem(null)}
-      />
-
-      {/* VERSION HISTORY MODAL */}
-      <VersionHistoryModal
-        isOpen={!!historyItem}
-        item={historyItem}
-        onClose={() => setHistoryItem(null)}
-        onRestore={async (ver) => {
-          if (historyItem) {
-            await contentManagerService.restoreVersion(historyItem.id, ver);
-            await loadData();
-          }
-        }}
-      />
-
-      {/* DELETE CONFIRMATION MODAL WITH ATTEMPTS GUARD */}
-      {deleteTarget && typeof document !== "undefined" && createPortal(
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
-        >
-          <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-scale-in">
-            <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              Confirm Content Deletion
-            </h3>
-
-            <p className="text-xs text-text-muted">
-              Are you sure you want to delete <strong className="text-text-primary">"{deleteTarget.title}"</strong>?
-            </p>
-
-            {deleteTarget.studentAttempts > 0 && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-2 text-amber-300">
-                <span className="font-semibold block">Warning: Active Student Attempts</span>
-                <span>
-                  This item has <strong>{deleteTarget.studentAttempts}</strong> recorded student attempts. Deleting it will permanently break past attempt analytics.
-                </span>
-                <div className="pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-amber-200">
-                    <input
-                      type="checkbox"
-                      checked={forceDeleteConfirm}
-                      onChange={(e) => setForceDeleteConfirm(e.target.checked)}
-                      className="accent-red-500"
-                    />
-                    <span>Force delete anyway and discard attempt history</span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDeleteTarget(null);
-                  setForceDeleteConfirm(false);
-                }}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-
-              {deleteTarget.studentAttempts > 0 && !forceDeleteConfirm ? (
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    await handleArchive(deleteTarget);
-                    setDeleteTarget(null);
-                  }}
-                  className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold"
-                >
-                  Archive Instead (Recommended)
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={handleConfirmDelete}
-                  className="bg-red-500 hover:bg-red-400 text-black text-xs font-semibold"
-                >
-                  Confirm Delete
-                </Button>
-              )}
-            </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteTarget(null)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmDelete}
+              className="bg-rose-500 hover:bg-rose-400 text-white font-semibold text-xs px-4"
+            >
+              Delete
+            </Button>
           </div>
-        </div>,
-        document.body
-      )}
+        </div>
+      </Dialog>
     </div>
   );
 };

@@ -75,16 +75,18 @@ export const interviewService = {
     if (roleId.startsWith("cnt-")) {
       try {
         const item = await contentManagerService.getContentById(roleId);
-        return {
-          id: item.id,
-          title: item.contentData?.targetRole || item.title,
-          category: item.contentData?.interviewType || "Technical",
-          description: item.description,
-          difficulty: "Senior",
-          totalQuestions: item.contentData?.questions?.length || 4,
-          durationMinutes: item.settings?.durationMinutes || 30,
-          icon: "Video",
-        };
+        if (item) {
+          return {
+            id: item.id,
+            title: item.contentData?.targetRole || item.title,
+            category: item.contentData?.interviewType || "Technical",
+            description: item.description,
+            difficulty: "Senior",
+            totalQuestions: item.contentData?.questions?.length || 4,
+            durationMinutes: item.settings?.durationMinutes || 30,
+            icon: "Video",
+          };
+        }
       } catch (e) {
         console.warn("Failed to get dynamic role by id", roleId);
       }
@@ -107,7 +109,7 @@ export const interviewService = {
     if (roleId.startsWith("cnt-")) {
       try {
         const item = await contentManagerService.getContentById(roleId);
-        if (item.contentData?.questions && Array.isArray(item.contentData.questions)) {
+        if (item && item.contentData?.questions && Array.isArray(item.contentData.questions)) {
           return item.contentData.questions.map((q: any, i: number) => ({
             id: q.id,
             roleId,

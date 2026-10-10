@@ -47,7 +47,7 @@ export const quizService = {
     if (topicId.startsWith("cnt-")) {
       try {
         const item = await contentManagerService.getContentById(topicId);
-        if (item.contentData?.questions && Array.isArray(item.contentData.questions)) {
+        if (item && item.contentData?.questions && Array.isArray(item.contentData.questions)) {
           return item.contentData.questions.map((q: any) => ({
             id: q.id,
             question: q.question,
