@@ -210,7 +210,7 @@ interface AdminStoreContextType {
   auditLogs: AdminAuditEntry[];
   addStudent: (studentData: Partial<MasterStudent>) => MasterStudent;
   updateStudent: (id: string, updates: Partial<MasterStudent>) => void;
-  deleteStudent: (id: string) => Promise<void> | void;
+  deleteStudent: (id: string, email?: string) => Promise<void> | void;
   bulkDeleteStudents: (ids: string[]) => Promise<void> | void;
   restoreStudent: (student: MasterStudent) => void;
   restoreStudents: (students: MasterStudent[]) => void;
@@ -423,9 +423,22 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     saveToStorage(updatedList);
   };
 
-  const deleteStudent = async (id: string): Promise<void> => {
-    const target = students.find((s) => s.id === id || s.userId === id);
-    const updatedList = students.filter((s) => s.id !== id && s.userId !== id);
+  const deleteStudent = async (id: string, email?: string): Promise<void> => {
+    const target = students.find(
+      (s) =>
+        s.id === id ||
+        s.userId === id ||
+        (email && s.email.toLowerCase() === email.toLowerCase())
+    );
+    const targetEmail = email || target?.email;
+    const targetUserId = target?.userId || target?.id || id;
+
+    const updatedList = students.filter(
+      (s) =>
+        s.id !== id &&
+        s.userId !== id &&
+        (!targetEmail || s.email.toLowerCase() !== targetEmail.toLowerCase())
+    );
     saveToStorage(updatedList);
 
     // Clean up local verification cache if any
@@ -437,9 +450,8 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           (v: any) =>
             v.id !== id &&
             v.verificationId !== id &&
-            v.userId !== id &&
-            v.userId !== target?.userId &&
-            (!target?.email || v.email?.toLowerCase() !== target.email.toLowerCase())
+            v.userId !== targetUserId &&
+            (!targetEmail || v.email?.toLowerCase() !== targetEmail.toLowerCase())
         );
         localStorage.setItem("ai_interview_prep_verifications", JSON.stringify(filtered));
       }
@@ -447,15 +459,29 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.warn("Error cleaning local verifications:", e);
     }
 
-    // Call backend API to permanently purge user from database
-    const identifier = target?.userId || target?.id || id;
-    try {
-      await api.delete(`/api/v1/admin/users/${identifier}`).catch(async () => {
-        await api.delete(`/api/v1/admin/verifications/${identifier}`).catch(() => {});
-      });
-    } catch (e) {
-      console.warn("Backend student delete call failed:", e);
+    // Call backend API to permanently purge user from database by BOTH email and ID
+    const deleteCalls: Promise<any>[] = [];
+    if (targetEmail) {
+      deleteCalls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(targetEmail)}`).catch(() => {}));
+      deleteCalls.push(api.delete(`/api/v1/admin/verifications/${encodeURIComponent(targetEmail)}`).catch(() => {}));
     }
+    if (targetUserId && targetUserId !== targetEmail) {
+      deleteCalls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(targetUserId)}`).catch(() => {}));
+      deleteCalls.push(api.delete(`/api/v1/admin/verifications/${encodeURIComponent(targetUserId)}`).catch(() => {}));
+    }
+    await Promise.allSettled(deleteCalls);
+
+    // Clear local auth session if the deleted user is currently cached in this browser
+    try {
+      const storedUserStr = localStorage.getItem("ai_interview_prep_user");
+      if (storedUserStr) {
+        const parsedUser = JSON.parse(storedUserStr);
+        if (targetEmail && parsedUser.email?.toLowerCase() === targetEmail.toLowerCase()) {
+          localStorage.removeItem("ai_interview_prep_user");
+          localStorage.removeItem("ai_interview_prep_token");
+        }
+      }
+    } catch {}
 
     if (target) {
       addAuditLog({
@@ -496,13 +522,19 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     await Promise.allSettled(
-      targets.map(async (t) => {
-        const identifier = t.userId || t.id;
-        try {
-          await api.delete(`/api/v1/admin/users/${identifier}`).catch(() =>
-            api.delete(`/api/v1/admin/verifications/${identifier}`)
-          );
-        } catch {}
+      targets.flatMap((t) => {
+        const calls: Promise<any>[] = [];
+        if (t.email) {
+          calls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(t.email)}`).catch(() => {}));
+          calls.push(api.delete(`/api/v1/admin/verifications/${encodeURIComponent(t.email)}`).catch(() => {}));
+        }
+        if (t.id && t.id !== t.email) {
+          calls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(t.id)}`).catch(() => {}));
+        }
+        if (t.userId && t.userId !== t.email && t.userId !== t.id) {
+          calls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(t.userId)}`).catch(() => {}));
+        }
+        return calls;
       })
     );
 
