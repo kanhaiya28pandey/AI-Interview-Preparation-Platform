@@ -426,12 +426,17 @@ public class ExternalProblemFetchService {
                     }
                     p.setCategory(tags.isEmpty() ? "Algorithms" : tags.get(0));
 
-                    // Parse description HTML into readable text
+                    // Parse description HTML into structured statement, examples, constraints, and test cases
                     String rawHtml = qNode.path("content").asText("");
-                    p.setDescription(cleanHtmlContent(rawHtml));
+                    JsonNode exCases = qNode.path("exampleTestcaseList");
+                    StructuredProblemData parsed = parseProblemHtml(rawHtml, exCases);
+
+                    p.setDescription(parsed.getStatement());
                     p.setInputFormat("Refer to problem statement and example inputs.");
                     p.setOutputFormat("Return the expected data structure / value.");
-                    p.setConstraints(List.of("1 <= input length <= 10^5", "Optimal runtime expected"));
+                    p.setConstraints(parsed.getConstraints());
+                    p.setExamples(parsed.getExamples());
+                    p.setTestCases(parsed.getTestCases());
 
                     // Extract Starter Codes from official codeSnippets
                     Map<String, String> starters = new HashMap<>();
@@ -452,25 +457,6 @@ public class ExternalProblemFetchService {
                         }
                     }
                     p.setStarterCode(starters);
-
-                    // Extract test cases from exampleTestcaseList
-                    List<TestCase> testCases = new ArrayList<>();
-                    JsonNode exCases = qNode.path("exampleTestcaseList");
-                    if (exCases.isArray() && exCases.size() > 0) {
-                        for (int i = 0; i < exCases.size(); i++) {
-                            String rawCase = exCases.get(i).asText();
-                            testCases.add(new TestCase(i + 1, "Input:\n" + rawCase, "Expected Sample " + (i + 1), List.of(rawCase), "Accepted"));
-                        }
-                    } else {
-                        testCases.add(new TestCase(1, "Sample Case 1", "Output 1", List.of("Sample 1"), "Output 1"));
-                        testCases.add(new TestCase(2, "Sample Case 2", "Output 2", List.of("Sample 2"), "Output 2"));
-                    }
-                    p.setTestCases(testCases);
-
-                    // Examples
-                    List<ProblemExample> examples = new ArrayList<>();
-                    examples.add(new ProblemExample("Standard input sample", "Expected solution output", "Verify edge case bounds and time complexity."));
-                    p.setExamples(examples);
 
                     // Hints
                     p.setHints(List.of("Break down the problem into smaller subproblems.", "Consider space vs time tradeoffs (e.g. hash maps or two pointers)."));
@@ -585,6 +571,8 @@ public class ExternalProblemFetchService {
             data.put("outputFormat", problem.getOutputFormat());
             data.put("constraints", String.join("\n", problem.getConstraints()));
             data.put("starterCode", problem.getStarterCode());
+            data.put("examples", problem.getExamples());
+            data.put("testCases", problem.getTestCases());
             data.put("source", source);
             item.setContentData(data);
 
@@ -604,6 +592,201 @@ public class ExternalProblemFetchService {
 
     public List<CodingProblem> getPlatformProblems() {
         return problemRepository.findAll();
+    }
+
+    public static class StructuredProblemData {
+        private String statement = "";
+        private List<ProblemExample> examples = new ArrayList<>();
+        private List<String> constraints = new ArrayList<>();
+        private List<TestCase> testCases = new ArrayList<>();
+
+        public String getStatement() { return statement; }
+        public void setStatement(String statement) { this.statement = statement; }
+        public List<ProblemExample> getExamples() { return examples; }
+        public void setExamples(List<ProblemExample> examples) { this.examples = examples; }
+        public List<String> getConstraints() { return constraints; }
+        public void setConstraints(List<String> constraints) { this.constraints = constraints; }
+        public List<TestCase> getTestCases() { return testCases; }
+        public void setTestCases(List<TestCase> testCases) { this.testCases = testCases; }
+    }
+
+    public static StructuredProblemData parseProblemHtml(String rawHtml, JsonNode exampleTestcaseList) {
+        StructuredProblemData data = new StructuredProblemData();
+        if (rawHtml == null || rawHtml.isBlank()) {
+            data.setStatement("Solve the coding challenge with optimal time and space complexity.");
+            data.getExamples().add(new ProblemExample("x = 121", "true", "Standard test example."));
+            data.getConstraints().add("1 <= input <= 10^5");
+            data.getTestCases().add(new TestCase(1, "x = 121", "true", List.of("121"), Boolean.TRUE));
+            return data;
+        }
+
+        // Clean HTML to readable markdown/text
+        String text = rawHtml
+                .replaceAll("(?i)<sup>(.*?)</sup>", "^$1")
+                .replaceAll("(?i)<sub>(.*?)</sub>", "_$1")
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</p>", "\n\n")
+                .replaceAll("(?i)</pre>", "\n\n")
+                .replaceAll("(?i)</li>", "\n")
+                .replaceAll("(?i)<ul>", "\n")
+                .replaceAll("(?i)</ul>", "\n")
+                .replaceAll("(?i)<li>", "- ")
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("&quot;", "\"")
+                .replaceAll("&apos;", "'")
+                .replaceAll("&#39;", "'")
+                .replaceAll("&amp;", "&")
+                .replaceAll("<[^>]*>", "")
+                .replace("\r\n", "\n")
+                .replace("\r", "\n");
+
+        // Normalize markers that may have asterisks or backticks
+        text = text
+                .replaceAll("\\*\\*(Input|Output|Explanation|Constraints|Example|Follow[- ]?up):?\\*\\*", "$1:")
+                .replaceAll("(?i)\\b(Input|Output|Explanation|Constraints|Example|Follow[- ]?up):\\*\\*", "$1:")
+                .replaceAll("```", "");
+
+        // 1. Separate pure problem statement (everything before Example 1)
+        java.util.regex.Pattern example1Pattern = java.util.regex.Pattern.compile("(?i)(?:^|\\n)\\s*Example\\s*1\\b");
+        java.util.regex.Matcher ex1Matcher = example1Pattern.matcher(text);
+
+        String statementText;
+        String remainingText;
+        if (ex1Matcher.find()) {
+            statementText = text.substring(0, ex1Matcher.start()).replaceAll("^[*#\\s]+|[*#\\s]+$", "").trim();
+            remainingText = text.substring(ex1Matcher.start()).trim();
+        } else {
+            java.util.regex.Pattern constrPattern = java.util.regex.Pattern.compile("(?i)(?:^|\\n)\\s*Constraints\\s*:");
+            java.util.regex.Matcher cm = constrPattern.matcher(text);
+            if (cm.find()) {
+                statementText = text.substring(0, cm.start()).replaceAll("^[*#\\s]+|[*#\\s]+$", "").trim();
+                remainingText = text.substring(cm.start()).trim();
+            } else {
+                statementText = text.trim();
+                remainingText = "";
+            }
+        }
+        data.setStatement(statementText);
+
+        // 2. Parse Examples
+        List<ProblemExample> examples = new ArrayList<>();
+        List<TestCase> testCases = new ArrayList<>();
+
+        java.util.regex.Pattern exampleBlockPattern = java.util.regex.Pattern.compile(
+                "(?i)Example\\s*\\d*\\s*[:\\.]?\\s*\\n?([\\s\\S]*?)(?=(?:Example\\s*\\d*\\s*[:\\.]?|Constraints\\s*:|Follow[- ]?up\\s*:|$))"
+        );
+        java.util.regex.Matcher exMatcher = exampleBlockPattern.matcher(remainingText);
+
+        int exIndex = 0;
+        while (exMatcher.find()) {
+            String block = exMatcher.group(1).trim();
+            String input = "";
+            String output = "";
+            String explanation = "";
+
+            java.util.regex.Matcher inMatcher = java.util.regex.Pattern.compile("(?i)(?:^|\\n)\\s*Input\\s*:\\s*(.*?)(?=\\n\\s*Output\\s*:|\\n\\s*Explanation\\s*:|$)", java.util.regex.Pattern.DOTALL).matcher(block);
+            if (inMatcher.find()) {
+                input = inMatcher.group(1).replaceAll("^[*`\\s]+|[*`\\s]+$", "").trim();
+            }
+
+            java.util.regex.Matcher outMatcher = java.util.regex.Pattern.compile("(?i)(?:^|\\n)\\s*Output\\s*:\\s*(.*?)(?=\\n\\s*Explanation\\s*:|$)", java.util.regex.Pattern.DOTALL).matcher(block);
+            if (outMatcher.find()) {
+                output = outMatcher.group(1).replaceAll("^[*`\\s]+|[*`\\s]+$", "").trim();
+            }
+
+            java.util.regex.Matcher expMatcher = java.util.regex.Pattern.compile("(?i)(?:^|\\n)\\s*Explanation\\s*:\\s*([\\s\\S]*?)$").matcher(block);
+            if (expMatcher.find()) {
+                explanation = expMatcher.group(1).replaceAll("^[*`\\s]+|[*`\\s]+$", "").trim();
+            }
+
+            // Fallback input from exampleTestcaseList if input was empty
+            if (input.isEmpty() && exampleTestcaseList != null && exampleTestcaseList.isArray() && exIndex < exampleTestcaseList.size()) {
+                input = exampleTestcaseList.get(exIndex).asText();
+            }
+
+            if (!input.isEmpty() || !output.isEmpty()) {
+                examples.add(new ProblemExample(input, output, explanation));
+
+                // Create matched typed TestCase
+                TestCase tc = new TestCase();
+                tc.setId(exIndex + 1);
+                tc.setInputStr(input.isEmpty() ? "Sample " + (exIndex + 1) : input);
+                tc.setExpectedStr(output.isEmpty() ? "true" : output);
+                tc.setPoints(25);
+                tc.setHidden(false);
+                tc.setParams(List.of(input));
+
+                // Parse typed expectedVal
+                String cleanOut = output.trim().toLowerCase();
+                if ("true".equals(cleanOut)) {
+                    tc.setExpectedVal(Boolean.TRUE);
+                } else if ("false".equals(cleanOut)) {
+                    tc.setExpectedVal(Boolean.FALSE);
+                } else {
+                    try {
+                        if (output.matches("^-?\\d+$")) {
+                            tc.setExpectedVal(Long.parseLong(output.trim()));
+                        } else if (output.matches("^-?\\d*\\.\\d+$")) {
+                            tc.setExpectedVal(Double.parseDouble(output.trim()));
+                        } else {
+                            tc.setExpectedVal(output.trim());
+                        }
+                    } catch (Exception ex) {
+                        tc.setExpectedVal(output.trim());
+                    }
+                }
+                testCases.add(tc);
+                exIndex++;
+            }
+        }
+
+        // Fallback testcases from exampleTestcaseList if none extracted
+        if (testCases.isEmpty()) {
+            if (exampleTestcaseList != null && exampleTestcaseList.isArray() && exampleTestcaseList.size() > 0) {
+                for (int i = 0; i < exampleTestcaseList.size(); i++) {
+                    String raw = exampleTestcaseList.get(i).asText();
+                    testCases.add(new TestCase(i + 1, "Input:\n" + raw, "true", List.of(raw), Boolean.TRUE));
+                    examples.add(new ProblemExample(raw, "Sample Solution Output", "Verify sample input"));
+                }
+            } else {
+                testCases.add(new TestCase(1, "Sample Case 1", "true", List.of("1"), Boolean.TRUE));
+                examples.add(new ProblemExample("Sample Case 1", "true", "Standard test"));
+            }
+        }
+        data.setExamples(examples);
+        data.setTestCases(testCases);
+
+        // 3. Parse Constraints
+        List<String> constraints = new ArrayList<>();
+        java.util.regex.Matcher constrBlockMatcher = java.util.regex.Pattern.compile("(?i)Constraints\\s*:\\s*([\\s\\S]*?)(?=(?:Follow[- ]?up\\s*:|$))").matcher(remainingText);
+        if (constrBlockMatcher.find()) {
+            String[] lines = constrBlockMatcher.group(1).split("\\n");
+            for (String l : lines) {
+                String cleanLine = l.replaceFirst("^[\\s*\\-•]+", "").trim();
+                if (!cleanLine.isEmpty() && cleanLine.length() > 2) {
+                    constraints.add(cleanLine);
+                }
+            }
+        }
+
+        // Parse Follow-up if present
+        java.util.regex.Matcher followUpMatcher = java.util.regex.Pattern.compile("(?i)Follow[- ]?up\\s*:\\s*([\\s\\S]*?)$").matcher(remainingText);
+        if (followUpMatcher.find()) {
+            String fu = followUpMatcher.group(1).trim();
+            if (!fu.isEmpty()) {
+                constraints.add("Follow-up: " + fu);
+            }
+        }
+
+        if (constraints.isEmpty()) {
+            constraints.add("1 <= input length <= 10^5");
+            constraints.add("Optimal runtime complexity expected");
+        }
+        data.setConstraints(constraints);
+
+        return data;
     }
 
     private String cleanHtmlContent(String html) {

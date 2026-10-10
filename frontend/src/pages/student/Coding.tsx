@@ -10,6 +10,7 @@ loader.config({ monaco });
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { codingService } from "@/services/codingService";
+import { parseStructuredProblemText } from "@/lib/problemParser";
 import { progressService } from "@/services/progressService";
 import { notificationService } from "@/services/notificationService";
 import { CodingProblem, ExecutionResult, DIFFICULTY_XP } from "@/mocks/codingData";
@@ -240,6 +241,24 @@ export const Coding: React.FC = () => {
       }
     }
   }, [selectedProblem?.id, isSqlProblem]);
+
+  // Dynamically separate problem statement from examples/constraints if raw markdown is present
+  const displayProblem = React.useMemo(() => {
+    if (!selectedProblem) return null;
+    const parsed = parseStructuredProblemText(selectedProblem.description || "");
+    const cleanDescription =
+      parsed.statement && parsed.examples.length > 0 ? parsed.statement : selectedProblem.description;
+    const cleanExamples = parsed.examples.length > 0 ? parsed.examples : selectedProblem.examples;
+    const cleanConstraints =
+      parsed.constraints.length > 0 ? parsed.constraints : selectedProblem.constraints;
+
+    return {
+      ...selectedProblem,
+      description: cleanDescription,
+      examples: cleanExamples,
+      constraints: cleanConstraints,
+    };
+  }, [selectedProblem]);
 
   // When selected problem or language changes in editor mode, load saved code
   useEffect(() => {
@@ -1117,145 +1136,150 @@ export const Coding: React.FC = () => {
 
           <div className="p-5 overflow-y-auto flex-1 min-h-0 space-y-5 custom-scrollbar text-xs font-sans">
             {activeDossierTab === "description" ? (
-              <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={selectedProblem.difficulty.toLowerCase() as any}>
-                      {selectedProblem.difficulty}
-                    </Badge>
-                    <span className="text-[11px] font-mono text-text-muted bg-surface-raised px-2 py-0.5 rounded border border-border">
-                      {selectedProblem.category}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 font-mono text-xs">
-                    <span className="text-text-muted">Acceptance: {selectedProblem.acceptance}</span>
-                    <span className="text-amber-400 font-semibold">+{selectedProblem.xpReward || 50} XP</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="font-serif text-lg font-medium text-text-primary">
-                    {selectedProblem.title}
-                  </h3>
-                  <div className="text-text-secondary leading-relaxed text-xs font-sans prose prose-invert max-w-none space-y-2">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {selectedProblem.description}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-
-                {(selectedProblem.inputFormat || selectedProblem.outputFormat) && (
-                  <div className="space-y-2 font-mono text-[11px] p-3 bg-surface-raised border border-border rounded-xl">
-                    {selectedProblem.inputFormat && (
-                      <div>
-                        <span className="text-text-muted uppercase text-[10px] block font-bold">Input / Schema Format</span>
-                        <code className="text-cyan-400 whitespace-pre block">{selectedProblem.inputFormat}</code>
-                      </div>
-                    )}
-                    {selectedProblem.outputFormat && (
-                      <div className="pt-1.5 border-t border-border">
-                        <span className="text-text-muted uppercase text-[10px] block font-bold">Output / Result Table</span>
-                        <code className="text-emerald-400 whitespace-pre block">{selectedProblem.outputFormat}</code>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="space-y-3 font-mono text-xs">
-                  <h4 className="font-semibold text-text-primary uppercase tracking-wider text-[11px]">
-                    Examples
-                  </h4>
-                  {selectedProblem.examples.map((ex, idx) => (
-                    <div key={idx} className="p-3 bg-surface-raised border border-border rounded-xl space-y-1.5">
-                      <span className="text-cyan-400 font-bold text-[11px] block">Example {idx + 1}:</span>
-                      <div>
-                        <span className="text-text-muted text-[11px]">Input: </span>
-                        <code className="text-text-primary bg-surface px-1.5 py-0.5 rounded border border-border text-[11px] whitespace-pre-wrap">
-                          {ex.input}
-                        </code>
-                      </div>
-                      <div>
-                        <span className="text-text-muted text-[11px]">Output: </span>
-                        <code className="text-emerald-400 font-semibold bg-surface px-1.5 py-0.5 rounded border border-border text-[11px] whitespace-pre-wrap">
-                          {ex.output}
-                        </code>
-                      </div>
-                      {ex.explanation && (
-                        <p className="text-text-secondary text-[11px] pt-1 font-sans italic">
-                          Explanation: {ex.explanation}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {selectedProblem.constraints && selectedProblem.constraints.length > 0 && (
-                  <div className="space-y-2 font-mono text-xs">
-                    <h4 className="font-semibold text-text-primary uppercase tracking-wider text-[11px]">
-                      Constraints
-                    </h4>
-                    <ul className="space-y-1.5">
-                      {selectedProblem.constraints.map((c, i) => (
-                        <li key={i} className="p-2 bg-surface-raised border border-border rounded-lg flex items-center gap-2 text-[11px] text-text-secondary">
-                          <Zap className="w-3 h-3 text-amber-400 shrink-0" />
-                          <span>{c}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Collapsible Hints Section (Hidden by default, expandable on request) */}
-                {selectedProblem.hints && selectedProblem.hints.length > 0 && (
-                  <div className="pt-2 border-t border-border space-y-2">
-                    <button
-                      onClick={() => setShowHintsSection(!showHintsSection)}
-                      className="w-full flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 hover:bg-amber-500/15 transition-colors font-mono text-xs"
-                    >
+              (() => {
+                const activeProb = displayProblem || selectedProblem;
+                return (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Lightbulb className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span className="font-semibold">
-                          💡 Need a hint? ({selectedProblem.hints.length} hints available)
+                        <Badge variant={activeProb.difficulty.toLowerCase() as any}>
+                          {activeProb.difficulty}
+                        </Badge>
+                        <span className="text-[11px] font-mono text-text-muted bg-surface-raised px-2 py-0.5 rounded border border-border">
+                          {activeProb.category}
                         </span>
                       </div>
-                      {showHintsSection ? (
-                        <ChevronUp className="w-4 h-4 text-amber-400" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-amber-400" />
-                      )}
-                    </button>
+                      <div className="flex items-center gap-2 font-mono text-xs">
+                        <span className="text-text-muted">Acceptance: {activeProb.acceptance}</span>
+                        <span className="text-amber-400 font-semibold">+{activeProb.xpReward || 50} XP</span>
+                      </div>
+                    </div>
 
-                    {showHintsSection && (
-                      <div className="space-y-2.5 pt-1 animate-fade-in font-sans">
-                        {selectedProblem.hints.map((hintText, hIdx) => {
-                          const isExpanded = expandedHintIndices.has(hIdx);
-                          return (
-                            <div
-                              key={hIdx}
-                              className="border border-border rounded-xl overflow-hidden bg-surface-raised transition-colors"
-                            >
-                              <button
-                                onClick={() => toggleHint(hIdx)}
-                                className="w-full flex items-center justify-between p-2.5 text-left text-xs font-mono font-medium text-text-secondary hover:text-text-primary hover:bg-surface/50"
-                              >
-                                <span>Hint {hIdx + 1}</span>
-                                <span className="text-[11px] text-cyan-400">
-                                  {isExpanded ? "Hide" : "Click to reveal"}
-                                </span>
-                              </button>
-                              {isExpanded && (
-                                <div className="p-3 border-t border-border bg-surface text-text-primary text-xs leading-relaxed animate-fade-in font-sans">
-                                  {hintText}
+                    <div className="space-y-2">
+                      <h3 className="font-serif text-lg font-medium text-text-primary">
+                        {activeProb.title}
+                      </h3>
+                      <div className="text-text-secondary leading-relaxed text-xs font-sans prose prose-invert max-w-none space-y-2">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {activeProb.description}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+
+                    {(activeProb.inputFormat || activeProb.outputFormat) && (
+                      <div className="space-y-2 font-mono text-[11px] p-3 bg-surface-raised border border-border rounded-xl">
+                        {activeProb.inputFormat && (
+                          <div>
+                            <span className="text-text-muted uppercase text-[10px] block font-bold">Input / Schema Format</span>
+                            <code className="text-cyan-400 whitespace-pre block">{activeProb.inputFormat}</code>
+                          </div>
+                        )}
+                        {activeProb.outputFormat && (
+                          <div className="pt-1.5 border-t border-border">
+                            <span className="text-text-muted uppercase text-[10px] block font-bold">Output / Result Table</span>
+                            <code className="text-emerald-400 whitespace-pre block">{activeProb.outputFormat}</code>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-3 font-mono text-xs">
+                      <h4 className="font-semibold text-text-primary uppercase tracking-wider text-[11px]">
+                        Examples
+                      </h4>
+                      {activeProb.examples.map((ex, idx) => (
+                        <div key={idx} className="p-3 bg-surface-raised border border-border rounded-xl space-y-1.5">
+                          <span className="text-cyan-400 font-bold text-[11px] block">Example {idx + 1}:</span>
+                          <div>
+                            <span className="text-text-muted text-[11px]">Input: </span>
+                            <code className="text-text-primary bg-surface px-1.5 py-0.5 rounded border border-border text-[11px] whitespace-pre-wrap">
+                              {ex.input}
+                            </code>
+                          </div>
+                          <div>
+                            <span className="text-text-muted text-[11px]">Output: </span>
+                            <code className="text-emerald-400 font-semibold bg-surface px-1.5 py-0.5 rounded border border-border text-[11px] whitespace-pre-wrap">
+                              {ex.output}
+                            </code>
+                          </div>
+                          {ex.explanation && (
+                            <p className="text-text-secondary text-[11px] pt-1 font-sans italic">
+                              Explanation: {ex.explanation}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {activeProb.constraints && activeProb.constraints.length > 0 && (
+                      <div className="space-y-2 font-mono text-xs">
+                        <h4 className="font-semibold text-text-primary uppercase tracking-wider text-[11px]">
+                          Constraints
+                        </h4>
+                        <ul className="space-y-1.5">
+                          {activeProb.constraints.map((c, i) => (
+                            <li key={i} className="p-2 bg-surface-raised border border-border rounded-lg flex items-center gap-2 text-[11px] text-text-secondary">
+                              <Zap className="w-3 h-3 text-amber-400 shrink-0" />
+                              <span>{c}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Collapsible Hints Section (Hidden by default, expandable on request) */}
+                    {activeProb.hints && activeProb.hints.length > 0 && (
+                      <div className="pt-2 border-t border-border space-y-2">
+                        <button
+                          onClick={() => setShowHintsSection(!showHintsSection)}
+                          className="w-full flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 hover:bg-amber-500/15 transition-colors font-mono text-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Lightbulb className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span className="font-semibold">
+                              💡 Need a hint? ({activeProb.hints.length} hints available)
+                            </span>
+                          </div>
+                          {showHintsSection ? (
+                            <ChevronUp className="w-4 h-4 text-amber-400" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-amber-400" />
+                          )}
+                        </button>
+
+                        {showHintsSection && (
+                          <div className="space-y-2.5 pt-1 animate-fade-in font-sans">
+                            {activeProb.hints.map((hintText, hIdx) => {
+                              const isExpanded = expandedHintIndices.has(hIdx);
+                              return (
+                                <div
+                                  key={hIdx}
+                                  className="border border-border rounded-xl overflow-hidden bg-surface-raised transition-colors"
+                                >
+                                  <button
+                                    onClick={() => toggleHint(hIdx)}
+                                    className="w-full flex items-center justify-between p-2.5 text-left text-xs font-mono font-medium text-text-secondary hover:text-text-primary hover:bg-surface/50"
+                                  >
+                                    <span>Hint {hIdx + 1}</span>
+                                    <span className="text-[11px] text-cyan-400">
+                                      {isExpanded ? "Hide" : "Click to reveal"}
+                                    </span>
+                                  </button>
+                                  {isExpanded && (
+                                    <div className="p-3 border-t border-border bg-surface text-text-primary text-xs leading-relaxed animate-fade-in font-sans">
+                                      {hintText}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+                );
+              })()
             ) : (
               /* Submissions Tab */
               <div className="space-y-3 font-mono text-xs">
@@ -1380,6 +1404,42 @@ export const Coding: React.FC = () => {
                 onChange={(value) => handleCodeChange(value || "")}
                 onMount={(editor) => {
                   editorRef.current = editor;
+                  // Allow outer window / parent scrolling when editor has no overflow or reaches boundary
+                  const domNode = editor.getDomNode();
+                  if (domNode) {
+                    domNode.addEventListener(
+                      "wheel",
+                      (e: WheelEvent) => {
+                        const scrollTop = editor.getScrollTop();
+                        const scrollHeight = editor.getScrollHeight();
+                        const clientHeight = editor.getLayoutInfo().height;
+                        const atTop = scrollTop <= 2 && e.deltaY < 0;
+                        const atBottom = scrollTop + clientHeight >= scrollHeight - 3 && e.deltaY > 0;
+                        const cannotScroll = scrollHeight <= clientHeight;
+
+                        if (atTop || atBottom || cannotScroll) {
+                          let parent: HTMLElement | null = domNode.parentElement;
+                          let scrolled = false;
+                          while (parent && parent !== document.body) {
+                            const style = window.getComputedStyle(parent);
+                            if (
+                              (style.overflowY === "auto" || style.overflowY === "scroll") &&
+                              parent.scrollHeight > parent.clientHeight
+                            ) {
+                              parent.scrollBy({ top: e.deltaY, behavior: "auto" });
+                              scrolled = true;
+                              break;
+                            }
+                            parent = parent.parentElement;
+                          }
+                          if (!scrolled) {
+                            window.scrollBy({ top: e.deltaY, behavior: "auto" });
+                          }
+                        }
+                      },
+                      { passive: true }
+                    );
+                  }
                 }}
                 options={{
                   fontSize: 13,
@@ -1407,6 +1467,7 @@ export const Coding: React.FC = () => {
                     verticalScrollbarSize: 10,
                     horizontalScrollbarSize: 10,
                     useShadows: false,
+                    alwaysConsumeMouseWheel: false,
                   },
                   mouseWheelScrollSensitivity: 1,
                   fastScrollSensitivity: 5,
@@ -1468,68 +1529,76 @@ export const Coding: React.FC = () => {
 
             <div className="p-4 font-mono text-xs max-h-[460px] overflow-y-auto custom-scrollbar min-h-[140px]">
               {activeConsoleTab === "testcase" ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {selectedProblem.testCases.map((tc, idx) => (
-                      <button
-                        key={tc.id || idx}
-                        onClick={() => {
-                          setIsCustomTestCase(false);
-                          setSelectedTestCaseIndex(idx);
-                        }}
-                        className={cn(
-                          "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border",
-                          !isCustomTestCase && selectedTestCaseIndex === idx
-                            ? "bg-cyan-400/20 text-cyan-400 border-cyan-400/40"
-                            : "bg-surface-raised border-border text-text-muted hover:text-text-primary"
-                        )}
-                      >
-                        Case {idx + 1}
-                      </button>
-                    ))}
+                (() => {
+                  const activeProb = displayProblem || selectedProblem;
+                  const probTestCases = activeProb.testCases || [];
+                  const activeTestCase = probTestCases[selectedTestCaseIndex] || probTestCases[0];
 
-                    <button
-                      onClick={() => setIsCustomTestCase(true)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border",
-                        isCustomTestCase
-                          ? "bg-cyan-400/20 text-cyan-400 border-cyan-400/40"
-                          : "bg-surface-raised border-border text-text-muted hover:text-text-primary"
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {probTestCases.map((tc, idx) => (
+                          <button
+                            key={tc.id || idx}
+                            onClick={() => {
+                              setIsCustomTestCase(false);
+                              setSelectedTestCaseIndex(idx);
+                            }}
+                            className={cn(
+                              "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border",
+                              !isCustomTestCase && selectedTestCaseIndex === idx
+                                ? "bg-cyan-400/20 text-cyan-400 border-cyan-400/40"
+                                : "bg-surface-raised border-border text-text-muted hover:text-text-primary"
+                            )}
+                          >
+                            Case {idx + 1}
+                          </button>
+                        ))}
+
+                        <button
+                          onClick={() => setIsCustomTestCase(true)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border",
+                            isCustomTestCase
+                              ? "bg-cyan-400/20 text-cyan-400 border-cyan-400/40"
+                              : "bg-surface-raised border-border text-text-muted hover:text-text-primary"
+                          )}
+                        >
+                          + Custom Testcase
+                        </button>
+                      </div>
+
+                      {isCustomTestCase ? (
+                        <div className="space-y-2 animate-fade-in">
+                          <span className="text-text-muted text-[11px] block">
+                            Enter custom parameters or input arguments for your function:
+                          </span>
+                          <textarea
+                            value={customInputText}
+                            onChange={(e) => setCustomInputText(e.target.value)}
+                            placeholder="e.g. nums = [1, 2, 3], target = 4"
+                            className="w-full h-20 p-2.5 bg-[#080b12] border border-[#1e293b] rounded-lg text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 resize-none"
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-2 animate-fade-in">
+                          <div>
+                            <span className="text-text-muted text-[11px] uppercase block font-bold">Input</span>
+                            <code className="text-text-primary bg-surface px-2 py-1 rounded border border-border block mt-1 whitespace-pre-wrap">
+                              {activeTestCase?.inputStr || "None"}
+                            </code>
+                          </div>
+                          <div>
+                            <span className="text-text-muted text-[11px] uppercase block font-bold">Expected Output</span>
+                            <code className="text-emerald-400 font-semibold bg-surface px-2 py-1 rounded border border-border block mt-1 whitespace-pre-wrap">
+                              {activeTestCase?.expectedStr || "None"}
+                            </code>
+                          </div>
+                        </div>
                       )}
-                    >
-                      + Custom Testcase
-                    </button>
-                  </div>
-
-                  {isCustomTestCase ? (
-                    <div className="space-y-2 animate-fade-in">
-                      <span className="text-text-muted text-[11px] block">
-                        Enter custom parameters or input arguments for your function:
-                      </span>
-                      <textarea
-                        value={customInputText}
-                        onChange={(e) => setCustomInputText(e.target.value)}
-                        placeholder="e.g. nums = [1, 2, 3], target = 4"
-                        className="w-full h-20 p-2.5 bg-[#080b12] border border-[#1e293b] rounded-lg text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 resize-none"
-                      />
                     </div>
-                  ) : (
-                    <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-2 animate-fade-in">
-                      <div>
-                        <span className="text-text-muted text-[11px] uppercase block font-bold">Input</span>
-                        <code className="text-text-primary bg-surface px-2 py-1 rounded border border-border block mt-1 whitespace-pre-wrap">
-                          {selectedProblem.testCases[selectedTestCaseIndex]?.inputStr}
-                        </code>
-                      </div>
-                      <div>
-                        <span className="text-text-muted text-[11px] uppercase block font-bold">Expected Output</span>
-                        <code className="text-emerald-400 font-semibold bg-surface px-2 py-1 rounded border border-border block mt-1 whitespace-pre-wrap">
-                          {selectedProblem.testCases[selectedTestCaseIndex]?.expectedStr}
-                        </code>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  );
+                })()
               ) : (
                 /* Test Result Tab (LeetCode / GFG Style) */
                 <div className="space-y-4">

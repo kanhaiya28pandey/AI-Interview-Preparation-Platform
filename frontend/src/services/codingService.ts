@@ -3,6 +3,7 @@ import axios from "axios";
 import { CodingProblem, ExecutionResult, TestCaseResult, TestCase } from "@/mocks/codingData";
 import { executeJSInSandbox, checkNestedLoopsAdvisory } from "@/lib/jsExecutionEngine";
 import { contentManagerService } from "./contentManagerService";
+import { parseStructuredProblemText } from "@/lib/problemParser";
 
 // Helper to provide idiomatic C starter templates if missing
 function generateCStarterCode(p: Partial<CodingProblem>): string {
@@ -52,8 +53,25 @@ export const codingService = {
         p.category?.toLowerCase().includes("database") ||
         (p as any).type === "SQL";
 
+      // Parse structured sections: separate description, examples, constraints, testCases
+      const parsed = parseStructuredProblemText(p.description || "");
+
+      const finalDescription = parsed.statement && parsed.examples.length > 0 ? parsed.statement : p.description;
+      const finalExamples = parsed.examples.length > 0 ? parsed.examples : (p.examples && p.examples.length > 0 ? p.examples : [{ input: "Sample input", output: "Sample output" }]);
+      const finalConstraints = parsed.constraints.length > 0 ? parsed.constraints : (p.constraints && p.constraints.length > 0 ? p.constraints : ["1 <= N <= 10^5"]);
+
+      // If problem has testCases that have "Expected Sample" or dummy outputs, replace with real testcases parsed from examples!
+      const hasDummyExpected = p.testCases?.some((tc: any) => tc.expectedStr?.includes("Expected Sample") || tc.expectedStr === "Output 1");
+      const finalTestCases = (parsed.testCases.length > 0 && (!p.testCases || p.testCases.length === 0 || hasDummyExpected))
+        ? parsed.testCases
+        : (p.testCases && p.testCases.length > 0 ? p.testCases : (parsed.testCases.length > 0 ? parsed.testCases : [{ id: 1, inputStr: "1", expectedStr: "1", params: [1], expectedVal: 1 }]));
+
       const safeProblem: CodingProblem = {
         ...p,
+        description: finalDescription,
+        examples: finalExamples,
+        constraints: finalConstraints,
+        testCases: finalTestCases,
         starterCode: isSql
           ? {
               mysql: (p.starterCode as any)?.mysql || "-- Write your MySQL query statement below\nSELECT \nFROM ;\n",
@@ -765,9 +783,34 @@ function simulateCompiledExecution(
     logs.push(`[${language.toUpperCase()}] Verified and executed test suite.`);
   }
 
-  if (hasAlgorithmicLogic) {
-    logs.push(`All ${testCases.length} automated test cases passed.`);
+  // Evaluate individual test case results
+  const actualAnswer = returnedValStr || defaultPlaceholder;
+  const actualAnswerNorm = actualAnswer.trim().toLowerCase();
 
+  const tcResults = testCases.map((tc) => {
+    const expectedNorm = tc.expectedStr.trim().toLowerCase();
+    const isMatch =
+      actualAnswerNorm === expectedNorm ||
+      (actualAnswerNorm === "1" && expectedNorm === "true") ||
+      (actualAnswerNorm === "0" && expectedNorm === "false") ||
+      (hasAlgorithmicLogic && !returnedValStr);
+
+    return {
+      id: tc.id,
+      inputStr: tc.inputStr,
+      expectedStr: tc.expectedStr,
+      actualStr: isMatch && hasAlgorithmicLogic && !returnedValStr ? tc.expectedStr : actualAnswer,
+      passed: isMatch,
+      runtimeMs: baseRuntime,
+      logs: userPrints,
+    };
+  });
+
+  const passedTestsCount = tcResults.filter((r) => r.passed).length;
+  const allPassed = passedTestsCount === testCases.length;
+
+  if (allPassed && hasAlgorithmicLogic) {
+    logs.push(`All ${testCases.length} automated test cases passed.`);
     return {
       status: "ACCEPTED",
       runtimeMs: Math.round(performance.now() - startTime) + baseRuntime,
@@ -775,39 +818,23 @@ function simulateCompiledExecution(
       passedTests: testCases.length,
       totalTests: testCases.length,
       outputLogs: logs,
-      testCaseResults: testCases.map((tc) => ({
-        id: tc.id,
-        inputStr: tc.inputStr,
-        expectedStr: tc.expectedStr,
-        actualStr: tc.expectedStr,
-        passed: true,
-        runtimeMs: baseRuntime,
-        logs: userPrints,
-      })),
+      testCaseResults: tcResults,
       isSimulated: true,
       hasNestedLoopsAdvisory: hasNestedLoops,
     };
   }
 
-  // Incomplete logic
-  logs.push(`Output mismatch: Solution did not return the expected output for test cases.`);
+  // Incomplete logic or output mismatch
+  logs.push(`Output mismatch: Passed ${passedTestsCount} of ${testCases.length} test cases.`);
 
   return {
     status: "WRONG_ANSWER",
     runtimeMs: Math.round(performance.now() - startTime) + baseRuntime,
     memoryMb: baseMemory,
-    passedTests: 0,
+    passedTests: passedTestsCount,
     totalTests: testCases.length,
     outputLogs: logs,
-    testCaseResults: testCases.map((tc) => ({
-      id: tc.id,
-      inputStr: tc.inputStr,
-      expectedStr: tc.expectedStr,
-      actualStr: returnedValStr || defaultPlaceholder,
-      passed: false,
-      runtimeMs: baseRuntime,
-      logs: userPrints,
-    })),
+    testCaseResults: tcResults,
     isSimulated: true,
     hasNestedLoopsAdvisory: hasNestedLoops,
   };
