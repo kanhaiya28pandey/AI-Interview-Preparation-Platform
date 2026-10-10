@@ -2,7 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
-import Editor from "@monaco-editor/react";
+import Editor, { loader } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
+
+// Pre-configure Monaco loader with locally bundled package for instant 0ms offline/deployed startup
+loader.config({ monaco });
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { codingService } from "@/services/codingService";
@@ -160,6 +164,7 @@ export const Coding: React.FC = () => {
   // Bottom Console Tabs: "testcase" | "result"
   const [activeConsoleTab, setActiveConsoleTab] = useState<"testcase" | "result">("testcase");
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number>(0);
+  const [selectedResultCaseIndex, setSelectedResultCaseIndex] = useState<number>(0);
   const [isCustomTestCase, setIsCustomTestCase] = useState(false);
   const [customInputText, setCustomInputText] = useState("");
 
@@ -337,6 +342,9 @@ export const Coding: React.FC = () => {
       const res = await codingService.runCode(selectedProblem.id, language, code, customParam);
       setExecResult(res);
 
+      const firstFailIdx = res.testCaseResults?.findIndex((tc) => !tc.passed);
+      setSelectedResultCaseIndex(firstFailIdx !== -1 && firstFailIdx !== undefined ? firstFailIdx : 0);
+
       if (res.status === "ACCEPTED") {
         toast.success("Test passed cleanly!");
       } else if (res.status === "COMPILE_ERROR") {
@@ -360,6 +368,9 @@ export const Coding: React.FC = () => {
     try {
       const res = await codingService.submitCode(selectedProblem.id, language, code);
       setExecResult(res);
+
+      const firstFailIdx = res.testCaseResults?.findIndex((tc) => !tc.passed);
+      setSelectedResultCaseIndex(firstFailIdx !== -1 && firstFailIdx !== undefined ? firstFailIdx : 0);
 
       const currentPState = localStates[selectedProblem.id] || {
         status: "UNSOLVED",
@@ -1077,8 +1088,8 @@ export const Coding: React.FC = () => {
       {/* Split Main Grid: Left Problem Dossier & Right Code Editor IDE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Problem Dossier */}
-        <Card className="lg:col-span-5 p-0 overflow-hidden bg-surface border-border flex flex-col shadow-lg max-h-[82vh]">
-          <div className="flex border-b border-border bg-surface-raised font-mono text-xs select-none">
+        <Card className="lg:col-span-5 p-0 overflow-hidden bg-surface border-border flex flex-col shadow-lg h-[88vh] max-h-[88vh]">
+          <div className="flex border-b border-border bg-surface-raised font-mono text-xs select-none shrink-0">
             <button
               onClick={() => setActiveDossierTab("description")}
               className={`px-4 py-3 font-semibold transition-colors flex items-center gap-1.5 ${
@@ -1104,7 +1115,7 @@ export const Coding: React.FC = () => {
             </button>
           </div>
 
-          <div className="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar text-xs font-sans">
+          <div className="p-5 overflow-y-auto flex-1 min-h-0 space-y-5 custom-scrollbar text-xs font-sans">
             {activeDossierTab === "description" ? (
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
@@ -1360,9 +1371,9 @@ export const Coding: React.FC = () => {
             </div>
 
             {/* VS Code Monaco Editor */}
-            <div className="bg-[#1e1e1e] overflow-hidden min-h-[440px] relative border-b border-[#2d2d2d]">
+            <div className="bg-[#1e1e1e] relative border-b border-[#2d2d2d] h-[480px]">
               <Editor
-                height="440px"
+                height="100%"
                 theme="vs-dark"
                 language={getMonacoLanguage(language)}
                 value={code}
@@ -1390,6 +1401,15 @@ export const Coding: React.FC = () => {
                   smoothScrolling: true,
                   renderLineHighlight: "all",
                   wordWrap: "on",
+                  scrollbar: {
+                    vertical: "visible",
+                    horizontal: "visible",
+                    verticalScrollbarSize: 10,
+                    horizontalScrollbarSize: 10,
+                    useShadows: false,
+                  },
+                  mouseWheelScrollSensitivity: 1,
+                  fastScrollSensitivity: 5,
                 }}
               />
             </div>
@@ -1446,7 +1466,7 @@ export const Coding: React.FC = () => {
               )}
             </div>
 
-            <div className="p-4 font-mono text-xs min-h-[140px]">
+            <div className="p-4 font-mono text-xs max-h-[460px] overflow-y-auto custom-scrollbar min-h-[140px]">
               {activeConsoleTab === "testcase" ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1511,7 +1531,7 @@ export const Coding: React.FC = () => {
                   )}
                 </div>
               ) : (
-                /* Test Result Tab */
+                /* Test Result Tab (LeetCode / GFG Style) */
                 <div className="space-y-4">
                   {!execResult ? (
                     <div className="py-8 text-center text-text-muted space-y-1">
@@ -1519,75 +1539,193 @@ export const Coding: React.FC = () => {
                       <p>Run your code or submit solution to inspect test outputs</p>
                     </div>
                   ) : (
-                    <div className="space-y-3.5 animate-fade-in">
-                      <div className="flex items-center justify-between pb-2 border-b border-border">
-                        <div className="flex items-center gap-2">
+                    <div className="space-y-4 animate-fade-in">
+                      {/* Status Header */}
+                      <div className="flex items-center justify-between pb-3 border-b border-border flex-wrap gap-2">
+                        <div className="flex items-center gap-2.5">
                           {execResult.status === "ACCEPTED" ? (
-                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                           ) : (
-                            <XCircle className="w-5 h-5 text-rose-400" />
+                            <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
                           )}
-                          <span
-                            className={cn(
-                              "font-bold text-sm uppercase",
-                              execResult.status === "ACCEPTED" ? "text-emerald-400" : "text-rose-400"
-                            )}
-                          >
-                            {execResult.status.replace(/_/g, " ")}
-                          </span>
-                        </div>
-                        <span className="text-xs font-semibold text-text-primary">
-                          {execResult.passedTests} / {execResult.totalTests} Passed
-                        </span>
-                      </div>
-
-                      {execResult.errorMessage && (
-                        <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs space-y-1">
-                          <span className="font-bold block">Execution Diagnostics:</span>
-                          <p>{execResult.errorMessage}</p>
-                        </div>
-                      )}
-
-                      {execResult.testCaseResults && execResult.testCaseResults.length > 0 && (
-                        <div className="space-y-2">
-                          {execResult.testCaseResults.map((tc, idx) => (
-                            <div
-                              key={tc.id || idx}
+                          <div>
+                            <span
                               className={cn(
-                                "p-2.5 rounded-lg border text-xs space-y-1",
-                                tc.passed ? "bg-surface-raised border-emerald-500/30" : "bg-rose-500/10 border-rose-500/40"
+                                "font-bold text-sm uppercase tracking-wide",
+                                execResult.status === "ACCEPTED" ? "text-emerald-400" : "text-rose-400"
                               )}
                             >
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-text-primary">
-                                  Case {idx + 1}: {tc.passed ? "Passed" : "Wrong Output"}
-                                </span>
-                                <span className="text-[10px] text-text-muted">{tc.runtimeMs} ms</span>
-                              </div>
-                              <div className="text-[11px] space-y-0.5">
-                                <div><span className="text-text-muted">Input: </span><code>{tc.inputStr}</code></div>
-                                <div><span className="text-text-muted">Expected: </span><code className="text-emerald-400">{tc.expectedStr}</code></div>
-                                <div>
-                                  <span className="text-text-muted">Actual: </span>
-                                  <code className={tc.passed ? "text-emerald-400" : "text-rose-400 font-bold"}>
-                                    {tc.actualStr}
-                                  </code>
-                                </div>
-                              </div>
+                              {execResult.status.replace(/_/g, " ")}
+                            </span>
+                            <div className="text-[11px] text-text-muted mt-0.5">
+                              {execResult.passedTests} of {execResult.totalTests} testcases passed
                             </div>
-                          ))}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-md bg-surface-raised border border-border text-[11px] text-text-secondary flex items-center gap-1 font-mono">
+                            <Clock className="w-3 h-3 text-cyan-400" /> {execResult.runtimeMs} ms
+                          </span>
+                          <span className="px-2.5 py-1 rounded-md bg-surface-raised border border-border text-[11px] text-text-secondary flex items-center gap-1 font-mono">
+                            <Cpu className="w-3 h-3 text-cyan-400" /> {execResult.memoryMb} MB
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Compilation / Runtime Diagnostics */}
+                      {execResult.errorMessage && (
+                        <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs space-y-1 font-mono">
+                          <span className="font-bold flex items-center gap-1.5">
+                            <XCircle className="w-3.5 h-3.5" />
+                            Diagnostics / Error:
+                          </span>
+                          <pre className="whitespace-pre-wrap text-[11px] font-mono mt-1 text-rose-200">
+                            {execResult.errorMessage}
+                          </pre>
                         </div>
                       )}
 
-                      {/* Console Output Logs (Captures console.log, print, printf, cout, println) */}
+                      {/* Test Case Result Selector Tabs */}
+                      {execResult.testCaseResults && execResult.testCaseResults.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {execResult.testCaseResults.map((tc, idx) => {
+                              const isSelected = selectedResultCaseIndex === idx;
+                              return (
+                                <button
+                                  key={tc.id || idx}
+                                  onClick={() => setSelectedResultCaseIndex(idx)}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all flex items-center gap-1.5 border",
+                                    isSelected
+                                      ? tc.passed
+                                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/60 shadow-sm"
+                                        : "bg-rose-500/20 text-rose-400 border-rose-500/60 shadow-sm"
+                                      : tc.passed
+                                        ? "bg-surface-raised text-emerald-400/80 border-border hover:border-emerald-500/40"
+                                        : "bg-surface-raised text-rose-400/80 border-border hover:border-rose-500/40"
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      "w-1.5 h-1.5 rounded-full",
+                                      tc.passed ? "bg-emerald-400" : "bg-rose-400"
+                                    )}
+                                  />
+                                  <span>Case {idx + 1}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Active Test Case Detail Comparison (LeetCode Style) */}
+                          {(() => {
+                            const activeTc =
+                              execResult.testCaseResults[selectedResultCaseIndex] ||
+                              execResult.testCaseResults[0];
+                            if (!activeTc) return null;
+
+                            return (
+                              <div className="space-y-3 p-3.5 bg-surface-raised border border-border rounded-xl">
+                                {/* Case Status Bar */}
+                                <div className="flex items-center justify-between text-xs font-semibold">
+                                  <span className="flex items-center gap-1.5">
+                                    {activeTc.passed ? (
+                                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                    ) : (
+                                      <XCircle className="w-4 h-4 text-rose-400" />
+                                    )}
+                                    <span className={activeTc.passed ? "text-emerald-400" : "text-rose-400 font-bold"}>
+                                      Case {selectedResultCaseIndex + 1}: {activeTc.passed ? "Passed" : "Wrong Answer"}
+                                    </span>
+                                  </span>
+                                  <span className="text-[11px] text-text-muted font-normal">
+                                    {activeTc.runtimeMs} ms
+                                  </span>
+                                </div>
+
+                                {/* Input */}
+                                <div className="space-y-1">
+                                  <span className="text-text-muted text-[10px] uppercase font-bold tracking-wider block">
+                                    Input
+                                  </span>
+                                  <div className="p-2.5 bg-[#080b12] border border-[#1e293b] rounded-lg font-mono text-xs text-text-primary whitespace-pre-wrap">
+                                    {activeTc.inputStr || "None"}
+                                  </div>
+                                </div>
+
+                                {/* Actual Output vs Expected Output */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {/* Your Output */}
+                                  <div className="space-y-1">
+                                    <span className="text-text-muted text-[10px] uppercase font-bold tracking-wider block flex items-center justify-between">
+                                      <span>Your Output (Actual Answer)</span>
+                                      {activeTc.passed ? (
+                                        <span className="text-emerald-400 lowercase font-normal text-[10px]">match</span>
+                                      ) : (
+                                        <span className="text-rose-400 lowercase font-bold text-[10px]">mismatch</span>
+                                      )}
+                                    </span>
+                                    <div
+                                      className={cn(
+                                        "p-2.5 rounded-lg font-mono text-xs border whitespace-pre-wrap",
+                                        activeTc.passed
+                                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 font-semibold"
+                                          : "bg-rose-500/10 border-rose-500/40 text-rose-300 font-bold"
+                                      )}
+                                    >
+                                      {activeTc.actualStr ?? "undefined"}
+                                    </div>
+                                  </div>
+
+                                  {/* Expected Output */}
+                                  <div className="space-y-1">
+                                    <span className="text-text-muted text-[10px] uppercase font-bold tracking-wider block">
+                                      Expected Output
+                                    </span>
+                                    <div className="p-2.5 bg-[#080b12] border border-emerald-500/30 rounded-lg font-mono text-xs text-emerald-400 font-semibold whitespace-pre-wrap">
+                                      {activeTc.expectedStr || "None"}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Stdout for this case if any */}
+                                {activeTc.logs && activeTc.logs.length > 0 && (
+                                  <div className="space-y-1 pt-1">
+                                    <span className="text-text-muted text-[10px] uppercase font-bold tracking-wider block">
+                                      Stdout / Prints for this case
+                                    </span>
+                                    <div className="p-2.5 bg-[#080b12] border border-[#1e293b] rounded-lg font-mono text-[11px] text-[#a5b4fc] space-y-0.5 whitespace-pre-wrap">
+                                      {activeTc.logs.map((log, lIdx) => (
+                                        <div key={lIdx}>{log}</div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Global Console Logs & Extra Calculations block (Captures console.log, print, printf, cout, println) */}
                       {execResult.outputLogs && execResult.outputLogs.length > 0 && (
-                        <div className="space-y-1 pt-2 border-t border-border">
-                          <span className="text-text-muted text-[10px] uppercase font-semibold block">
-                            Console Logs & Calculation Output:
-                          </span>
-                          <div className="bg-[#080b12] border border-[#1e293b] p-2.5 rounded-lg font-mono text-[11px] text-text-secondary max-h-28 overflow-y-auto space-y-0.5">
+                        <div className="space-y-1.5 pt-3 border-t border-border">
+                          <div className="flex items-center justify-between">
+                            <span className="text-text-muted text-[11px] uppercase font-mono font-bold flex items-center gap-1.5">
+                              <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>Console Logs & Calculation Output (stdout)</span>
+                            </span>
+                            <span className="text-[10px] text-text-muted font-mono">
+                              {execResult.outputLogs.length} line(s)
+                            </span>
+                          </div>
+                          <div className="bg-[#080b12] border border-[#1e293b] p-3 rounded-xl font-mono text-xs text-[#a5b4fc] max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
                             {execResult.outputLogs.map((log, lIdx) => (
-                              <p key={lIdx}>{log}</p>
+                              <div key={lIdx} className="leading-relaxed whitespace-pre-wrap">
+                                {log}
+                              </div>
                             ))}
                           </div>
                         </div>

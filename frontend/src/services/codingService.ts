@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import axios from "axios";
 import { CodingProblem, ExecutionResult, TestCaseResult, TestCase } from "@/mocks/codingData";
 import { executeJSInSandbox, checkNestedLoopsAdvisory } from "@/lib/jsExecutionEngine";
 import { contentManagerService } from "./contentManagerService";
@@ -18,7 +19,7 @@ function generateCStarterCode(p: Partial<CodingProblem>): string {
  */
 int ${fn}(int input) {
     // Write your solution below
-    return input;
+    return 0;
 }`;
 }
 
@@ -301,6 +302,53 @@ export const codingService = {
       };
     }
 
+    if (language === "python") {
+      const trimmed = code.trim();
+      const defaultStarter = ((problem.starterCode as any)?.python || "").trim();
+      if (!trimmed || trimmed === defaultStarter) {
+        return {
+          status: "WRONG_ANSWER",
+          runtimeMs: 4,
+          memoryMb: 18,
+          passedTests: 0,
+          totalTests: testCasesToRun.length,
+          outputLogs: ["No solution logic implemented. Starter template returned without solution."],
+          testCaseResults: testCasesToRun.map((tc) => ({
+            id: tc.id,
+            inputStr: tc.inputStr,
+            expectedStr: tc.expectedStr,
+            actualStr: "None",
+            passed: false,
+            runtimeMs: 1,
+            logs: [],
+          })),
+          isSimulated: true,
+        };
+      }
+
+      try {
+        const aiRes = await axios.post("http://localhost:8000/api/ai/coding/execute", {
+          code,
+          fnName: problem.fnName || "solve",
+          testCases: testCasesToRun.map((tc) => ({
+            id: tc.id,
+            inputStr: tc.inputStr,
+            expectedStr: tc.expectedStr,
+            params: tc.params || [tc.inputStr],
+            expectedVal: tc.expectedVal !== undefined ? tc.expectedVal : tc.expectedStr,
+          })),
+        });
+        if (aiRes.data) {
+          return {
+            ...aiRes.data,
+            isSimulated: false,
+          };
+        }
+      } catch (e) {
+        console.warn("AI service Python execution unavailable, using fallback engine", e);
+      }
+    }
+
     return simulateCompiledExecution(language, code, problem, testCasesToRun, false);
   },
 
@@ -361,6 +409,53 @@ export const codingService = {
 
       result = await executeJSInSandbox(code, problem.fnName, problem.testCases);
       result.isSimulated = true;
+    } else if (language === "python") {
+      const trimmed = code.trim();
+      const defaultStarter = ((problem.starterCode as any)?.python || "").trim();
+      if (!trimmed || trimmed === defaultStarter) {
+        return {
+          status: "WRONG_ANSWER",
+          runtimeMs: 4,
+          memoryMb: 18,
+          passedTests: 0,
+          totalTests: problem.testCases.length,
+          outputLogs: ["No solution logic implemented. Starter template returned without solution."],
+          testCaseResults: problem.testCases.map((tc) => ({
+            id: tc.id,
+            inputStr: tc.inputStr,
+            expectedStr: tc.expectedStr,
+            actualStr: "None",
+            passed: false,
+            runtimeMs: 1,
+            logs: [],
+          })),
+          isSimulated: true,
+        };
+      }
+
+      try {
+        const aiRes = await axios.post("http://localhost:8000/api/ai/coding/execute", {
+          code,
+          fnName: problem.fnName || "solve",
+          testCases: problem.testCases.map((tc) => ({
+            id: tc.id,
+            inputStr: tc.inputStr,
+            expectedStr: tc.expectedStr,
+            params: tc.params || [tc.inputStr],
+            expectedVal: tc.expectedVal !== undefined ? tc.expectedVal : tc.expectedStr,
+          })),
+        });
+        if (aiRes.data) {
+          result = {
+            ...aiRes.data,
+            isSimulated: false,
+          };
+        } else {
+          result = simulateCompiledExecution(language, code, problem, problem.testCases, true);
+        }
+      } catch (e) {
+        result = simulateCompiledExecution(language, code, problem, problem.testCases, true);
+      }
     } else {
       result = simulateCompiledExecution(language, code, problem, problem.testCases, true);
     }
@@ -379,6 +474,21 @@ export const codingService = {
 };
 
 /**
+ * Safely evaluates simple arithmetic expressions without direct eval.
+ */
+function safeEvaluateArithmetic(expr: string): string {
+  try {
+    // Only permit numbers, whitespace, and basic math operators
+    if (/^[\d\s+\-*/%.()]+$/.test(expr)) {
+      const fn = new Function(`"use strict"; return (${expr});`);
+      const val = fn();
+      return val !== undefined && val !== null ? String(val) : expr;
+    }
+  } catch {}
+  return expr;
+}
+
+/**
  * Parses user print statements (e.g. print(...) in Python, printf in C, cout in C++, System.out.println in Java)
  * and captures custom calculations and output.
  */
@@ -390,16 +500,10 @@ function extractUserPrintedOutputs(code: string, language: string): string[] {
     for (const match of printMatches) {
       const expr = match[1]?.trim();
       if (expr) {
-        try {
-          // If simple arithmetic expression or quoted string, evaluate safely
-          if (/^[\d\s+\-*/%.()]+$/.test(expr)) {
-            // eslint-disable-next-line no-eval
-            logs.push(String(eval(expr)));
-          } else {
-            logs.push(expr.replace(/^["']|["']$/g, ""));
-          }
-        } catch {
-          logs.push(expr);
+        if (/^[\d\s+\-*/%.()]+$/.test(expr)) {
+          logs.push(safeEvaluateArithmetic(expr));
+        } else {
+          logs.push(expr.replace(/^["']|["']$/g, ""));
         }
       }
     }
@@ -409,12 +513,9 @@ function extractUserPrintedOutputs(code: string, language: string): string[] {
       const fmt = match[1];
       const arg = match[2]?.trim();
       if (arg && /^[\d\s+\-*/%.()]+$/.test(arg)) {
-        try {
-          // eslint-disable-next-line no-eval
-          logs.push(String(eval(arg)));
-        } catch {
-          logs.push(arg);
-        }
+        logs.push(safeEvaluateArithmetic(arg));
+      } else if (arg) {
+        logs.push(arg.replace(/^["']|["']$/g, ""));
       } else {
         logs.push(fmt.replace(/\\n/g, ""));
       }
@@ -426,12 +527,7 @@ function extractUserPrintedOutputs(code: string, language: string): string[] {
       const out = parts
         .map((p) => {
           if (/^[\d\s+\-*/%.()]+$/.test(p)) {
-            try {
-              // eslint-disable-next-line no-eval
-              return String(eval(p));
-            } catch {
-              return p;
-            }
+            return safeEvaluateArithmetic(p);
           }
           return p.replace(/^["']|["']$/g, "");
         })
@@ -443,7 +539,11 @@ function extractUserPrintedOutputs(code: string, language: string): string[] {
     for (const match of javaPrints) {
       const expr = match[1]?.trim();
       if (expr) {
-        logs.push(expr.replace(/^["']|["']$/g, ""));
+        if (/^[\d\s+\-*/%.()]+$/.test(expr)) {
+          logs.push(safeEvaluateArithmetic(expr));
+        } else {
+          logs.push(expr.replace(/^["']|["']$/g, ""));
+        }
       }
     }
   }
@@ -457,6 +557,7 @@ function extractUserPrintedOutputs(code: string, language: string): string[] {
  * - Empty code or unedited starter code FAILS immediately with WRONG_ANSWER.
  * - Checks syntax & bracket matching (returns COMPILE_ERROR on syntax bugs).
  * - Extracts and displays student's print statements/calculations in output logs.
+ * - Extracts user returned value (e.g. return 42, return 5+10) for actualStr.
  * - Test cases ONLY pass if actual logic is implemented.
  */
 function simulateCompiledExecution(
@@ -487,6 +588,7 @@ function simulateCompiledExecution(
         actualStr: "Compilation error: empty code",
         passed: false,
         runtimeMs: 0,
+        logs: [],
       })),
       isSimulated: true,
     };
@@ -578,6 +680,22 @@ function simulateCompiledExecution(
   // 4. Capture any student prints or calculations
   const userPrints = extractUserPrintedOutputs(code, language);
 
+  // Extract custom return value if specified (e.g. return 42; return "abc"; return 5 + 10;)
+  let returnedValStr: string | null = null;
+  const returnMatch = code.match(/return\s+([^;}\n]+);?/);
+  if (returnMatch) {
+    const rawVal = returnMatch[1].trim();
+    if (/^[\d\s+\-*/%.()]+$/.test(rawVal)) {
+      returnedValStr = safeEvaluateArithmetic(rawVal);
+    } else if (/^(true|false|null|NULL|nil|None)$/i.test(rawVal)) {
+      returnedValStr = rawVal.toLowerCase();
+    } else if (/^["'].*["']$/.test(rawVal)) {
+      returnedValStr = rawVal.replace(/^["']|["']$/g, "");
+    } else if (/^\[.*\]$/.test(rawVal) || /^\{.*\}$/.test(rawVal)) {
+      returnedValStr = rawVal;
+    }
+  }
+
   // 5. Check if the code is unmodified starter template or an empty stub
   const starterCodeForLang = ((problem.starterCode as any)?.[language] || "").trim();
   const isDefaultStarter = trimmed === starterCodeForLang;
@@ -606,6 +724,8 @@ function simulateCompiledExecution(
     baseMemory = 18.5;
   }
 
+  const defaultPlaceholder = language === "c" || language === "cpp" ? "0" : (language === "java" ? "null" : "None");
+
   // CRITICAL RULE: If code is untouched or stub, it MUST FAIL!
   if (isDefaultStarter || isTrivialStub) {
     const logs = [...userPrints];
@@ -623,10 +743,10 @@ function simulateCompiledExecution(
         id: tc.id,
         inputStr: tc.inputStr,
         expectedStr: tc.expectedStr,
-        actualStr: language === "c" || language === "cpp" ? "0" : "null",
+        actualStr: returnedValStr || defaultPlaceholder,
         passed: false,
         runtimeMs: baseRuntime,
-        logs: [],
+        logs: userPrints,
       })),
       isSimulated: true,
       hasNestedLoopsAdvisory: false,
@@ -662,6 +782,7 @@ function simulateCompiledExecution(
         actualStr: tc.expectedStr,
         passed: true,
         runtimeMs: baseRuntime,
+        logs: userPrints,
       })),
       isSimulated: true,
       hasNestedLoopsAdvisory: hasNestedLoops,
@@ -682,9 +803,10 @@ function simulateCompiledExecution(
       id: tc.id,
       inputStr: tc.inputStr,
       expectedStr: tc.expectedStr,
-      actualStr: "Incorrect result",
+      actualStr: returnedValStr || defaultPlaceholder,
       passed: false,
       runtimeMs: baseRuntime,
+      logs: userPrints,
     })),
     isSimulated: true,
     hasNestedLoopsAdvisory: hasNestedLoops,
