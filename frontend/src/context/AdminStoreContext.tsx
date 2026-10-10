@@ -288,6 +288,29 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   useEffect(() => {
+    const handleSync = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setStudents(parsed);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to sync master students:", e);
+      }
+    };
+
+    window.addEventListener("master-students-updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("master-students-updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
     const fetchRealPlatformData = async () => {
       try {

@@ -307,3 +307,196 @@ def generate_interview_questions(
         for i in range(count)
     ]
 
+def generate_mcq_quiz_questions(
+    domain: str,
+    topics: List[str],
+    difficulty: str = "Medium",
+    count: int = 5
+) -> List[Dict[str, Any]]:
+    """Generates domain-strict MCQ quiz questions with randomized correct option placement."""
+    domain_lower = domain.lower()
+    topics_str = ", ".join(topics) if topics else "Core Fundamentals"
+
+    domain_rules = ""
+    if "aptitude" in domain_lower:
+        domain_rules = (
+            "CRITICAL: This domain is PLACEMENT APTITUDE. All questions MUST strictly be Quantitative Aptitude "
+            "(Time & Work, Percentages, Profit & Loss, Ratios, Speed-Distance, Probability, Permutations), "
+            "Logical Reasoning (Syllogisms, Blood Relations, Number Series, Coding-Decoding, Seating Arrangements), "
+            "or Verbal Ability (Sentence Completion, Analogies, Reading Comprehension). "
+            "ABSOLUTELY DO NOT generate any coding, Java, Python, C++, SQL, or programming questions!"
+        )
+    elif "dsa" in domain_lower or "algorithm" in domain_lower:
+        domain_rules = "Focus strictly on Data Structures and Algorithms (complexity, arrays, trees, graphs, sorting, dynamic programming)."
+    elif "frontend" in domain_lower:
+        domain_rules = "Focus strictly on Frontend Web Development (React, TypeScript/JavaScript, CSS, DOM, Core Web Vitals, State Management)."
+    elif "backend" in domain_lower:
+        domain_rules = "Focus strictly on Backend Architecture (REST/gRPC, Databases, Transactions, Caching, Concurrency, Microservices)."
+    elif "ai" in domain_lower or "llm" in domain_lower:
+        domain_rules = "Focus strictly on Generative AI and LLMs (Transformers, RAG, Embeddings, Prompt Engineering, Model Fine-Tuning)."
+    elif "data" in domain_lower or "analyst" in domain_lower:
+        domain_rules = "Focus strictly on Data Analysis (SQL aggregates, window functions, statistical distributions, Pandas, EDA, business metrics)."
+    elif "devops" in domain_lower or "cloud" in domain_lower:
+        domain_rules = "Focus strictly on DevOps and Cloud (Docker, Kubernetes, CI/CD pipelines, Linux, Terraform, AWS/GCP services)."
+
+    if client:
+        try:
+            prompt = f"""
+            You are an expert assessment examiner creating a professional MCQ quiz.
+            Target Domain: {domain}
+            Selected Topics: {topics_str}
+            Difficulty Level: {difficulty}
+            Number of Questions: {count}
+
+            {domain_rules}
+
+            REQUIREMENTS FOR QUESTIONS:
+            1. Generate exactly {count} multiple-choice questions.
+            2. Each question must have exactly 4 options.
+            3. The correct answer must NOT always be option A (index 0). Distribute the correctIndex evenly among indices 0, 1, 2, and 3 across the questions.
+            4. Provide a clear, educational explanation for why the correct option is right and others are wrong.
+            5. If relevant (for coding/frontend/backend/dsa), provide an optional concise codeSnippet. For Aptitude, DO NOT provide code snippets.
+
+            Return a strict JSON array of objects conforming to this schema:
+            [
+              {{
+                "id": "q-1",
+                "question": "Question text...",
+                "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+                "correctIndex": integer (0, 1, 2, or 3),
+                "explanation": "Detailed explanation of the solution...",
+                "difficulty": "{difficulty}",
+                "topic": "Specific Topic",
+                "codeSnippet": null or "optional snippet"
+              }}
+            ]
+            Only output raw JSON. Do not include markdown codeblocks or backticks.
+            """
+            response = client.models.generate_content(
+                model=AI_MODEL,
+                contents=prompt
+            )
+            raw = response.text.strip()
+            if raw.startswith("```json"): raw = raw[7:]
+            if raw.endswith("```"): raw = raw[:-3]
+            data = json.loads(raw.strip())
+            if isinstance(data, list) and len(data) > 0:
+                return data
+        except Exception as e:
+            logger.warning("Gemini MCQ generation failed (%s), using domain fallback questions", e)
+
+    import random
+    # High-yield fallback generator if AI call is unavailable
+    if "aptitude" in domain_lower:
+        aptitude_pool = [
+            {
+                "question": "A train 240 m long passes a pole in 24 seconds. How long will it take to pass a platform 650 m long?",
+                "options": ["65 seconds", "89 seconds", "100 seconds", "150 seconds"],
+                "correctIndex": 1,
+                "explanation": "Speed of train = 240/24 = 10 m/s. Total distance to pass platform = 240 + 650 = 890 m. Time = 890 / 10 = 89 seconds.",
+                "difficulty": "Easy",
+                "topic": "Time & Distance",
+            },
+            {
+                "question": "A shopkeeper marks an article at 40% above the cost price and allows a discount of 25% on the marked price. What is his net profit or loss percentage?",
+                "options": ["5% profit", "10% profit", "5% loss", "15% profit"],
+                "correctIndex": 0,
+                "explanation": "Let CP = 100. MP = 140. Discount = 25% of 140 = 35. SP = 140 - 35 = 105. Profit = 105 - 100 = 5%.",
+                "difficulty": "Medium",
+                "topic": "Profit & Loss",
+            },
+            {
+                "question": "If 6 men and 8 boys can do a piece of work in 10 days while 26 men and 48 boys can do the same in 2 days, the time taken by 15 men and 20 boys to complete the work will be:",
+                "options": ["6 days", "5 days", "4 days", "7 days"],
+                "correctIndex": 2,
+                "explanation": "10(6m + 8b) = 2(26m + 48b) => 60m + 80b = 52m + 96b => 8m = 16b => 1m = 2b. Total work = (6*2 + 8)*10 = 200 units of boy-days. 15m + 20b = 50 boys. Time = 200/50 = 4 days.",
+                "difficulty": "Medium",
+                "topic": "Time & Work",
+            },
+            {
+                "question": "Find the missing number in the series: 4, 18, 48, 100, 180, ?",
+                "options": ["248", "294", "312", "340"],
+                "correctIndex": 1,
+                "explanation": "Pattern: n^3 - n^2 => 2^3 - 2^2 = 4, 3^3 - 3^2 = 18, 4^3 - 4^2 = 48, 5^3 - 5^2 = 100, 6^3 - 6^2 = 180, 7^3 - 7^2 = 343 - 49 = 294.",
+                "difficulty": "Hard",
+                "topic": "Number Series",
+            },
+            {
+                "question": "Statements: (1) All fruits are sweet. (2) No sweet is vegetable. Conclusions: (I) No fruit is vegetable. (II) Some sweets are fruits.",
+                "options": ["Only conclusion I follows", "Only conclusion II follows", "Neither I nor II follows", "Both conclusion I and II follow"],
+                "correctIndex": 3,
+                "explanation": "Since all fruits are sweet and no sweet is a vegetable, fruits and vegetables are disjoint, so (I) holds. Fruits are a subset of sweet, so (II) also holds.",
+                "difficulty": "Medium",
+                "topic": "Syllogisms",
+            },
+            {
+                "question": "A bag contains 5 red balls, 4 blue balls, and 3 green balls. If two balls are drawn at random without replacement, what is the probability that both are blue?",
+                "options": ["1/11", "2/11", "4/33", "1/6"],
+                "correctIndex": 0,
+                "explanation": "Total balls = 12. P(First blue) = 4/12 = 1/3. P(Second blue) = 3/11. Total probability = (4/12) * (3/11) = 12/132 = 1/11.",
+                "difficulty": "Medium",
+                "topic": "Probability",
+            },
+        ]
+        pool = aptitude_pool
+    else:
+        pool = [
+            {
+                "question": f"In {domain}, what is the fundamental purpose of decoupling state transitions from UI re-rendering?",
+                "options": ["Prevents redundant reconciliation and guarantees deterministic updates", "Increases garbage collection pressure", "Forces all network requests to run synchronously", "Eliminates need for indexing"],
+                "correctIndex": 0,
+                "explanation": "Decoupling state management optimizes rendering pipelines and preserves predictable state invariants.",
+                "difficulty": "Medium",
+                "topic": topics_str,
+            },
+            {
+                "question": f"When configuring latency-sensitive workloads in {domain}, which architectural strategy minimizes round-trip overhead?",
+                "options": ["Cascading un-cached database calls", "Distributed write-through caching with connection pooling", "Polling HTTP endpoints every 50ms", "Disabling gzip compression"],
+                "correctIndex": 1,
+                "explanation": "Connection pooling combined with write-through cache clusters circumvents cold connection setup and keeps latency minimal.",
+                "difficulty": "Medium",
+                "topic": topics_str,
+            },
+            {
+                "question": f"Which trade-off is unavoidable when achieving strict consistency under the CAP theorem in {domain} systems?",
+                "options": ["Zero hardware cost", "Infinite network throughput", "Loss of availability during network partitions", "Elimination of disk storage"],
+                "correctIndex": 2,
+                "explanation": "Under network partition (P), a distributed system must sacrifice either Availability (A) or Consistency (C).",
+                "difficulty": "Hard",
+                "topic": topics_str,
+            },
+            {
+                "question": f"What is the time complexity of searching an element in a balanced search tree in {domain}?",
+                "options": ["O(N^2)", "O(N)", "O(1)", "O(log N)"],
+                "correctIndex": 3,
+                "explanation": "A balanced search tree halving the search space at each depth level ensures logarithmic O(log N) operations.",
+                "difficulty": "Easy",
+                "topic": topics_str,
+            },
+        ]
+
+    # Select and randomize correct positions
+    selected = pool[:count] if len(pool) >= count else pool
+    while len(selected) < count:
+        selected.append(pool[len(selected) % len(pool)])
+
+    results = []
+    for idx, q in enumerate(selected):
+        opts = list(q["options"])
+        correct_text = opts[q["correctIndex"]]
+        random.shuffle(opts)
+        new_correct_idx = opts.index(correct_text)
+        results.append({
+            "id": f"q-ai-{idx+1}",
+            "question": q["question"],
+            "options": opts,
+            "correctIndex": new_correct_idx,
+            "explanation": q["explanation"],
+            "difficulty": q.get("difficulty", difficulty),
+            "topic": q.get("topic", topics_str),
+            "codeSnippet": q.get("codeSnippet"),
+        })
+
+    return results
+
+

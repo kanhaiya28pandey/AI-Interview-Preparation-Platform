@@ -184,6 +184,7 @@ export const progressService = {
     if (isFirstSolve) {
       this.awardXP(userId, submission.xpEarned || 50);
       this.incrementStat(userId, "codingProblemsSolved");
+      this.syncMasterStudentRecord(userId, { problemsDelta: 1, activityDelta: 2 });
     }
 
     return newEntry;
@@ -225,6 +226,11 @@ export const progressService = {
 
     this.awardXP(userId, attempt.xpEarned || 50);
     this.incrementStat(userId, "quizzesCompleted");
+    this.syncMasterStudentRecord(userId, {
+      problemsDelta: attempt.score > 0 ? Math.max(1, Math.round(attempt.totalQuestions * (attempt.score / 100))) : 0,
+      newQuizScore: attempt.score,
+      activityDelta: 3,
+    });
 
     return newEntry;
   },
@@ -271,6 +277,12 @@ export const progressService = {
     const totalScore = updatedList.reduce((acc, s) => acc + s.overallScore, 0);
     const avgScore = Math.round(totalScore / updatedList.length);
     this.updateStatValue(userId, "overallRating", avgScore);
+
+    this.syncMasterStudentRecord(userId, {
+      interviewsDelta: 1,
+      newInterviewScore: session.overallScore,
+      activityDelta: 5,
+    });
 
     return newEntry;
   },
@@ -377,6 +389,74 @@ export const progressService = {
       }
     } catch (e) {
       console.warn("Failed to update user profile stat:", e);
+    }
+  },
+
+  syncMasterStudentRecord(
+    userId: string | null | undefined,
+    update: {
+      problemsDelta?: number;
+      interviewsDelta?: number;
+      newInterviewScore?: number;
+      newQuizScore?: number;
+      activityDelta?: number;
+    }
+  ): void {
+    try {
+      const STORAGE_KEY = "ai_interview_prep_master_students_v2";
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list) || list.length === 0) return;
+
+      // Find matching student by userId or email or fallback to first student for demo
+      let targetIdx = list.findIndex(
+        (s: any) =>
+          (userId && (s.userId === userId || s.id === userId)) ||
+          (userId && (userId.includes("student-01") || userId.includes("demo")) && s.id === "usr-student-01")
+      );
+      if (targetIdx === -1) {
+        const authRaw = localStorage.getItem("ai_interview_prep_user");
+        if (authRaw) {
+          try {
+            const authUser = JSON.parse(authRaw);
+            targetIdx = list.findIndex((s: any) => s.email === authUser.email || s.userId === authUser.userId);
+          } catch {}
+        }
+      }
+      if (targetIdx === -1) {
+        targetIdx = list.findIndex((s: any) => s.role === "STUDENT");
+      }
+      if (targetIdx === -1) return;
+
+      const student = { ...list[targetIdx] };
+
+      if (update.problemsDelta) {
+        student.problemsSolved = (student.problemsSolved || 0) + update.problemsDelta;
+      }
+      if (update.interviewsDelta) {
+        student.interviewsCompleted = (student.interviewsCompleted || 0) + update.interviewsDelta;
+      }
+      if (update.newInterviewScore !== undefined) {
+        const prevAvg = student.avgInterviewScore || 80;
+        const count = student.interviewsCompleted || 1;
+        const total = prevAvg * Math.max(1, count - 1) + update.newInterviewScore;
+        student.avgInterviewScore = Math.round(total / Math.max(1, count));
+      }
+      if (update.newQuizScore !== undefined) {
+        student.avgQuizScore = Math.round(((student.avgQuizScore || 75) + update.newQuizScore) / 2);
+      }
+      if (update.activityDelta) {
+        student.activityScore = Math.min(100, (student.activityScore || 70) + update.activityDelta);
+      }
+      student.lastActive = "Just now";
+
+      list[targetIdx] = student;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      window.dispatchEvent(new Event("master-students-updated"));
+      window.dispatchEvent(new Event("student-progress-updated"));
+    } catch (e) {
+      console.warn("Failed to sync master student record:", e);
     }
   },
 };
