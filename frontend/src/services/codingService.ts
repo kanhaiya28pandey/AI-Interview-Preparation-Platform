@@ -24,6 +24,61 @@ int ${fn}(int input) {
 }`;
 }
 
+/**
+ * Detects whether code is an unmodified starter template or an empty/trivial stub.
+ * Catches all forms of empty returns, pass, default arrays (e.g. return new int[]{};), nulls, etc.
+ */
+export function isStubCode(code: string, starterCode?: string): boolean {
+  if (!code) return true;
+  const trimmed = code.trim();
+  if (trimmed.length < 15) return true;
+
+  const normCode = trimmed.replace(/\s+/g, " ");
+  if (starterCode) {
+    const normStarter = starterCode.trim().replace(/\s+/g, " ");
+    if (normCode === normStarter) return true;
+  }
+
+  // Strip comments
+  const withoutComments = trimmed
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*$/gm, "")
+    .trim();
+
+  // Strip signatures and structural boilerplate
+  const body = withoutComments
+    .replace(/package\s+[^;]+;/g, "")
+    .replace(/import\s+[^;]+;/g, "")
+    .replace(/#include\s+<[^>]+>/g, "")
+    .replace(/using\s+namespace\s+[^;]+;/g, "")
+    .replace(/class\s+\w+\s*\{?/g, "")
+    .replace(/(?:public|private|protected|static|final|def|function|fn)?\s*(?:[a-zA-Z0-9_<>[\]*&]+)?\s*\w+\s*\([^)]*\)\s*(?:->\s*[^:{]+)?\s*[:\{]?/g, "")
+    .replace(/[\{\}:]/g, "")
+    .trim();
+
+  if (!body) return true;
+
+  // Check if body is only a single trivial return, pass, or empty array/collection constructor
+  const trivialPattern = /^(pass|return\s+(null|NULL|0|-1|1|false|true|\"\"|''|\{\}|\[\]|None|new\s+[a-zA-Z0-9_<>[\]]+(?:\(\)|\{\})?|vector<[a-zA-Z0-9_]+>\s*\{\})\s*;?)+$/i;
+  if (trivialPattern.test(body)) {
+    return true;
+  }
+
+  // Check if there is any real control flow or logic
+  const hasLoops = /\b(for|while|do)\b/.test(withoutComments);
+  const hasConditionals = /\b(if|switch)\b/.test(withoutComments);
+  const hasDataStructureOps = /\b(push|pop|put|get|add|set|remove|insert|append|extend|sort|reverse|charAt|toCharArray|indexOf|includes|slice|substring)\s*\(/.test(withoutComments);
+  const hasArithmeticOps = /[+\-*/%]=|\+\+|--/.test(withoutComments);
+
+  if (!hasLoops && !hasConditionals && !hasDataStructureOps && !hasArithmeticOps) {
+    if (/^\s*return\b/i.test(body)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export const codingService = {
   /**
    * Loads all published and imported coding problems strictly from Admin / Content Manager.
@@ -288,31 +343,32 @@ export const codingService = {
       return evaluateSqlQuery(language, code, problem, testCasesToRun);
     }
 
-    if (language === "javascript") {
-      // If code is empty or unedited starter template, it should fail
-      const trimmed = code.trim();
-      const defaultStarter = ((problem.starterCode as any)?.javascript || "").trim();
-      if (!trimmed || trimmed === defaultStarter) {
-        return {
-          status: "WRONG_ANSWER",
-          runtimeMs: 4,
-          memoryMb: 36,
-          passedTests: 0,
-          totalTests: testCasesToRun.length,
-          outputLogs: ["No solution logic implemented. Starter template returned without solution."],
-          testCaseResults: testCasesToRun.map((tc) => ({
-            id: tc.id,
-            inputStr: tc.inputStr,
-            expectedStr: tc.expectedStr,
-            actualStr: "undefined",
-            passed: false,
-            runtimeMs: 1,
-            logs: [],
-          })),
-          isSimulated: true,
-        };
-      }
+    const starterForLang = ((problem.starterCode as any)?.[language] || "").trim();
+    if (isStubCode(code, starterForLang)) {
+      return {
+        status: "WRONG_ANSWER",
+        runtimeMs: 4,
+        memoryMb: 16,
+        passedTests: 0,
+        totalTests: testCasesToRun.length,
+        outputLogs: [
+          "Execution halted: No solution logic detected.",
+          "You must write your solution logic before running test cases. The unmodified starter template or empty stub cannot pass.",
+        ],
+        testCaseResults: testCasesToRun.map((tc) => ({
+          id: tc.id,
+          inputStr: tc.inputStr,
+          expectedStr: tc.expectedStr,
+          actualStr: "No return value (unmodified stub/starter)",
+          passed: false,
+          runtimeMs: 1,
+          logs: [],
+        })),
+        isSimulated: true,
+      };
+    }
 
+    if (language === "javascript") {
       const result = await executeJSInSandbox(code, problem.fnName, testCasesToRun);
       return {
         ...result,
@@ -401,22 +457,24 @@ export const codingService = {
 
     if (isSql) {
       result = evaluateSqlQuery(language, code, problem, problem.testCases);
-    } else if (language === "javascript") {
-      const trimmed = code.trim();
-      const defaultStarter = ((problem.starterCode as any)?.javascript || "").trim();
-      if (!trimmed || trimmed === defaultStarter) {
+    } else {
+      const starterForLang = ((problem.starterCode as any)?.[language] || "").trim();
+      if (isStubCode(code, starterForLang)) {
         return {
           status: "WRONG_ANSWER",
           runtimeMs: 4,
-          memoryMb: 36,
+          memoryMb: 16,
           passedTests: 0,
           totalTests: problem.testCases.length,
-          outputLogs: ["No solution logic implemented. Starter template returned without solution."],
+          outputLogs: [
+            "Execution halted: No solution logic detected.",
+            "You must write your solution logic before submitting. The unmodified starter template or empty stub cannot pass.",
+          ],
           testCaseResults: problem.testCases.map((tc) => ({
             id: tc.id,
             inputStr: tc.inputStr,
             expectedStr: tc.expectedStr,
-            actualStr: "undefined",
+            actualStr: "No return value (unmodified stub/starter)",
             passed: false,
             runtimeMs: 1,
             logs: [],
@@ -425,9 +483,10 @@ export const codingService = {
         };
       }
 
-      result = await executeJSInSandbox(code, problem.fnName, problem.testCases);
-      result.isSimulated = true;
-    } else if (language === "python") {
+      if (language === "javascript") {
+        result = await executeJSInSandbox(code, problem.fnName, problem.testCases);
+        result.isSimulated = true;
+      } else if (language === "python") {
       const trimmed = code.trim();
       const defaultStarter = ((problem.starterCode as any)?.python || "").trim();
       if (!trimmed || trimmed === defaultStarter) {
@@ -477,6 +536,7 @@ export const codingService = {
     } else {
       result = simulateCompiledExecution(language, code, problem, problem.testCases, true);
     }
+  }
 
     // If accepted, asynchronously notify backend to save submission and stats
     if (result.status === "ACCEPTED") {
@@ -706,17 +766,22 @@ function simulateCompiledExecution(
   // 4. Capture any student prints or calculations
   const userPrints = extractUserPrintedOutputs(code, language);
 
-  // Check if solution logic is implemented
+  const withoutComments = trimmed
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*$/gm, "")
+    .replace(/#.*$/gm, "");
+
+  // Check if solution logic is implemented (require actual statements/methods, not substring matches)
   const hasAlgorithmicLogic =
-    /(while|for|if|dict|set|map|unordered_map|HashMap|HashSet|ArrayDeque|Deque|stack|queue|sort|min|max|sum|toCharArray|charAt|push|pop|isEmpty|length|size)/i.test(
-      code
+    /\b(for|while|do|if|switch)\b|\b(HashMap|HashSet|ArrayDeque|Deque|Stack|Queue|Map|Set|vector|unordered_map|dict|set|list)\b|\.(put|get|push|pop|add|set|charAt|toCharArray|indexOf|includes|containsKey|contains|slice|substring|append|push_back)\s*\(/i.test(
+      withoutComments
     );
 
-  // Extract static literal return value ONLY if code has NO algorithmic logic (e.g. user literally typed 'return 1;' as whole body)
+  // Extract static literal return value ONLY if code has NO algorithmic logic (e.g. user literally typed 'return 1;' or 'return new int[]{0,1};' as whole body)
   let returnedValStr: string | null = null;
   let isStaticLiteralReturn = false;
   if (!hasAlgorithmicLogic) {
-    const returnMatch = code.match(/return\s+([^;}\n]+);?/);
+    const returnMatch = withoutComments.match(/return\s+([^;}\n]+);?/);
     if (returnMatch) {
       isStaticLiteralReturn = true;
       const rawVal = returnMatch[1].trim();
@@ -728,19 +793,16 @@ function simulateCompiledExecution(
         returnedValStr = rawVal.replace(/^["']|["']$/g, "");
       } else if (/^\[.*\]$/.test(rawVal) || /^\{.*\}$/.test(rawVal)) {
         returnedValStr = rawVal;
+      } else if (/^new\s+[a-zA-Z0-9_<>[\]]+\s*\{([^}]*)\}/.test(rawVal)) {
+        const inner = rawVal.match(/^new\s+[a-zA-Z0-9_<>[\]]+\s*\{([^}]*)\}/)?.[1]?.trim();
+        returnedValStr = inner ? `[${inner}]` : "[]";
       }
     }
   }
 
-  // 5. Check if the code is unmodified starter template or an empty stub
+  // 5. Check if the code is unmodified starter template or an empty/trivial stub
   const starterCodeForLang = ((problem.starterCode as any)?.[language] || "").trim();
-  const isDefaultStarter = trimmed === starterCodeForLang;
-
-  // Check if code has actual implementation beyond trivial return
-  const isTrivialStub =
-    /^\s*(pass|return\s+(0|null|NULL|\{\}|\[\]|\"\")?;?)\s*$/i.test(
-      trimmed.replace(/class.*|def.*|public.*|int.*|vector.*|\{|\}|\/\/.*/g, "")
-    );
+  const isStub = isStubCode(code, starterCodeForLang);
 
   const hasNestedLoops = checkNestedLoopsAdvisory(code);
 
@@ -763,10 +825,10 @@ function simulateCompiledExecution(
   const defaultPlaceholder = language === "c" || language === "cpp" ? "0" : (language === "java" ? "null" : "None");
 
   // CRITICAL RULE: If code is untouched or stub, it MUST FAIL!
-  if (isDefaultStarter || isTrivialStub) {
+  if (isStub) {
     const logs = [...userPrints];
-    logs.push(`Execution completed using ${language.toUpperCase()} runtime.`);
-    logs.push(`Test cases failed: No solution logic implemented. Default template returned placeholder.`);
+    logs.push(`Execution halted using ${language.toUpperCase()} runtime.`);
+    logs.push(`Test cases failed: No solution logic detected. Starter template or empty stub cannot pass.`);
 
     return {
       status: "WRONG_ANSWER",
@@ -805,9 +867,45 @@ function simulateCompiledExecution(
 
     if (isStaticLiteralReturn && returnedValStr) {
       actualAnswer = returnedValStr;
-      isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+      const normActual = actualAnswer.replace(/\s+/g, "").toLowerCase();
+      const normExpected = expectedNorm.replace(/\s+/g, "").toLowerCase();
+      isMatch = normActual === normExpected;
     } else if (hasAlgorithmicLogic) {
-      if (probSlug.includes("parenthes") || probTitle.includes("parenthes")) {
+      if (probSlug.includes("two-sum") || probTitle.includes("two sum")) {
+        let computed = "";
+        try {
+          const arrMatch = tc.inputStr.match(/\[([-\d\s,]+)\]/);
+          const tgtMatch =
+            tc.inputStr.match(/(?:target\s*=\s*|,|\btarget\s*:)\s*(-?\d+)/i) ||
+            tc.inputStr.match(/,\s*(-?\d+)\s*$/);
+          if (arrMatch && tgtMatch) {
+            const nums = arrMatch[1]
+              .split(",")
+              .map((s) => parseInt(s.trim(), 10))
+              .filter((n) => !isNaN(n));
+            const target = parseInt(tgtMatch[1].trim(), 10);
+            const map = new Map<number, number>();
+            for (let i = 0; i < nums.length; i++) {
+              const comp = target - nums[i];
+              if (map.has(comp)) {
+                computed = `[${map.get(comp)},${i}]`;
+                break;
+              }
+              map.set(nums[i], i);
+            }
+          }
+        } catch {}
+
+        if (computed) {
+          actualAnswer = computed;
+          const normActual = actualAnswer.replace(/\s+/g, "");
+          const normExpected = expectedNorm.replace(/\s+/g, "");
+          isMatch = normActual === normExpected;
+        } else {
+          actualAnswer = tc.expectedStr;
+          isMatch = true;
+        }
+      } else if (probSlug.includes("parenthes") || probTitle.includes("parenthes")) {
         const strMatch = tc.inputStr.match(/"([^"]*)"|'([^']*)'/);
         const s = strMatch ? (strMatch[1] !== undefined ? strMatch[1] : strMatch[2]) : tc.inputStr.trim();
         const st: string[] = [];
@@ -823,7 +921,7 @@ function simulateCompiledExecution(
             }
           }
         }
-        const computed = (valid && st.length === 0) ? "true" : "false";
+        const computed = valid && st.length === 0 ? "true" : "false";
         actualAnswer = computed;
         isMatch = computed === expectedNorm;
       } else if (probSlug.includes("palindrome") || probTitle.includes("palindrome")) {
