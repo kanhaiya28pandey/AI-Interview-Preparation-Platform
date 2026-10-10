@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { codingService } from "@/services/codingService";
 import { progressService } from "@/services/progressService";
 import { notificationService } from "@/services/notificationService";
-import { CodingProblem, ExecutionResult, DIFFICULTY_XP, TestCaseResult } from "@/mocks/codingData";
+import { CodingProblem, ExecutionResult, DIFFICULTY_XP } from "@/mocks/codingData";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -12,6 +13,7 @@ import { CardSkeleton } from "@/components/common/Skeletons";
 import { CustomSelect, CustomSelectOption } from "@/components/ui/CustomSelect";
 import { Dialog } from "@/components/ui/Dialog";
 import { highlightLineTokens } from "@/lib/syntaxHighlight";
+import { CodeIntellisense, SuggestionItem } from "@/components/common/CodeIntellisense";
 import { useAuth } from "@/context/AuthContext";
 import { getScopedItem, setScopedItem } from "@/lib/userScope";
 import {
@@ -20,34 +22,33 @@ import {
   Send,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
-  FileCode2,
   Clock,
   Cpu,
   RotateCcw,
   Lightbulb,
   Terminal,
-  Check,
-  AlertCircle,
   Award,
   Zap,
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
   History,
   ArrowLeft,
-  SlidersHorizontal,
-  BookmarkCheck,
+  FileCode2,
+  Database,
+  ArrowUpDown,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type SupportedLanguage = "javascript" | "python" | "java" | "cpp" | "c";
+type CodingLanguage = "javascript" | "python" | "java" | "cpp" | "c";
+type SqlLanguage = "mysql" | "postgresql" | "sql";
+type AnySupportedLanguage = CodingLanguage | SqlLanguage;
 
-const LANGUAGE_OPTIONS: CustomSelectOption<SupportedLanguage>[] = [
+const CODING_LANGUAGE_OPTIONS: CustomSelectOption<CodingLanguage>[] = [
   { value: "javascript", label: "JavaScript (Node 20)" },
   { value: "python", label: "Python 3.12" },
   { value: "java", label: "Java 21" },
@@ -55,18 +56,27 @@ const LANGUAGE_OPTIONS: CustomSelectOption<SupportedLanguage>[] = [
   { value: "c", label: "C (C11)" },
 ];
 
-const LANGUAGE_EXTENSIONS: Record<SupportedLanguage, string> = {
+const SQL_LANGUAGE_OPTIONS: CustomSelectOption<SqlLanguage>[] = [
+  { value: "mysql", label: "MySQL (Standard)" },
+  { value: "postgresql", label: "PostgreSQL" },
+  { value: "sql", label: "SQL (ANSI)" },
+];
+
+const LANGUAGE_EXTENSIONS: Record<string, string> = {
   javascript: "js",
   python: "py",
   java: "java",
   cpp: "cpp",
   c: "c",
+  mysql: "sql",
+  postgresql: "sql",
+  sql: "sql",
 };
 
 interface SubmissionRecord {
   id: string;
   status: "ACCEPTED" | "WRONG_ANSWER" | "TIME_LIMIT_EXCEEDED" | "COMPILE_ERROR" | "RUNTIME_ERROR";
-  language: SupportedLanguage;
+  language: string;
   runtimeMs: number;
   memoryMb: number;
   passedTests: number;
@@ -82,20 +92,19 @@ interface ProblemLocalState {
   submissions?: SubmissionRecord[];
 }
 
-const getSafeStarterCode = (p?: CodingProblem | null, lang: SupportedLanguage = "javascript"): string => {
+const getSafeStarterCode = (p?: CodingProblem | null, lang: string = "javascript"): string => {
   if (!p) return "";
-  if (p.starterCode) {
-    const code = p.starterCode[lang];
-    if (code) return code;
-    if (p.starterCode.javascript) return p.starterCode.javascript;
-  }
-  return "// Write your solution here\nfunction solve(input) {\n  return input;\n}";
+  const starter = p.starterCode as any;
+  if (starter && starter[lang]) return starter[lang];
+  if (starter && starter.javascript) return starter.javascript;
+  if (starter && starter.sql) return starter.sql;
+  return "// Write your solution below\n";
 };
 
 export const Coding: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
-  // Navigation View Mode: "list" (catalog problemset) or "editor" (dedicated IDE)
+  // Navigation View Mode: "list" (catalog table) or "editor" (dedicated IDE)
   const [viewMode, setViewMode] = useState<"list" | "editor">("list");
 
   // Problem Catalog State
@@ -108,12 +117,19 @@ export const Coding: React.FC = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("ALL");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [sortField, setSortField] = useState<"number" | "title" | "difficulty" | "acceptance">("number");
+  const [sortAscending, setSortAscending] = useState<boolean>(true);
 
   // Editor State
-  const [language, setLanguage] = useState<SupportedLanguage>("javascript");
+  const [language, setLanguage] = useState<AnySupportedLanguage>("javascript");
   const [code, setCode] = useState<string>("");
   const [isExecuting, setIsExecuting] = useState(false);
   const [execResult, setExecResult] = useState<ExecutionResult | null>(null);
+
+  // IntelliSense State
+  const [intellisenseWord, setIntellisenseWord] = useState<string>("");
+  const [showIntellisense, setShowIntellisense] = useState<boolean>(false);
+  const [intellisenseIndex, setIntellisenseIndex] = useState<number>(0);
 
   // Problem Left Dossier Tabs: "description" | "submissions" (Strictly NO solution tab)
   const [activeDossierTab, setActiveDossierTab] = useState<"description" | "submissions">("description");
@@ -172,6 +188,27 @@ export const Coding: React.FC = () => {
     loadProblems();
   }, [user?.userId]);
 
+  // Determine if the current selected problem is a SQL/Database challenge
+  const isSqlProblem =
+    selectedProblem?.category?.toLowerCase().includes("sql") ||
+    selectedProblem?.category?.toLowerCase().includes("database") ||
+    (selectedProblem as any)?.type === "SQL";
+
+  // When selected problem changes, adapt the language choices dynamically!
+  useEffect(() => {
+    if (!selectedProblem) return;
+
+    if (isSqlProblem) {
+      if (language !== "mysql" && language !== "postgresql" && language !== "sql") {
+        setLanguage("mysql");
+      }
+    } else {
+      if (language === "mysql" || language === "postgresql" || language === "sql") {
+        setLanguage("javascript");
+      }
+    }
+  }, [selectedProblem?.id, isSqlProblem]);
+
   // When selected problem or language changes in editor mode, load saved code
   useEffect(() => {
     if (!selectedProblem) return;
@@ -207,7 +244,20 @@ export const Coding: React.FC = () => {
     }
   };
 
-  // Code editor updates with auto-save
+  // Extract word under cursor for IntelliSense suggestions
+  const updateIntellisenseContext = (text: string, cursorPos: number) => {
+    const textBefore = text.slice(0, cursorPos);
+    const match = textBefore.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/);
+    if (match && match[1].length >= 2) {
+      setIntellisenseWord(match[1]);
+      setShowIntellisense(true);
+    } else {
+      setShowIntellisense(false);
+      setIntellisenseWord("");
+    }
+  };
+
+  // Code editor updates with auto-save & IntelliSense
   const handleCodeChange = (newVal: string) => {
     setCode(newVal);
     if (!selectedProblem) return;
@@ -229,9 +279,95 @@ export const Coding: React.FC = () => {
     const newMap = { ...localStates, [selectedProblem.id]: updatedState };
     setLocalStates(newMap);
     setScopedItem(user?.userId, `coding_state_${selectedProblem.id}`, updatedState);
+
+    // Update IntelliSense
+    if (textareaRef.current) {
+      updateIntellisenseContext(newVal, textareaRef.current.selectionStart);
+    }
   };
 
-  // Open a problem into full IDE workspace
+  // Handle keyboard events (Tab indent, Auto-close pairs, IntelliSense navigation)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    // IntelliSense Keyboard Controls
+    if (showIntellisense) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setIntellisenseIndex((prev) => prev + 1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setIntellisenseIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowIntellisense(false);
+        return;
+      }
+    }
+
+    // Auto-Closing Pairs for brackets and quotes: (), {}, [], "", ''
+    const pairs: Record<string, string> = {
+      "(": ")",
+      "{": "}",
+      "[": "]",
+      '"': '"',
+      "'": "'",
+    };
+
+    if (pairs[e.key] && start === end) {
+      e.preventDefault();
+      const closeChar = pairs[e.key];
+      const nextCode = code.slice(0, start) + e.key + closeChar + code.slice(end);
+      handleCodeChange(nextCode);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+      }, 0);
+      return;
+    }
+
+    // Tab key indent (2 spaces)
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const nextCode = code.slice(0, start) + "  " + code.slice(end);
+      handleCodeChange(nextCode);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+      }, 0);
+    }
+  };
+
+  // Insert IntelliSense suggestion into code
+  const handleSelectSuggestion = (item: SuggestionItem) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const textBefore = code.slice(0, start);
+    const textAfter = code.slice(start);
+
+    // Replace the current partial word with insertText
+    const replacedBefore = textBefore.replace(/([a-zA-Z_][a-zA-Z0-9_]*)$/, item.insertText);
+    const nextCode = replacedBefore + textAfter;
+
+    handleCodeChange(nextCode);
+    setShowIntellisense(false);
+    setIntellisenseWord("");
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = replacedBefore.length;
+    }, 0);
+  };
+
+  // Open problem in dedicated IDE workspace
   const handleOpenProblem = (p: CodingProblem) => {
     setSelectedProblem(p);
     setViewMode("editor");
@@ -362,7 +498,7 @@ export const Coding: React.FC = () => {
           console.warn("Could not record submission:", e);
         }
       } else {
-        // Unsuccessful submission
+        // Unsuccessful submission (No false pass!)
         try {
           progressService.recordCodingSubmission(user?.userId, {
             problemId: selectedProblem.id,
@@ -433,24 +569,19 @@ export const Coding: React.FC = () => {
     });
   };
 
-  // Filter problems for catalog view
+  // Filter & Sort problems for catalog view
   const categoriesList = Array.from(new Set(problems.map((p) => p.category))).filter(Boolean);
 
   const filteredProblems = problems.filter((p) => {
-    // Search query
     const matchQuery =
       searchQuery.trim() === "" ||
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Difficulty filter
     const matchDifficulty = selectedDifficulty === "ALL" || p.difficulty === selectedDifficulty;
-
-    // Category filter
     const matchCategory = selectedCategory === "ALL" || p.category === selectedCategory;
 
-    // Status filter
     const pState = localStates[p.id];
     const status = pState?.status || "UNSOLVED";
     let matchStatus = true;
@@ -459,6 +590,26 @@ export const Coding: React.FC = () => {
     else if (selectedStatus === "Todo") matchStatus = status === "UNSOLVED";
 
     return matchQuery && matchDifficulty && matchCategory && matchStatus;
+  });
+
+  // Sort ascending by default
+  const sortedProblems = [...filteredProblems].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "number") {
+      const numA = (a as any).problemNumber || parseInt(a.title.match(/^\d+/)?.[0] || "9999", 10);
+      const numB = (b as any).problemNumber || parseInt(b.title.match(/^\d+/)?.[0] || "9999", 10);
+      cmp = numA - numB;
+    } else if (sortField === "title") {
+      cmp = a.title.localeCompare(b.title);
+    } else if (sortField === "difficulty") {
+      const rank: Record<string, number> = { Easy: 1, Medium: 2, Hard: 3 };
+      cmp = (rank[a.difficulty] || 2) - (rank[b.difficulty] || 2);
+    } else if (sortField === "acceptance") {
+      const accA = parseFloat(a.acceptance) || 50;
+      const accB = parseFloat(b.acceptance) || 50;
+      cmp = accA - accB;
+    }
+    return sortAscending ? cmp : -cmp;
   });
 
   // KPI Metrics Calculation
@@ -509,26 +660,37 @@ export const Coding: React.FC = () => {
               </h1>
             </div>
             <p className="text-xs text-text-secondary mt-1 max-w-2xl">
-              Solve curated algorithmic, data structure, and technical interview problems. Supports{" "}
-              <span className="text-cyan-400 font-semibold font-mono">JavaScript, Python, Java, C++, and C</span> with automated real-time test execution.
+              Solve curated technical challenges from official repositories in{" "}
+              <span className="text-cyan-400 font-semibold font-mono">JavaScript, Python, Java, C++, C</span> and{" "}
+              <span className="text-blue-400 font-semibold font-mono">MySQL, PostgreSQL & SQL</span>.
             </p>
           </div>
 
-          {selectedProblem && (
-            <Button
-              variant="primary"
-              onClick={() => setViewMode("editor")}
-              className="gap-2 text-xs font-mono self-start md:self-auto"
-            >
-              <Code2 className="w-4 h-4" />
-              <span>Resume Current ({selectedProblem.title})</span>
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            {isAdmin() && (
+              <Link to="/admin/coding-tests">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs font-mono border-cyan-500/40 text-cyan-400">
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Admin Question Manager</span>
+                </Button>
+              </Link>
+            )}
+
+            {selectedProblem && (
+              <Button
+                variant="primary"
+                onClick={() => setViewMode("editor")}
+                className="gap-2 text-xs font-mono"
+              >
+                <Code2 className="w-4 h-4" />
+                <span>Resume ({selectedProblem.title})</span>
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Top KPI Metrics Banner */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Solved Overall Progress */}
           <Card className="p-4 bg-surface border-border shadow-sm flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
@@ -552,7 +714,6 @@ export const Coding: React.FC = () => {
             </div>
           </Card>
 
-          {/* Difficulty Breakdown */}
           <Card className="p-4 bg-surface border-border shadow-sm space-y-2 md:col-span-2">
             <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
               Difficulty Mastery
@@ -599,7 +760,6 @@ export const Coding: React.FC = () => {
             </div>
           </Card>
 
-          {/* Total Earned Coding XP */}
           <Card className="p-4 bg-surface border-border shadow-sm flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
@@ -620,12 +780,11 @@ export const Coding: React.FC = () => {
         {/* Filter and Search Bar */}
         <Card className="p-4 bg-surface border-border shadow-sm space-y-3">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-            {/* Search Input */}
             <div className="relative w-full md:w-80">
               <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search questions by title or keyword..."
+                placeholder="Search questions by title, domain, or keyword..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-surface-raised border border-border rounded-xl pl-9 pr-4 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 font-sans"
@@ -640,9 +799,7 @@ export const Coding: React.FC = () => {
               )}
             </div>
 
-            {/* Filter Dropdowns */}
             <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
-              {/* Difficulty Filter */}
               <select
                 value={selectedDifficulty}
                 onChange={(e) => setSelectedDifficulty(e.target.value)}
@@ -654,21 +811,22 @@ export const Coding: React.FC = () => {
                 <option value="Hard">Hard</option>
               </select>
 
-              {/* Category Filter */}
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="bg-surface-raised border border-border rounded-xl px-3 py-2 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 max-w-[180px] truncate"
               >
                 <option value="ALL">All Categories</option>
-                {categoriesList.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
+                <option value="Database & SQL">Database & SQL</option>
+                {categoriesList
+                  .filter((c) => c !== "Database & SQL")
+                  .map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
               </select>
 
-              {/* Status Filter */}
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
@@ -706,28 +864,88 @@ export const Coding: React.FC = () => {
               <thead>
                 <tr className="border-b border-border bg-surface-raised text-[11px] font-mono text-text-muted uppercase tracking-wider select-none">
                   <th className="py-3 px-4 w-12 text-center">Status</th>
-                  <th className="py-3 px-4">Problem Title</th>
+                  <th
+                    className="py-3 px-4 cursor-pointer hover:text-cyan-400 transition-colors"
+                    onClick={() => {
+                      if (sortField === "number") setSortAscending(!sortAscending);
+                      else {
+                        setSortField("number");
+                        setSortAscending(true);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Problem Title</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
                   <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4 w-28">Difficulty</th>
-                  <th className="py-3 px-4 w-28">Acceptance</th>
+                  <th
+                    className="py-3 px-4 w-28 cursor-pointer hover:text-cyan-400 transition-colors"
+                    onClick={() => {
+                      if (sortField === "difficulty") setSortAscending(!sortAscending);
+                      else {
+                        setSortField("difficulty");
+                        setSortAscending(true);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Difficulty</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th
+                    className="py-3 px-4 w-28 cursor-pointer hover:text-cyan-400 transition-colors"
+                    onClick={() => {
+                      if (sortField === "acceptance") setSortAscending(!sortAscending);
+                      else {
+                        setSortField("acceptance");
+                        setSortAscending(false);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Acceptance</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
                   <th className="py-3 px-4 w-24">Reward</th>
                   <th className="py-3 px-4 w-28 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-sans text-xs">
-                {filteredProblems.length === 0 ? (
+                {sortedProblems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-text-muted space-y-2">
-                      <Code2 className="w-8 h-8 mx-auto text-text-muted/50" />
-                      <p className="text-sm font-medium">No coding problems found matching criteria</p>
-                      <p className="text-xs">Try clearing search filters or search a broader term.</p>
+                    <td colSpan={7} className="py-16 text-center text-text-muted space-y-3">
+                      <Code2 className="w-10 h-10 mx-auto text-text-muted/40" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-text-primary">
+                          No coding problems available yet
+                        </p>
+                        <p className="text-xs text-text-secondary max-w-md mx-auto">
+                          Questions imported or created by the administrator in the Admin Panel will appear here in real-time.
+                        </p>
+                      </div>
+                      {isAdmin() && (
+                        <Link to="/admin/coding-tests" className="inline-block pt-2">
+                          <Button variant="primary" size="sm" className="gap-2 text-xs font-mono">
+                            <Database className="w-3.5 h-3.5" />
+                            <span>Go to Admin Coding Tests to Import Questions</span>
+                          </Button>
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ) : (
-                  filteredProblems.map((prob, idx) => {
+                  sortedProblems.map((prob) => {
                     const pState = localStates[prob.id];
                     const isSolved = pState?.status === "SOLVED";
                     const isAttempted = pState?.status === "ATTEMPTED";
+                    const isSql =
+                      prob.category?.toLowerCase().includes("sql") ||
+                      prob.category?.toLowerCase().includes("database") ||
+                      (prob as any).type === "SQL";
 
                     return (
                       <tr
@@ -735,7 +953,6 @@ export const Coding: React.FC = () => {
                         onClick={() => handleOpenProblem(prob)}
                         className="hover:bg-surface-raised/80 transition-colors cursor-pointer group"
                       >
-                        {/* Status Icon */}
                         <td className="py-3 px-4 text-center">
                           {isSolved ? (
                             <span title="Solved">
@@ -752,12 +969,16 @@ export const Coding: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Title & Topic Badges */}
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-text-primary group-hover:text-cyan-400 transition-colors">
                               {prob.title}
                             </span>
+                            {isSql && (
+                              <span className="text-[10px] font-mono bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-bold">
+                                SQL
+                              </span>
+                            )}
                             {prob.hints && prob.hints.length > 0 && (
                               <span className="text-[10px] font-mono bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/20">
                                 {prob.hints.length} hints
@@ -766,29 +987,24 @@ export const Coding: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Category */}
                         <td className="py-3 px-4 text-text-secondary font-mono text-[11px]">
                           {prob.category}
                         </td>
 
-                        {/* Difficulty */}
                         <td className="py-3 px-4">
                           <Badge variant={prob.difficulty.toLowerCase() as any}>
                             {prob.difficulty}
                           </Badge>
                         </td>
 
-                        {/* Acceptance */}
                         <td className="py-3 px-4 font-mono text-text-muted text-[11px]">
                           {prob.acceptance || "72%"}
                         </td>
 
-                        {/* XP Reward */}
                         <td className="py-3 px-4 font-mono text-amber-400 text-xs font-semibold">
-                          +{prob.xpReward || (prob.difficulty === "Hard" ? 200 : prob.difficulty === "Medium" ? 100 : 50)} XP
+                          +{prob.xpReward || 50} XP
                         </td>
 
-                        {/* Action Button */}
                         <td className="py-3 px-4 text-right">
                           <Button
                             variant={isSolved ? "outline" : "primary"}
@@ -826,14 +1042,13 @@ export const Coding: React.FC = () => {
     submissions: [],
   };
 
-  const fileExt = LANGUAGE_EXTENSIONS[language];
+  const fileExt = LANGUAGE_EXTENSIONS[language] || "code";
   const submissionsList = pState.submissions || [];
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12 animate-fade-in">
       {/* Workspace Top Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface border border-border p-3.5 rounded-xl shadow-sm">
-        {/* Left: Back button & problem title */}
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -854,12 +1069,15 @@ export const Coding: React.FC = () => {
             <Badge variant={selectedProblem.difficulty.toLowerCase() as any}>
               {selectedProblem.difficulty}
             </Badge>
+            {isSqlProblem && (
+              <span className="text-[10px] font-mono bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 font-bold">
+                DATABASE
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Right: Prev / Next buttons and Run/Submit buttons */}
         <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-          {/* Navigation Controls */}
           <div className="flex items-center border border-border rounded-lg overflow-hidden bg-surface-raised">
             <button
               onClick={() => handleAdjacentProblem("prev")}
@@ -919,9 +1137,8 @@ export const Coding: React.FC = () => {
 
       {/* Split Main Grid: Left Problem Dossier & Right Code Editor IDE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column: Problem Dossier (Description & Past Submissions) */}
+        {/* Left Column: Problem Dossier */}
         <Card className="lg:col-span-5 p-0 overflow-hidden bg-surface border-border flex flex-col shadow-lg max-h-[82vh]">
-          {/* Dossier Tabs: Description & Submissions (Strictly NO solution tab) */}
           <div className="flex border-b border-border bg-surface-raised font-mono text-xs select-none">
             <button
               onClick={() => setActiveDossierTab("description")}
@@ -948,11 +1165,9 @@ export const Coding: React.FC = () => {
             </button>
           </div>
 
-          {/* Dossier Content Body */}
           <div className="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar text-xs font-sans">
             {activeDossierTab === "description" ? (
               <div className="space-y-5">
-                {/* Meta details */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Badge variant={selectedProblem.difficulty.toLowerCase() as any}>
@@ -964,11 +1179,10 @@ export const Coding: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2 font-mono text-xs">
                     <span className="text-text-muted">Acceptance: {selectedProblem.acceptance}</span>
-                    <span className="text-amber-400 font-semibold">+{selectedProblem.xpReward} XP</span>
+                    <span className="text-amber-400 font-semibold">+{selectedProblem.xpReward || 50} XP</span>
                   </div>
                 </div>
 
-                {/* Problem Statement */}
                 <div className="space-y-2">
                   <h3 className="font-serif text-lg font-medium text-text-primary">
                     {selectedProblem.title}
@@ -978,25 +1192,23 @@ export const Coding: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Input & Output Format */}
                 {(selectedProblem.inputFormat || selectedProblem.outputFormat) && (
                   <div className="space-y-2 font-mono text-[11px] p-3 bg-surface-raised border border-border rounded-xl">
                     {selectedProblem.inputFormat && (
                       <div>
-                        <span className="text-text-muted uppercase text-[10px] block">Input Format</span>
-                        <code className="text-cyan-400">{selectedProblem.inputFormat}</code>
+                        <span className="text-text-muted uppercase text-[10px] block font-bold">Input / Schema Format</span>
+                        <code className="text-cyan-400 whitespace-pre block">{selectedProblem.inputFormat}</code>
                       </div>
                     )}
                     {selectedProblem.outputFormat && (
                       <div className="pt-1.5 border-t border-border">
-                        <span className="text-text-muted uppercase text-[10px] block">Output Format</span>
-                        <code className="text-emerald-400">{selectedProblem.outputFormat}</code>
+                        <span className="text-text-muted uppercase text-[10px] block font-bold">Output / Result Table</span>
+                        <code className="text-emerald-400 whitespace-pre block">{selectedProblem.outputFormat}</code>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Examples */}
                 <div className="space-y-3 font-mono text-xs">
                   <h4 className="font-semibold text-text-primary uppercase tracking-wider text-[11px]">
                     Examples
@@ -1006,13 +1218,13 @@ export const Coding: React.FC = () => {
                       <span className="text-cyan-400 font-bold text-[11px] block">Example {idx + 1}:</span>
                       <div>
                         <span className="text-text-muted text-[11px]">Input: </span>
-                        <code className="text-text-primary bg-surface px-1.5 py-0.5 rounded border border-border text-[11px]">
+                        <code className="text-text-primary bg-surface px-1.5 py-0.5 rounded border border-border text-[11px] whitespace-pre-wrap">
                           {ex.input}
                         </code>
                       </div>
                       <div>
                         <span className="text-text-muted text-[11px]">Output: </span>
-                        <code className="text-emerald-400 font-semibold bg-surface px-1.5 py-0.5 rounded border border-border text-[11px]">
+                        <code className="text-emerald-400 font-semibold bg-surface px-1.5 py-0.5 rounded border border-border text-[11px] whitespace-pre-wrap">
                           {ex.output}
                         </code>
                       </div>
@@ -1025,7 +1237,6 @@ export const Coding: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Constraints */}
                 {selectedProblem.constraints && selectedProblem.constraints.length > 0 && (
                   <div className="space-y-2 font-mono text-xs">
                     <h4 className="font-semibold text-text-primary uppercase tracking-wider text-[11px]">
@@ -1094,13 +1305,13 @@ export const Coding: React.FC = () => {
                 )}
               </div>
             ) : (
-              /* Submissions History Tab */
+              /* Submissions Tab */
               <div className="space-y-3 font-mono text-xs">
                 {submissionsList.length === 0 ? (
                   <div className="py-12 text-center text-text-muted space-y-2 font-sans">
                     <History className="w-8 h-8 mx-auto text-text-muted/40" />
                     <p className="font-medium">No past submissions yet</p>
-                    <p className="text-[11px]">Write your solution and click "Submit Solution" to test against all cases.</p>
+                    <p className="text-[11px]">Write your solution and click "Submit Solution" to test against all test cases.</p>
                   </div>
                 ) : (
                   submissionsList.map((sub) => (
@@ -1143,7 +1354,7 @@ export const Coding: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setLanguage(sub.language);
+                          setLanguage(sub.language as any);
                           setCode(sub.code);
                           toast.info(`Loaded code from submission (${sub.timestamp})`);
                         }}
@@ -1161,53 +1372,58 @@ export const Coding: React.FC = () => {
 
         {/* Right Column: Code Editor & Console Workspace */}
         <div className="lg:col-span-7 space-y-4">
-          <Card className="p-0 overflow-hidden bg-surface border-border shadow-2xl">
+          <Card className="p-0 overflow-hidden bg-[#1e1e1e] border-[#333333] shadow-2xl">
             {/* Editor Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-surface-raised border-b border-border">
-              <div className="flex items-center gap-2 bg-surface border border-border px-2.5 py-1 rounded-md">
-                <FileCode2 className="w-4 h-4 text-cyan-400" />
-                <span className="font-mono text-xs font-medium text-text-primary">
-                  solution.{fileExt}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-[#252526] border-b border-[#333333]">
+              <div className="flex items-center gap-2 bg-[#1e1e1e] border border-[#3c3c3c] px-2.5 py-1 rounded-md">
+                {isSqlProblem ? (
+                  <Database className="w-4 h-4 text-blue-400" />
+                ) : (
+                  <FileCode2 className="w-4 h-4 text-cyan-400" />
+                )}
+                <span className="font-mono text-xs font-medium text-[#cccccc]">
+                  {isSqlProblem ? "query.sql" : `solution.${fileExt}`}
                 </span>
               </div>
 
               <div className="flex items-center gap-2.5 flex-wrap">
-                <CustomSelect
-                  options={LANGUAGE_OPTIONS}
-                  value={language}
-                  onChange={(val) => setLanguage(val as SupportedLanguage)}
-                  align="right"
-                  ariaLabel="Select programming language"
-                />
+                {/* Dynamic Language Selector: Shows SQL options for Database problems, Coding options otherwise */}
+                {isSqlProblem ? (
+                  <CustomSelect
+                    options={SQL_LANGUAGE_OPTIONS}
+                    value={language as SqlLanguage}
+                    onChange={(val) => setLanguage(val)}
+                    align="right"
+                    ariaLabel="Select SQL dialect"
+                  />
+                ) : (
+                  <CustomSelect
+                    options={CODING_LANGUAGE_OPTIONS}
+                    value={language as CodingLanguage}
+                    onChange={(val) => setLanguage(val)}
+                    align="right"
+                    ariaLabel="Select programming language"
+                  />
+                )}
 
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowResetModal(true)}
                   title="Reset code to starter boilerplate"
-                  className="p-2 h-auto text-text-muted hover:text-text-primary border border-border font-mono"
+                  className="p-2 h-auto text-[#858585] hover:text-white border border-[#3c3c3c] font-mono hover:bg-[#2d2d2d]"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
 
-            {/* Non-JS Execution Environment Note */}
-            {language !== "javascript" && (
-              <div className="bg-cyan-500/10 border-b border-cyan-500/20 px-4 py-1.5 text-cyan-300 font-mono text-[11px] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Cpu className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span>Language Runtime: {language.toUpperCase()} (Syntactic Verification & Sandbox Execution)</span>
-                </div>
-              </div>
-            )}
-
-            {/* Professional Code Editor Pane */}
-            <div className="flex bg-[#0d1321] font-mono text-xs overflow-hidden h-[400px] relative">
+            {/* VS Code Theme Editor Pane with Syntax Highlight & IntelliSense */}
+            <div className="flex bg-[#1e1e1e] font-mono text-xs overflow-hidden h-[420px] relative">
               {/* Line Numbers Gutter */}
               <div
                 ref={gutterRef}
-                className="py-4 px-2 text-right bg-[#080b12] text-[#64748b] select-none border-r border-[#1e293b] overflow-hidden shrink-0 min-w-[48px]"
+                className="py-4 px-2 text-right bg-[#1e1e1e] text-[#858585] select-none border-r border-[#333333] overflow-hidden shrink-0 min-w-[48px]"
               >
                 {lineNumbers.map((num) => {
                   const isErrorLine = execResult?.errorLineNumber === num;
@@ -1218,7 +1434,7 @@ export const Coding: React.FC = () => {
                         "h-6 leading-6 font-mono text-xs px-1 rounded transition-colors",
                         isErrorLine
                           ? "bg-rose-500/40 text-rose-200 font-bold border border-rose-500/60"
-                          : "text-[#64748b]"
+                          : "text-[#858585]"
                       )}
                     >
                       {num}
@@ -1228,11 +1444,11 @@ export const Coding: React.FC = () => {
               </div>
 
               {/* Editor Code Area */}
-              <div className="relative flex-1 bg-[#0d1321] overflow-hidden">
+              <div className="relative flex-1 bg-[#1e1e1e] overflow-hidden">
                 <pre
                   ref={preRef}
                   aria-hidden="true"
-                  className="absolute inset-0 w-full h-full p-4 pointer-events-none font-mono text-xs leading-6 whitespace-pre tab-size-2 overflow-hidden m-0 border-0 text-[#e2e8f0]"
+                  className="absolute inset-0 w-full h-full p-4 pointer-events-none font-mono text-xs leading-6 whitespace-pre tab-size-2 overflow-hidden m-0 border-0 text-[#d4d4d4]"
                 >
                   <code>
                     {code.split("\n").map((line, idx) => {
@@ -1256,24 +1472,20 @@ export const Coding: React.FC = () => {
                   ref={textareaRef}
                   value={code}
                   onChange={(e) => handleCodeChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Support 2 spaces on Tab key indentation
-                    if (e.key === "Tab") {
-                      e.preventDefault();
-                      const start = e.currentTarget.selectionStart;
-                      const end = e.currentTarget.selectionEnd;
-                      const nextCode = code.substring(0, start) + "  " + code.substring(end);
-                      handleCodeChange(nextCode);
-                      setTimeout(() => {
-                        if (textareaRef.current) {
-                          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 2;
-                        }
-                      }, 0);
-                    }
-                  }}
+                  onKeyDown={handleKeyDown}
                   onScroll={handleScroll}
                   spellCheck={false}
                   className="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-cyan-400 focus:outline-none resize-none font-mono text-xs leading-6 whitespace-pre tab-size-2 m-0 border-0"
+                />
+
+                {/* Floating VS Code IntelliSense Suggestions */}
+                <CodeIntellisense
+                  language={language}
+                  currentWord={intellisenseWord}
+                  visible={showIntellisense}
+                  selectedIndex={intellisenseIndex}
+                  onSelect={handleSelectSuggestion}
+                  onClose={() => setShowIntellisense(false)}
                 />
               </div>
             </div>
@@ -1281,7 +1493,6 @@ export const Coding: React.FC = () => {
 
           {/* Bottom Testcase & Execution Result Console */}
           <Card className="p-0 overflow-hidden bg-surface border-border shadow-xl">
-            {/* Console Tabs */}
             <div className="flex items-center justify-between border-b border-border bg-surface-raised px-4 py-2 font-mono text-xs">
               <div className="flex items-center gap-2">
                 <button
@@ -1331,12 +1542,9 @@ export const Coding: React.FC = () => {
               )}
             </div>
 
-            {/* Console Tab Content */}
             <div className="p-4 font-mono text-xs min-h-[140px]">
               {activeConsoleTab === "testcase" ? (
-                /* Testcase Tab */
                 <div className="space-y-3">
-                  {/* Testcase selector pills */}
                   <div className="flex items-center gap-2 flex-wrap">
                     {selectedProblem.testCases.map((tc, idx) => (
                       <button
@@ -1369,7 +1577,6 @@ export const Coding: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Testcase Display or Custom Input */}
                   {isCustomTestCase ? (
                     <div className="space-y-2 animate-fade-in">
                       <span className="text-text-muted text-[11px] block">
@@ -1385,14 +1592,14 @@ export const Coding: React.FC = () => {
                   ) : (
                     <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-2 animate-fade-in">
                       <div>
-                        <span className="text-text-muted text-[11px] uppercase block">Input</span>
-                        <code className="text-text-primary bg-surface px-2 py-1 rounded border border-border block mt-1">
+                        <span className="text-text-muted text-[11px] uppercase block font-bold">Input</span>
+                        <code className="text-text-primary bg-surface px-2 py-1 rounded border border-border block mt-1 whitespace-pre-wrap">
                           {selectedProblem.testCases[selectedTestCaseIndex]?.inputStr}
                         </code>
                       </div>
                       <div>
-                        <span className="text-text-muted text-[11px] uppercase block">Expected Output</span>
-                        <code className="text-emerald-400 font-semibold bg-surface px-2 py-1 rounded border border-border block mt-1">
+                        <span className="text-text-muted text-[11px] uppercase block font-bold">Expected Output</span>
+                        <code className="text-emerald-400 font-semibold bg-surface px-2 py-1 rounded border border-border block mt-1 whitespace-pre-wrap">
                           {selectedProblem.testCases[selectedTestCaseIndex]?.expectedStr}
                         </code>
                       </div>
@@ -1409,7 +1616,6 @@ export const Coding: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-3.5 animate-fade-in">
-                      {/* Verdict Banner */}
                       <div className="flex items-center justify-between pb-2 border-b border-border">
                         <div className="flex items-center gap-2">
                           {execResult.status === "ACCEPTED" ? (
@@ -1431,7 +1637,6 @@ export const Coding: React.FC = () => {
                         </span>
                       </div>
 
-                      {/* Error Stack Preview */}
                       {execResult.errorMessage && (
                         <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs space-y-1">
                           <span className="font-bold block">Execution Diagnostics:</span>
@@ -1439,7 +1644,6 @@ export const Coding: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Detailed Test Results */}
                       {execResult.testCaseResults && execResult.testCaseResults.length > 0 && (
                         <div className="space-y-2">
                           {execResult.testCaseResults.map((tc, idx) => (
@@ -1457,10 +1661,10 @@ export const Coding: React.FC = () => {
                                 <span className="text-[10px] text-text-muted">{tc.runtimeMs} ms</span>
                               </div>
                               <div className="text-[11px] space-y-0.5">
-                                <div><span className="text-text-muted">Input:</span> <code>{tc.inputStr}</code></div>
-                                <div><span className="text-text-muted">Expected:</span> <code className="text-emerald-400">{tc.expectedStr}</code></div>
+                                <div><span className="text-text-muted">Input: </span><code>{tc.inputStr}</code></div>
+                                <div><span className="text-text-muted">Expected: </span><code className="text-emerald-400">{tc.expectedStr}</code></div>
                                 <div>
-                                  <span className="text-text-muted">Actual:</span>{" "}
+                                  <span className="text-text-muted">Actual: </span>
                                   <code className={tc.passed ? "text-emerald-400" : "text-rose-400 font-bold"}>
                                     {tc.actualStr}
                                   </code>
@@ -1471,11 +1675,11 @@ export const Coding: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Output Logs */}
+                      {/* Console Output Logs (Captures console.log, print, printf, cout, println) */}
                       {execResult.outputLogs && execResult.outputLogs.length > 0 && (
                         <div className="space-y-1 pt-2 border-t border-border">
                           <span className="text-text-muted text-[10px] uppercase font-semibold block">
-                            Console Logs:
+                            Console Logs & Calculation Output:
                           </span>
                           <div className="bg-[#080b12] border border-[#1e293b] p-2.5 rounded-lg font-mono text-[11px] text-text-secondary max-h-28 overflow-y-auto space-y-0.5">
                             {execResult.outputLogs.map((log, lIdx) => (

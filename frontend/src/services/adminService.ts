@@ -5,6 +5,7 @@ import {
   AdminMockInterviewConfig,
   AdminReportData,
 } from "@/mocks/adminData";
+import { RICH_PROBLEM_CATALOG, RichProblemDefinition } from "@/mocks/richProblemBank";
 
 export const adminService = {
   async getUsers(): Promise<AdminUser[]> {
@@ -123,13 +124,38 @@ export const adminService = {
         return res.data;
       }
     } catch (e) {
-      console.warn("Backend external problem query unavailable, using catalog fallback:", e);
+      // Backend not running, use rich catalog fallback
     }
 
-    return FALLBACK_EXTERNAL_PROBLEMS.filter((p) => {
-      if (params.source && params.source !== "ALL" && p.source !== params.source) return false;
+    // Convert rich problem catalog into ExternalProblemSummary items
+    const catalogSummaries: ExternalProblemSummary[] = RICH_PROBLEM_CATALOG.map((p) => ({
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      source: p.source,
+      difficulty: p.difficulty,
+      category: p.category,
+      topicTags: p.tags || [],
+      acceptance: p.acceptance,
+      isPaidOnly: false,
+      externalUrl:
+        p.source === "LEETCODE" || p.source === "SQL_DATABASE"
+          ? `https://leetcode.com/problems/${p.slug}/`
+          : p.source === "GEEKSFORGEEKS"
+          ? `https://practice.geeksforgeeks.org/problems/${p.slug}`
+          : `https://codeforces.com/problemset/problem/${p.slug}`,
+    }));
+
+    return catalogSummaries.filter((p) => {
+      if (params.source && params.source !== "ALL") {
+        if (params.source === "DATABASE_SQL") {
+          if (p.source !== "SQL_DATABASE") return false;
+        } else if (p.source !== params.source) {
+          return false;
+        }
+      }
       if (params.difficulty && params.difficulty !== "ALL" && p.difficulty !== params.difficulty) return false;
-      if (params.query && !p.title.toLowerCase().includes(params.query.toLowerCase())) return false;
+      if (params.query && !p.title.toLowerCase().includes(params.query.toLowerCase()) && !p.category.toLowerCase().includes(params.query.toLowerCase())) return false;
       if (params.domain && params.domain !== "ALL") {
         const domainLower = params.domain.toLowerCase();
         const catMatch = p.category.toLowerCase().includes(domainLower);
@@ -145,32 +171,90 @@ export const adminService = {
       const res = await api.post("/api/v1/admin/coding-import/import", request);
       if (res.data) return res.data;
     } catch (e) {
-      console.warn("Backend import endpoint unavailable, registering locally:", e);
+      // Backend import endpoint unavailable, registering locally
     }
 
-    const demoSaved = {
-      id: request.slug || `prob-${Date.now()}`,
-      title: request.title || "Imported Coding Challenge",
-      difficulty: request.difficulty || "Medium",
-      category: request.category || "Algorithms",
-      acceptance: "75%",
-      description: `Optimal algorithmic problem solving for ${request.title || "challenge"}.`,
-      starterCode: {
-        javascript: `// Solve ${request.title}\nfunction solve(input) {\n  return input;\n}`,
-        python: `# Solve ${request.title}\ndef solve(input):\n  return input`,
-        java: `class Solution {\n  public Object solve(Object input) { return input; }\n}`,
-        cpp: `int solve(int input) { return input; }`,
-        c: `#include <stdio.h>\n#include <stdlib.h>\n\n// Solve ${request.title}\nint solve(int input) {\n  return input;\n}`,
-      },
-      testCases: [{ id: 1, inputStr: "1", expectedStr: "1" }],
-    };
+    // Look up rich structured definition if available in catalog
+    const richMatch = RICH_PROBLEM_CATALOG.find(
+      (p) =>
+        p.slug === request.slug ||
+        p.id === request.slug ||
+        p.title.toLowerCase() === request.title?.toLowerCase()
+    );
+
+    let demoSaved: any;
+
+    if (richMatch) {
+      demoSaved = {
+        ...richMatch,
+        id: richMatch.id || request.slug,
+        title: richMatch.title,
+        problemNumber: richMatch.problemNumber,
+        category: richMatch.category,
+        difficulty: richMatch.difficulty,
+        acceptance: richMatch.acceptance,
+        description: richMatch.description,
+        inputFormat: richMatch.inputFormat,
+        outputFormat: richMatch.outputFormat,
+        constraints: richMatch.constraints,
+        examples: richMatch.examples,
+        hints: richMatch.hints,
+        testCases: richMatch.testCases,
+        starterCode: richMatch.starterCode,
+        solution: richMatch.solution,
+        fnName: richMatch.fnName,
+        xpReward: richMatch.xpReward,
+        type: richMatch.type || (richMatch.category.includes("SQL") ? "SQL" : "CODING"),
+        tags: richMatch.tags,
+      };
+    } else {
+      const isSql =
+        request.category?.toLowerCase().includes("sql") ||
+        request.category?.toLowerCase().includes("database");
+
+      demoSaved = {
+        id: request.slug || `prob-${Date.now()}`,
+        title: request.title || "Custom Problem",
+        difficulty: request.difficulty || "Medium",
+        category: request.category || (isSql ? "Database & SQL" : "Algorithms"),
+        acceptance: "72%",
+        description: request.description || `Problem statement for ${request.title}.`,
+        inputFormat: "Standard inputs",
+        outputFormat: "Standard output format",
+        constraints: ["1 <= N <= 10^5", "Expected Time: O(N)"],
+        examples: [{ input: "Sample input", output: "Sample output", explanation: "Sample case." }],
+        hints: ["Think about optimal time complexity."],
+        testCases: [{ id: 1, inputStr: "Sample input", expectedStr: "Sample output", params: [1], expectedVal: "Sample output" }],
+        starterCode: isSql
+          ? {
+              mysql: "-- Write your MySQL query below\nSELECT ...\nFROM ...;",
+              postgresql: "-- Write your PostgreSQL query below\nSELECT ...\nFROM ...;",
+              sql: "-- Write your standard SQL query below\nSELECT ...\nFROM ...;",
+            }
+          : {
+              javascript: `function solve(input) {\n  // Write solution here\n  return input;\n}`,
+              python: `def solve(input):\n    # Write solution here\n    pass`,
+              java: `class Solution {\n    public Object solve(Object input) {\n        return null;\n    }\n}`,
+              cpp: `int solve(int input) {\n    return 0;\n}`,
+              c: `#include <stdio.h>\nint solve(int input) {\n    return 0;\n}`,
+            },
+        fnName: "solve",
+        xpReward: request.difficulty === "Hard" ? 200 : request.difficulty === "Medium" ? 100 : 50,
+        type: isSql ? "SQL" : "CODING",
+        tags: request.topicTags || request.tags || [],
+      };
+    }
 
     try {
       const stored = JSON.parse(localStorage.getItem("demo_imported_coding_problems") || "[]");
-      if (!stored.some((p: any) => p.id === demoSaved.id)) {
+      const existingIdx = stored.findIndex((p: any) => p.id === demoSaved.id);
+      if (existingIdx >= 0) {
+        stored[existingIdx] = demoSaved;
+      } else {
         stored.push(demoSaved);
-        localStorage.setItem("demo_imported_coding_problems", JSON.stringify(stored));
       }
+      localStorage.setItem("demo_imported_coding_problems", JSON.stringify(stored));
+
       const deletedIds = JSON.parse(localStorage.getItem("demo_deleted_coding_problem_ids") || "[]");
       const filteredDeleted = deletedIds.filter((id: string) => id !== demoSaved.id);
       localStorage.setItem("demo_deleted_coding_problem_ids", JSON.stringify(filteredDeleted));

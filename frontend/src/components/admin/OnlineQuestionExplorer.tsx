@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { Dialog } from "@/components/ui/Dialog";
+import { cn } from "@/lib/utils";
 
 interface OnlineQuestionExplorerProps {
   onPlatformUpdated?: () => void;
@@ -43,6 +45,22 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
   const [isLoadingPlatform, setIsLoadingPlatform] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [platformSearch, setPlatformSearch] = useState<string>("");
+
+  // Custom Question Modal state
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [customTitle, setCustomTitle] = useState("");
+  const [customType, setCustomType] = useState<"CODING" | "SQL">("CODING");
+  const [customCategory, setCustomCategory] = useState("Algorithms");
+  const [customDifficulty, setCustomDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
+  const [customDescription, setCustomDescription] = useState("");
+  const [customInputFormat, setCustomInputFormat] = useState("");
+  const [customOutputFormat, setCustomOutputFormat] = useState("");
+  const [customConstraints, setCustomConstraints] = useState("");
+  const [customExampleInput, setCustomExampleInput] = useState("");
+  const [customExampleOutput, setCustomExampleOutput] = useState("");
+  const [customHints, setCustomHints] = useState("");
+  const [customTestInput, setCustomTestInput] = useState("");
+  const [customTestExpected, setCustomTestExpected] = useState("");
 
   const loadPlatformProblems = async () => {
     setIsLoadingPlatform(true);
@@ -123,6 +141,109 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
     }
   };
 
+  const resetCustomForm = () => {
+    setCustomTitle("");
+    setCustomType("CODING");
+    setCustomCategory("Algorithms");
+    setCustomDifficulty("Medium");
+    setCustomDescription("");
+    setCustomInputFormat("");
+    setCustomOutputFormat("");
+    setCustomExampleInput("");
+    setCustomExampleOutput("");
+    setCustomHints("");
+    setCustomTestInput("");
+    setCustomTestExpected("");
+  };
+
+  const handleCreateCustomProblem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customTitle.trim()) {
+      toast.error("Please enter a question title.");
+      return;
+    }
+
+    const slug = customTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const hintsList = customHints
+      .split("\n")
+      .map((h) => h.trim())
+      .filter(Boolean);
+
+    const isSql = customType === "SQL";
+
+    const customProblemData = {
+      id: slug || `prob-${Date.now()}`,
+      slug: slug || `prob-${Date.now()}`,
+      title: customTitle.trim(),
+      difficulty: customDifficulty,
+      category: isSql ? (customCategory.includes("SQL") ? customCategory : "Database & SQL") : customCategory,
+      type: customType,
+      acceptance: "75%",
+      description: customDescription.trim() || `Problem statement for ${customTitle}.`,
+      inputFormat: customInputFormat.trim() || (isSql ? "Table schema format" : "Standard input arguments"),
+      outputFormat: customOutputFormat.trim() || (isSql ? "Result table structure" : "Return value"),
+      constraints: customConstraints
+        ? customConstraints.split("\n").filter(Boolean)
+        : ["1 <= N <= 10^5"],
+      examples: [
+        {
+          input: customExampleInput.trim() || "Sample Input",
+          output: customExampleOutput.trim() || "Sample Output",
+          explanation: "Sample test case",
+        },
+      ],
+      hints: hintsList.length > 0 ? hintsList : ["Think about optimal time and space complexity."],
+      testCases: [
+        {
+          id: 1,
+          inputStr: customTestInput.trim() || customExampleInput.trim() || "Sample",
+          expectedStr: customTestExpected.trim() || customExampleOutput.trim() || "Sample",
+          params: [customTestInput.trim() || "Sample"],
+          expectedVal: isSql ? "VALID_SQL" : customTestExpected.trim() || "Sample",
+        },
+      ],
+      starterCode: isSql
+        ? {
+            mysql: "-- Write your MySQL query statement below\nSELECT \nFROM ;\n",
+            postgresql: "-- Write your PostgreSQL query statement below\nSELECT \nFROM ;\n",
+            sql: "-- Write your standard SQL query statement below\nSELECT \nFROM ;\n",
+          }
+        : {
+            javascript: `// Write your solution below\nfunction solve(input) {\n  \n}\n`,
+            python: `# Write your solution below\ndef solve(input):\n    pass\n`,
+            java: `class Solution {\n    public Object solve(Object input) {\n        return null;\n    }\n}\n`,
+            cpp: `#include <iostream>\nusing namespace std;\n\nint solve(int input) {\n    return 0;\n}\n`,
+            c: `#include <stdio.h>\nint solve(int input) {\n    return 0;\n}\n`,
+          },
+      fnName: "solve",
+      xpReward: customDifficulty === "Hard" ? 200 : customDifficulty === "Medium" ? 100 : 50,
+      tags: isSql ? ["Database", "SQL"] : ["Algorithms"],
+    };
+
+    try {
+      const stored = JSON.parse(localStorage.getItem("demo_imported_coding_problems") || "[]");
+      const existingIdx = stored.findIndex((p: any) => p.id === customProblemData.id);
+      if (existingIdx >= 0) {
+        stored[existingIdx] = customProblemData;
+      } else {
+        stored.push(customProblemData);
+      }
+      localStorage.setItem("demo_imported_coding_problems", JSON.stringify(stored));
+
+      const deletedIds = JSON.parse(localStorage.getItem("demo_deleted_coding_problem_ids") || "[]");
+      const filteredDeleted = deletedIds.filter((id: string) => id !== customProblemData.id);
+      localStorage.setItem("demo_deleted_coding_problem_ids", JSON.stringify(filteredDeleted));
+
+      toast.success(`"${customTitle}" successfully created and published to students!`);
+      setShowCreateModal(false);
+      resetCustomForm();
+      await loadPlatformProblems();
+      if (onPlatformUpdated) onPlatformUpdated();
+    } catch (err: any) {
+      toast.error("Failed to create problem: " + (err.message || "Unknown error"));
+    }
+  };
+
   const handleDelete = async (problemId: string, problemTitle: string) => {
     if (!window.confirm(`Are you sure you want to remove "${problemTitle}" from the student arena and question bank?`)) {
       return;
@@ -169,28 +290,40 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
                 <Globe className="w-5 h-5" />
               </span>
               <h3 className="font-serif text-xl font-medium text-text-primary">
-                Live Online Question Fetcher (LeetCode, GFG, Codeforces)
+                Live Online Question Fetcher (LeetCode, GFG, Codeforces, SQL)
               </h3>
               <Badge variant="active" className="font-mono text-[10px]">
                 100% Free Questions
               </Badge>
             </div>
             <p className="text-xs text-text-secondary max-w-2xl">
-              Search real-time coding problems from official online repositories without hardcoding files.
-              One-click publish to students with automated starter templates and test cases.
+              Search real-time coding and SQL database challenges from official online repositories.
+              One-click publish to students with automated starter templates, examples, constraints, real hints, and test cases.
             </p>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleSearch()}
-            disabled={isSearching}
-            className="shrink-0 font-medium"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSearching ? "animate-spin" : ""}`} />
-            Refresh Feed
-          </Button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowCreateModal(true)}
+              className="shrink-0 font-medium gap-1.5 font-mono text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Custom Problem</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleSearch()}
+              disabled={isSearching}
+              className="shrink-0 font-medium font-mono text-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSearching ? "animate-spin" : ""}`} />
+              Refresh Feed
+            </Button>
+          </div>
         </div>
 
         {/* Filters Grid */}
@@ -214,8 +347,9 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
               onChange={(e) => setSource(e.target.value)}
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
             >
-              <option value="ALL">All Platforms (LeetCode, GFG, CF)</option>
-              <option value="LEETCODE">LeetCode (Public GraphQL)</option>
+              <option value="ALL">All Platforms (LeetCode, GFG, CF, SQL)</option>
+              <option value="LEETCODE">LeetCode (Coding Challenges)</option>
+              <option value="DATABASE_SQL">LeetCode Database (SQL Queries)</option>
               <option value="GEEKSFORGEEKS">GeeksforGeeks Curated</option>
               <option value="CODEFORCES">Codeforces (Official REST)</option>
             </select>
@@ -508,6 +642,195 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
           </Card>
         )}
       </div>
+
+      {/* Create Custom Problem Modal */}
+      <Dialog
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create & Publish Custom Challenge"
+      >
+        <form onSubmit={handleCreateCustomProblem} className="space-y-4 max-h-[75vh] overflow-y-auto p-1 font-sans text-xs custom-scrollbar">
+          {/* Problem Type Toggle */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-surface-raised border border-border rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setCustomType("CODING");
+                setCustomCategory("Algorithms");
+              }}
+              className={cn(
+                "py-2 rounded-lg font-mono font-semibold transition-colors flex items-center justify-center gap-1.5",
+                customType === "CODING"
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Code2 className="w-4 h-4" />
+              <span>Coding Algorithm (JS, Python, Java, C++, C)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCustomType("SQL");
+                setCustomCategory("Database & SQL");
+              }}
+              className={cn(
+                "py-2 rounded-lg font-mono font-semibold transition-colors flex items-center justify-center gap-1.5",
+                customType === "SQL"
+                  ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Database className="w-4 h-4" />
+              <span>Database Query (MySQL, PostgreSQL, SQL)</span>
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-mono text-text-muted uppercase block">Problem Title *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. 15. 3Sum or 175. Combine Two Tables"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              className="w-full p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono text-text-muted uppercase block">Category / Domain</label>
+              <input
+                type="text"
+                placeholder={customType === "SQL" ? "Database & SQL" : "e.g. Arrays & Hashing"}
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                className="w-full p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono text-text-muted uppercase block">Difficulty</label>
+              <select
+                value={customDifficulty}
+                onChange={(e) => setCustomDifficulty(e.target.value as any)}
+                className="w-full p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              >
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-mono text-text-muted uppercase block">Problem Description / Statement *</label>
+            <textarea
+              required
+              rows={4}
+              placeholder="Detailed description of the problem, background story, and requirements..."
+              value={customDescription}
+              onChange={(e) => setCustomDescription(e.target.value)}
+              className="w-full p-2.5 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-sans resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono text-text-muted uppercase block">Input / Schema Format</label>
+              <input
+                type="text"
+                placeholder={customType === "SQL" ? "Table Person (personId, name)..." : "e.g. nums = [2,7,11,15], target = 9"}
+                value={customInputFormat}
+                onChange={(e) => setCustomInputFormat(e.target.value)}
+                className="w-full p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono text-text-muted uppercase block">Output / Result Format</label>
+              <input
+                type="text"
+                placeholder={customType === "SQL" ? "Result table columns: id, name..." : "e.g. [0, 1]"}
+                value={customOutputFormat}
+                onChange={(e) => setCustomOutputFormat(e.target.value)}
+                className="w-full p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-mono text-text-muted uppercase block">Sample Example Input & Output</label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Example Input"
+                value={customExampleInput}
+                onChange={(e) => setCustomExampleInput(e.target.value)}
+                className="p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+              <input
+                type="text"
+                placeholder="Example Expected Output"
+                value={customExampleOutput}
+                onChange={(e) => setCustomExampleOutput(e.target.value)}
+                className="p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-mono text-text-muted uppercase block">Hints (One hint per line)</label>
+            <textarea
+              rows={2}
+              placeholder="Hint 1: Look at the problem constraints...&#10;Hint 2: Can you use a hash map?"
+              value={customHints}
+              onChange={(e) => setCustomHints(e.target.value)}
+              className="w-full p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-sans resize-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-mono text-text-muted uppercase block">Automated Test Case Input & Expected Value</label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Test input parameter (e.g. [2,7,11,15], 9)"
+                value={customTestInput}
+                onChange={(e) => setCustomTestInput(e.target.value)}
+                className="p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+              <input
+                type="text"
+                placeholder="Expected value (e.g. [0, 1])"
+                value={customTestExpected}
+                onChange={(e) => setCustomTestExpected(e.target.value)}
+                className="p-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setShowCreateModal(false);
+                resetCustomForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm" className="font-mono gap-1.5">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Publish Challenge</span>
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 };

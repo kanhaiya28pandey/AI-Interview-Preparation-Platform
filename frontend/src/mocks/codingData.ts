@@ -50,6 +50,9 @@ export interface CodingProblem {
     java: string;
     cpp: string;
     c?: string;
+    mysql?: string;
+    postgresql?: string;
+    sql?: string;
   };
   fnName: string;
   xpReward: number;
