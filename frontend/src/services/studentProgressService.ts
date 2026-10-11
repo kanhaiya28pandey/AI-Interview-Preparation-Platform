@@ -4,9 +4,14 @@ import {
   CohortAnalytics,
   TeacherNote,
   QuizHistoryRecord,
+  MockInterviewRecord,
+  CodingHistoryRecord,
+  ResumeHistoryRecord,
   mockStudentsProgress,
   HeatmapDay,
 } from "@/mocks/studentProgressData";
+import { progressService } from "@/services/progressService";
+import { liveTestService } from "@/services/liveTestService";
 
 function getPastDate(daysAgo: number): string {
   const d = new Date();
@@ -28,7 +33,7 @@ function generateTrend(baseScore: number, isDeclining = false) {
   return res;
 }
 
-function generateHeatmap(activeLevel: number, streakDays: number = 7): HeatmapDay[] {
+function generateHeatmap(activeLevel: number, streakDays = 7): HeatmapDay[] {
   const res: HeatmapDay[] = [];
   for (let i = 364; i >= 0; i--) {
     let count = 0;
@@ -51,9 +56,13 @@ function generateHeatmap(activeLevel: number, streakDays: number = 7): HeatmapDa
 
 function convertMasterStudentToProgress(master: any): StudentProgress {
   const isDeclining = master.riskLevel === "At Risk";
-  const activityScore = master.activityScore || 85;
-  const avgQuiz = master.avgQuizScore || 80;
-  const avgInt = master.avgInterviewScore || 82;
+  const activityScore = master.activityScore ?? 75;
+  const avgQuiz = master.avgQuizScore ?? 80;
+  const avgInt = master.avgInterviewScore ?? 82;
+  const streak = master.streakDays ?? 1;
+  const solved = master.problemsSolved ?? 0;
+  const interviews = master.interviewsCompleted ?? 0;
+  const tests = master.testsAttended ?? 0;
 
   return {
     id: master.id,
@@ -78,122 +87,169 @@ function convertMasterStudentToProgress(master: any): StudentProgress {
     joinedDate: master.registeredAt ? master.registeredAt.split("T")[0] : "2025-08-15",
     lastActive: master.lastActive || "Just now",
     daysInactive: master.riskLevel === "Inactive" ? 14 : 0,
-    streakDays: master.streakDays || 12,
-    problemsSolved: master.problemsSolved || 38,
-    problemsSolvedWithHelp: Math.round((master.problemsSolved || 38) * 0.1),
-    problemsAttempted: Math.round((master.problemsSolved || 38) * 1.2),
-    interviewsCompleted: master.interviewsCompleted || 4,
+    streakDays: streak,
+    problemsSolved: solved,
+    problemsSolvedWithHelp: Math.round(solved * 0.1),
+    problemsAttempted: Math.max(solved, Math.round(solved * 1.2)),
+    interviewsCompleted: interviews,
     avgInterviewScore: avgInt,
-    quizzesTaken: master.testsAttended || 5,
+    quizzesTaken: tests,
     avgQuizScore: avgQuiz,
-    articlesRead: 8,
-    resumeAnalyses: 3,
-    bestAtsScore: master.bestAtsScore || 85,
-    leaderboardRank: 3,
+    articlesRead: master.articlesRead ?? 0,
+    resumeAnalyses: master.resumeAnalyses ?? 1,
+    bestAtsScore: master.bestAtsScore ?? 80,
+    leaderboardRank: 1,
+    liveTestsAttended: tests,
+    totalXp: master.totalXp ?? (solved * 50 + interviews * 150 + tests * 100),
     activityHistory30d: generateTrend(activityScore, isDeclining),
     topicBreakdown: [
-      { topic: "Quantitative Aptitude", score: avgQuiz, questionsSolved: 12 },
-      { topic: "Data Structures & Algorithms", score: 85, questionsSolved: 14 },
-      { topic: "Full Stack Engineering", score: 80, questionsSolved: 10 },
-      { topic: "System Design", score: 78, questionsSolved: 6 },
+      { topic: "Quantitative Aptitude", score: avgQuiz || 70, questionsSolved: Math.max(1, Math.round(solved * 0.25)) },
+      { topic: "Data Structures & Algorithms", score: 85, questionsSolved: Math.max(1, Math.round(solved * 0.35)) },
+      { topic: "Full Stack Engineering", score: 80, questionsSolved: Math.max(1, Math.round(solved * 0.25)) },
+      { topic: "System Design", score: 78, questionsSolved: Math.max(1, Math.round(solved * 0.15)) },
     ],
-    interviewHistory: [
-      {
-        id: `int-${master.id}-1`,
-        date: "2026-10-02",
-        track: "Full Stack Engineer Track",
-        type: "Technical & Behavioral",
-        score: avgInt,
-        durationMinutes: 40,
-        feedbackSummary: "Solid technical reasoning and strong problem breakdown.",
-      },
-    ],
-    codingHistory: [
-      {
-        id: `code-${master.id}-1`,
-        title: "Two Sum Target Indices",
-        difficulty: "Easy",
-        status: "SOLVED",
-        attempts: 1,
-        lastAttemptDate: "2026-10-08",
-      },
-    ],
+    interviewHistory: [],
+    codingHistory: [],
     quizHistory: [],
-    resumeHistory: [
-      {
-        id: `res-${master.id}-1`,
-        date: "2026-09-28",
-        targetRole: "Full Stack Engineer",
-        atsScore: master.bestAtsScore || 85,
-        feedbackSummary: "Good keyword optimization, project descriptions well articulated.",
-      },
-    ],
-    heatmapData: generateHeatmap(activityScore),
+    resumeHistory: [],
+    heatmapData: generateHeatmap(activityScore, streak),
     teacherNotes: [],
   };
 }
 
 function enrichStudentWithRealSubmissions(student: StudentProgress): StudentProgress {
   try {
-    const rawSubs = localStorage.getItem("ai_interview_prep_student_submissions_v2");
-    if (!rawSubs) return student;
-    const allSubs: any[] = JSON.parse(rawSubs);
-    if (!Array.isArray(allSubs) || allSubs.length === 0) return student;
+    const studentUserId = student.id;
 
-    // Filter submissions belonging to this student
-    const relevantSubs = allSubs.filter((s) => {
-      if (s.userId === student.id || s.userId === student.email) return true;
+    // 1. Real Coding Submissions
+    const codingSubs = progressService.getCodingSubmissions(studentUserId);
+    const realCodingHistory: CodingHistoryRecord[] = codingSubs.map((cs) => ({
+      id: cs.id,
+      title: cs.problemTitle || "Coding Challenge",
+      difficulty: (cs.difficulty as any) || "Medium",
+      status: cs.status === "ACCEPTED" ? "SOLVED" : "ATTEMPTED",
+      attempts: 1,
+      lastAttemptDate: cs.submittedAt ? cs.submittedAt.split("T")[0] : new Date().toISOString().split("T")[0],
+    }));
+
+    // 2. Real Mock Interview Sessions
+    const interviewSessions = progressService.getInterviewSessions(studentUserId);
+    const realInterviewHistory: MockInterviewRecord[] = interviewSessions.map((is) => ({
+      id: is.id,
+      date: is.date || new Date().toLocaleDateString(),
+      track: is.roleTitle || "Technical Interview",
+      type: "AI Voice / Technical Evaluation",
+      score: is.overallScore || 80,
+      durationMinutes: 15,
+      feedbackSummary: `Technical Accuracy: ${is.technicalAccuracy}%, Communication: ${is.communicationClarity}%, Problem Solving: ${is.problemSolving}%`,
+    }));
+
+    // 3. Real Live Test Contest Submissions
+    const liveSubs = liveTestService.getAllSubmissions().filter((ls) => {
+      if (ls.userId === student.id || ls.userId === student.email) return true;
       if (
         student.id === "usr-student-01" &&
-        (s.userId === "demo-student" || s.userId?.includes("student-01") || s.userId?.includes("demo"))
+        (ls.userId === "demo-student" || ls.userId?.includes("student-01") || ls.userId?.includes("demo"))
       ) {
         return true;
       }
-      if (s.userName && s.userName.toLowerCase() === student.name.toLowerCase()) return true;
-      return false;
+      return Boolean(ls.studentName && ls.studentName.toLowerCase() === student.name.toLowerCase());
     });
 
-    if (relevantSubs.length === 0) return student;
-
-    const newQuizHistory: QuizHistoryRecord[] = relevantSubs.map((sub) => {
-      const mins = Math.floor(sub.timeSpentSeconds / 60);
-      const secs = sub.timeSpentSeconds % 60;
+    const liveTestQuizRecords: QuizHistoryRecord[] = liveSubs.map((ls) => {
+      const mins = Math.floor(ls.timeTakenSeconds / 60);
+      const secs = ls.timeTakenSeconds % 60;
       return {
-        id: sub.submissionId || `sub-${Date.now()}`,
-        topic: sub.testTitle || "Practice Assessment",
-        domain: sub.domain,
-        scorePct: sub.percentage,
-        questions: sub.totalMarks || 10,
-        correctCount: sub.score,
-        date: new Date(sub.submittedAt).toLocaleDateString(),
+        id: ls.id,
+        topic: ls.testTitle || "Live Contest Assessment",
+        domain: (ls as any).domain || "Contest Arena",
+        scorePct: ls.percentage,
+        questions: ls.totalMarks,
+        correctCount: ls.score,
+        date: new Date(ls.submittedAt).toLocaleDateString(),
         timeTaken: `${mins}m ${secs}s`,
-        xpEarned: sub.xpEarned || Math.round(sub.percentage * 0.8 + 15),
-        isPassed: sub.isPassed,
+        xpEarned: Math.round(ls.percentage * 1.8 + 20),
+        isPassed: ls.passed,
       };
     });
 
-    // Merge without duplicate IDs
-    const existingIds = new Set(newQuizHistory.map((q) => q.id));
-    const mergedHistory = [...newQuizHistory, ...student.quizHistory.filter((q) => !existingIds.has(q.id))];
+    // 4. Real MCQ Quiz Attempts
+    const quizAttempts = progressService.getQuizAttempts(studentUserId);
+    const quizRecords: QuizHistoryRecord[] = quizAttempts.map((qa) => ({
+      id: qa.id,
+      topic: qa.quizTitle,
+      domain: qa.category,
+      scorePct: qa.score,
+      questions: qa.totalQuestions,
+      correctCount: Math.round(qa.totalQuestions * (qa.score / 100)),
+      date: new Date(qa.completedAt).toLocaleDateString(),
+      timeTaken: "5m 00s",
+      xpEarned: qa.xpEarned,
+      isPassed: qa.score >= 60,
+    }));
 
-    const totalQuizzes = mergedHistory.length;
-    const avgScore =
-      totalQuizzes > 0
-        ? Math.round(mergedHistory.reduce((acc, q) => acc + q.scorePct, 0) / totalQuizzes)
-        : student.avgQuizScore;
+    // Merge live tests and quizzes without duplicates
+    const combinedQuizHistory = [...liveTestQuizRecords, ...quizRecords];
 
-    const totalQuestionsSolved = relevantSubs.reduce((acc, s) => acc + (s.score || 0), 0);
+    // 5. Real Resume Analyses
+    const resumeRecords = progressService.getResumeAnalyses(studentUserId);
+    const realResumeHistory: ResumeHistoryRecord[] = resumeRecords.map((r) => ({
+      id: r.id,
+      date: r.analyzedAt,
+      targetRole: r.targetRole || "Software Engineer",
+      atsScore: r.atsScore || 85,
+      feedbackSummary: `ATS Compatibility: ${r.atsScore}/100. Targeted role: ${r.targetRole}.`,
+    }));
+
+    // Calculate aggregated stats
+    const totalCodingSolved = realCodingHistory.filter((c) => c.status === "SOLVED").length;
+    const finalProblemsSolved = Math.max(student.problemsSolved || 0, totalCodingSolved);
+    const finalInterviewsCount = Math.max(student.interviewsCompleted || 0, realInterviewHistory.length);
+    const finalQuizzesTaken = Math.max(student.quizzesTaken || 0, combinedQuizHistory.length);
+
+    let finalAvgInterview = student.avgInterviewScore || 80;
+    if (realInterviewHistory.length > 0) {
+      finalAvgInterview = Math.round(
+        realInterviewHistory.reduce((acc, i) => acc + i.score, 0) / realInterviewHistory.length
+      );
+    }
+
+    let finalAvgQuiz = student.avgQuizScore || 80;
+    if (combinedQuizHistory.length > 0) {
+      finalAvgQuiz = Math.round(
+        combinedQuizHistory.reduce((acc, q) => acc + q.scorePct, 0) / combinedQuizHistory.length
+      );
+    }
+
+    const calculatedActivity = Math.min(
+      100,
+      Math.round(
+        finalProblemsSolved * 1.5 +
+          finalInterviewsCount * 8 +
+          finalQuizzesTaken * 4 +
+          (student.streakDays || 1) * 2
+      )
+    );
+    const finalActivityScore = Math.max(student.activityScore || 0, calculatedActivity);
 
     return {
       ...student,
-      quizzesTaken: totalQuizzes,
-      avgQuizScore: avgScore,
-      problemsSolved: (student.problemsSolved || 0) + totalQuestionsSolved,
-      lastActive: "Just now",
-      quizHistory: mergedHistory,
+      problemsSolved: finalProblemsSolved,
+      problemsAttempted: Math.max(finalProblemsSolved, realCodingHistory.length, student.problemsAttempted || 0),
+      interviewsCompleted: finalInterviewsCount,
+      avgInterviewScore: finalAvgInterview,
+      quizzesTaken: finalQuizzesTaken,
+      avgQuizScore: finalAvgQuiz,
+      activityScore: finalActivityScore,
+      codingHistory: realCodingHistory.length > 0 ? realCodingHistory : student.codingHistory,
+      interviewHistory: realInterviewHistory.length > 0 ? realInterviewHistory : student.interviewHistory,
+      quizHistory: combinedQuizHistory.length > 0 ? combinedQuizHistory : student.quizHistory,
+      resumeHistory: realResumeHistory.length > 0 ? realResumeHistory : student.resumeHistory,
+      liveTestsAttended: liveSubs.length,
+      heatmapData: generateHeatmap(finalActivityScore, student.streakDays || 7),
     };
   } catch (err) {
-    console.warn("Failed to enrich student with submissions:", err);
+    console.warn("Failed to enrich student with real activity history:", err);
     return student;
   }
 }

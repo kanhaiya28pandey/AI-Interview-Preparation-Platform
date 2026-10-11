@@ -55,6 +55,17 @@ public class NotificationController {
         return ResponseEntity.ok(list);
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Notification>> getNotificationsByPath(
+            Authentication authentication,
+            @PathVariable String userId,
+            @RequestParam(required = false) String role
+    ) {
+        boolean isAdmin = checkIsAdmin(authentication, role);
+        List<Notification> list = notificationService.getNotificationsForUser(userId, isAdmin);
+        return ResponseEntity.ok(list);
+    }
+
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamNotifications(
             Authentication authentication,
@@ -69,7 +80,16 @@ public class NotificationController {
     @PostMapping
     public ResponseEntity<Notification> createNotification(@RequestBody Map<String, Object> body) {
         String userId = (String) body.getOrDefault("userId", "student_broadcast");
-        String audience = (String) body.getOrDefault("audience", "ALL");
+        String audience = (String) body.get("audience");
+
+        if ("admin_inbox".equalsIgnoreCase(userId)) {
+            audience = "ADMIN";
+        } else if ("student_broadcast".equalsIgnoreCase(userId)) {
+            audience = "STUDENT_BROADCAST";
+        } else if (audience == null || audience.isBlank() || "STUDENT".equalsIgnoreCase(audience)) {
+            audience = "USER";
+        }
+
         String type = (String) body.getOrDefault("type", "system");
         String title = (String) body.getOrDefault("title", "New Notification");
         String message = (String) body.getOrDefault("message", "");

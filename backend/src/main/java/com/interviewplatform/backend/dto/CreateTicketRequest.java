@@ -15,9 +15,13 @@ public class CreateTicketRequest {
 
     private String attachmentName;
     private String attachmentDataUrl;
+    private String priority = "Medium";
 
     public CreateTicketRequest() {
     }
+
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
 
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }

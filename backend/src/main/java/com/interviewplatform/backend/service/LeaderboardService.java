@@ -25,17 +25,18 @@ public class LeaderboardService {
         List<LeaderboardUser> list = new ArrayList<>();
 
         for (UserProfile p : profiles) {
-            int score = p.getStats() != null ? (p.getStats().getTotalXP() * 10) + (p.getStats().getCodingProblemsSolved() * 15) : 800;
-            int streak = p.getStats() != null ? p.getStats().getCurrentStreak() : 1;
+            int score = p.getStats() != null ? p.getStats().getTotalXP() : 0;
+            int streak = p.getStats() != null ? p.getStats().getCurrentStreak() : 0;
             int solved = p.getStats() != null ? p.getStats().getCodingProblemsSolved() : 0;
             int interviews = p.getStats() != null ? p.getStats().getMockInterviewsCompleted() : 0;
-            int rating = p.getStats() != null ? p.getStats().getOverallRating() : 85;
+            int rating = p.getStats() != null ? p.getStats().getOverallRating() : 80;
 
             String badge = calculateBadge(score);
 
             LeaderboardUser lu = new LeaderboardUser(
                     0,
                     p.getUserId(),
+                    p.getEmail(),
                     p.getName() != null ? p.getName() : "Student",
                     p.getAvatar() != null ? p.getAvatar() : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
                     p.getCollege() != null && !p.getCollege().isBlank() ? p.getCollege() : "SRM Institute of Science and Technology",
@@ -54,7 +55,7 @@ public class LeaderboardService {
             list.add(lu);
         }
 
-        // Apply filters
+        // Apply filters & strictly sort
         if ("college".equalsIgnoreCase(filter)) {
             String targetCollege = "SRM";
             if (authEmail != null) {
@@ -64,11 +65,21 @@ public class LeaderboardService {
                 }
             }
             final String finalCollege = targetCollege;
-            list = list.stream().filter(u -> u.getCollege() != null && u.getCollege().toLowerCase().contains(finalCollege.toLowerCase())).toList();
+            list = list.stream()
+                    .filter(u -> u.getCollege() != null && u.getCollege().toLowerCase().contains(finalCollege.toLowerCase()))
+                    .sorted(Comparator.comparingInt(LeaderboardUser::getScore).reversed()
+                            .thenComparing(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()))
+                    .toList();
         } else if ("weekly".equalsIgnoreCase(filter)) {
-            list = list.stream().sorted(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()).toList();
+            list = list.stream()
+                    .sorted(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()
+                            .thenComparing(Comparator.comparingInt(LeaderboardUser::getScore).reversed()))
+                    .toList();
         } else {
-            list = list.stream().sorted(Comparator.comparingInt(LeaderboardUser::getScore).reversed()).toList();
+            list = list.stream()
+                    .sorted(Comparator.comparingInt(LeaderboardUser::getScore).reversed()
+                            .thenComparing(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()))
+                    .toList();
         }
 
         // Assign sequential rank numbers
@@ -83,10 +94,10 @@ public class LeaderboardService {
     }
 
     private String calculateBadge(int score) {
-        if (score >= 2800) return "Master";
-        if (score >= 2400) return "Gold";
-        if (score >= 2000) return "Silver";
-        if (score >= 1500) return "Bronze";
+        if (score >= 2500) return "Master";
+        if (score >= 2000) return "Gold";
+        if (score >= 1200) return "Silver";
+        if (score >= 600) return "Bronze";
         return "Pro";
     }
 }

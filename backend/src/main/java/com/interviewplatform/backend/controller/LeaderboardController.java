@@ -13,7 +13,7 @@ import com.interviewplatform.backend.model.LeaderboardUser;
 import com.interviewplatform.backend.service.LeaderboardService;
 
 @RestController
-@RequestMapping("/api/v1/leaderboard")
+@RequestMapping({"/api/v1/leaderboard", "/api/leaderboard"})
 public class LeaderboardController {
 
     private final LeaderboardService leaderboardService;

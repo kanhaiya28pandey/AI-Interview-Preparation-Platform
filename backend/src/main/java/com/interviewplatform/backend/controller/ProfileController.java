@@ -39,6 +39,16 @@ public class ProfileController {
         return ResponseEntity.ok(updatedProfile);
     }
 
+    @PutMapping("/stats")
+    public ResponseEntity<UserProfile> updateMyStats(
+            Authentication authentication,
+            @RequestBody com.interviewplatform.backend.model.UserStats stats
+    ) {
+        String email = authentication.getName();
+        UserProfile updatedProfile = profileService.updateStatsByEmail(email, stats);
+        return ResponseEntity.ok(updatedProfile);
+    }
+
     @GetMapping("/{userId}")
     public ResponseEntity<UserProfile> getProfileByUserId(@PathVariable String userId) {
         UserProfile profile = profileService.getProfileByUserId(userId);

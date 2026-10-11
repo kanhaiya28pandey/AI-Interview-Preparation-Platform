@@ -76,7 +76,11 @@ public class SecurityConfig {
                                 "/api/v1/coding-import/**",
                                 "/api/coding-import/**",
                                 "/api/v1/notifications/**",
-                                "/api/notifications/**"
+                                "/api/notifications/**",
+                                "/api/v1/support/tickets/**",
+                                "/api/support/tickets/**",
+                                "/api/v1/help/articles/*/vote",
+                                "/api/help/articles/*/vote"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/content/**",
@@ -86,9 +90,12 @@ public class SecurityConfig {
                                 "/api/v1/articles/**",
                                 "/api/v1/practice/**",
                                 "/api/v1/leaderboard/**",
+                                "/api/leaderboard/**",
                                 "/api/v1/interview/roles/**",
                                 "/api/v1/quiz/topics/**",
-                                "/api/v1/quizzes/topics/**"
+                                "/api/v1/quizzes/topics/**",
+                                "/api/v1/help/articles/**",
+                                "/api/help/articles/**"
                         ).permitAll()
                         .requestMatchers("/admin/**", "/api/admin/**", "/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

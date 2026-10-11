@@ -19,7 +19,7 @@ export type NotificationPriority = "info" | "success" | "warning" | "danger";
 export interface AppNotification {
   id: string;
   userId: string; // recipient userId, or "admin_inbox" or "student_broadcast"
-  audience: "STUDENT" | "ADMIN" | "ALL";
+  audience: "STUDENT" | "ADMIN" | "ALL" | "USER" | "STUDENT_BROADCAST";
   type: NotificationType;
   title: string;
   message: string;
@@ -42,6 +42,9 @@ const notifySubscribers = () => {
     }
   });
 };
+
+const getStorageKey = (userId: string, isAdminUser: boolean) =>
+  `ai_prep_notifs_${isAdminUser ? "admin" : (userId || "student")}`;
 
 let eventSource: EventSource | null = null;
 let currentStreamUser = "";
@@ -67,7 +70,7 @@ const connectSseStream = (userId: string, isAdminUser: boolean) => {
     const es = new EventSource(url);
     eventSource = es;
 
-    es.addEventListener("NOTIFICATION", (e) => {
+    es.addEventListener("NOTIFICATION", () => {
       try {
         notifySubscribers();
       } catch (err) {
@@ -102,14 +105,23 @@ export const notificationService = {
         `/api/v1/notifications?userId=${encodeURIComponent(userId)}&role=${isAdminUser ? "ADMIN" : "STUDENT"}`
       );
       if (Array.isArray(res.data)) {
-        return res.data.map((item) => ({
+        const formatted = res.data.map((item) => ({
           ...item,
           priority: item.priority || "info",
         }));
+        try {
+          localStorage.setItem(getStorageKey(userId, isAdminUser), JSON.stringify(formatted));
+        } catch {}
+        return formatted;
       }
     } catch (err) {
       console.warn("Failed to fetch notifications from backend:", err);
     }
+
+    try {
+      const raw = localStorage.getItem(getStorageKey(userId, isAdminUser));
+      if (raw) return JSON.parse(raw);
+    } catch {}
 
     return [];
   },
@@ -121,8 +133,18 @@ export const notificationService = {
     notification: Omit<AppNotification, "id" | "createdAt" | "read"> &
       Partial<Pick<AppNotification, "id" | "createdAt" | "read">>
   ): Promise<AppNotification | null> {
+    const prepared = {
+      ...notification,
+      audience:
+        notification.userId === "admin_inbox"
+          ? "ADMIN"
+          : notification.userId === "student_broadcast"
+          ? "STUDENT_BROADCAST"
+          : notification.audience || "USER",
+    };
+
     try {
-      const res = await api.post<AppNotification>("/api/v1/notifications", notification);
+      const res = await api.post<AppNotification>("/api/v1/notifications", prepared);
       if (res.data) {
         notifySubscribers();
         return res.data;
@@ -130,7 +152,24 @@ export const notificationService = {
     } catch (err) {
       console.warn("Failed to save notification to backend:", err);
     }
-    return null;
+
+    // Local fallback for offline mode
+    const fallbackItem: AppNotification = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: new Date().toISOString(),
+      read: false,
+      ...prepared,
+    };
+
+    try {
+      const isAdminTarget = prepared.userId === "admin_inbox" || prepared.audience === "ADMIN";
+      const key = getStorageKey(prepared.userId, isAdminTarget);
+      const existing: AppNotification[] = JSON.parse(localStorage.getItem(key) || "[]");
+      localStorage.setItem(key, JSON.stringify([fallbackItem, ...existing]));
+      notifySubscribers();
+    } catch {}
+
+    return fallbackItem;
   },
 
   /**
@@ -138,12 +177,15 @@ export const notificationService = {
    */
   async notifyUser(
     userId: string,
-    notification: Omit<AppNotification, "id" | "createdAt" | "read" | "userId">
+    notification: Omit<AppNotification, "id" | "createdAt" | "read" | "userId" | "audience"> & {
+      audience?: AppNotification["audience"];
+    }
   ): Promise<AppNotification | null> {
     if (!userId) return null;
     return this.add({
       ...notification,
       userId,
+      audience: notification.audience || "USER",
     });
   },
 
@@ -169,7 +211,7 @@ export const notificationService = {
     return this.add({
       ...notification,
       userId: "student_broadcast",
-      audience: "STUDENT",
+      audience: "STUDENT_BROADCAST",
     });
   },
 

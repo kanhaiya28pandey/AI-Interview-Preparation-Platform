@@ -1,4 +1,5 @@
 import { getScopedItem, setScopedItem } from "@/lib/userScope";
+import api from "@/lib/api";
 
 export interface UserPracticeProgress {
   completedQuestions: Record<string, string[]>;
@@ -125,6 +126,7 @@ export const progressService = {
     if (!isCompleted) {
       this.awardXP(userId, 10);
       this.incrementStat(userId, "totalPracticeSessions");
+      this.syncMasterStudentRecord(userId, { xpDelta: 10, activityDelta: 1 });
     }
 
     return !isCompleted;
@@ -183,9 +185,10 @@ export const progressService = {
     setScopedItem(userId, "coding_submissions", updatedList);
 
     if (isFirstSolve) {
-      this.awardXP(userId, submission.xpEarned || 50);
+      const xp = submission.xpEarned || 50;
+      this.awardXP(userId, xp);
       this.incrementStat(userId, "codingProblemsSolved");
-      this.syncMasterStudentRecord(userId, { problemsDelta: 1, activityDelta: 2 });
+      this.syncMasterStudentRecord(userId, { problemsDelta: 1, xpDelta: xp, activityDelta: 2 });
     }
 
     return newEntry;
@@ -273,7 +276,8 @@ export const progressService = {
     const updatedList = [newEntry, ...list];
     setScopedItem(userId, "interview_sessions", updatedList);
 
-    this.awardXP(userId, 100);
+    const earnedXp = Math.max(50, Math.round(150 * (session.overallScore / 100)));
+    this.awardXP(userId, earnedXp);
     this.incrementStat(userId, "mockInterviewsCompleted");
 
     // Recalculate average interview rating
@@ -283,11 +287,48 @@ export const progressService = {
 
     this.syncMasterStudentRecord(userId, {
       interviewsDelta: 1,
+      xpDelta: earnedXp,
       newInterviewScore: session.overallScore,
       activityDelta: 5,
     });
 
     return newEntry;
+  },
+
+  // Live Contest Submissions
+  recordLiveTestSubmission(
+    userId: string | null | undefined,
+    contest: {
+      contestId: string;
+      title: string;
+      domain?: string;
+      totalMarks: number;
+      score: number;
+      percentage: number;
+      passed: boolean;
+      codingProblemsCount?: number;
+    }
+  ): { xpEarned: number } {
+    const xpEarned = Math.max(50, Math.round(200 * (contest.percentage / 100)) + (contest.passed ? 50 : 20));
+    this.awardXP(userId, xpEarned);
+    this.incrementStat(userId, "quizzesCompleted");
+
+    const codingDelta = contest.codingProblemsCount ? Math.round(contest.codingProblemsCount * (contest.percentage / 100)) : 0;
+    if (codingDelta > 0) {
+      for (let i = 0; i < codingDelta; i++) {
+        this.incrementStat(userId, "codingProblemsSolved");
+      }
+    }
+
+    this.syncMasterStudentRecord(userId, {
+      problemsDelta: codingDelta,
+      testsDelta: 1,
+      xpDelta: xpEarned,
+      newQuizScore: contest.percentage,
+      activityDelta: 6,
+    });
+
+    return { xpEarned };
   },
 
   // Resume Analyzer
@@ -336,7 +377,47 @@ export const progressService = {
     this.updateStatValue(userId, "totalXP", nextXP);
     this.touchStreak(userId);
 
+    // Sync to backend & dispatch global reactive events
+    this.syncStatsToBackend(userId);
+    window.dispatchEvent(new Event("student-xp-updated"));
+    window.dispatchEvent(new Event("student-progress-updated"));
+
     return nextXP;
+  },
+
+  async syncStatsToBackend(userId: string | null | undefined): Promise<void> {
+    try {
+      const token = localStorage.getItem("ai_interview_prep_token");
+      if (!token || token.includes("demo-")) return;
+      const stats = this.getStatsSnapshot(userId);
+      await api.put("/api/v1/profile/stats", stats).catch(() => {});
+    } catch {}
+  },
+
+  getStatsSnapshot(userId: string | null | undefined): UserStatsSnapshot {
+    const isDemo = isDemoUserCheck(userId);
+    const xp = getScopedItem<number>(userId, "user_xp", isDemo ? 2240 : 0);
+    const streak = getScopedItem<number>(userId, "user_streak", isDemo ? 12 : 0);
+    const solved = this.getCodingProblemsSolvedCount(userId);
+    const interviews = this.getInterviewSessions(userId).length;
+    const quizzes = this.getQuizAttempts(userId).length;
+    const practice = this.getCompletedQuestionsCount(userId);
+
+    let rating = 80;
+    const sessions = this.getInterviewSessions(userId);
+    if (sessions.length > 0) {
+      rating = Math.round(sessions.reduce((acc, s) => acc + s.overallScore, 0) / sessions.length);
+    }
+
+    return {
+      totalPracticeSessions: practice,
+      codingProblemsSolved: solved,
+      mockInterviewsCompleted: interviews,
+      quizzesCompleted: quizzes,
+      overallRating: rating,
+      currentStreak: streak,
+      totalXP: xp,
+    };
   },
 
   touchStreak(userId: string | null | undefined): number {

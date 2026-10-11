@@ -20,6 +20,11 @@ public class SupportTicket {
     private String attachmentDataUrl;
 
     private String status = "Open"; // "Open", "In Review", "Resolved"
+    private String priority = "Medium"; // "Low", "Medium", "High", "Critical"
+    private String resolutionNotes;
+    private String adminReply;
+    private String resolvedAt;
+    private String resolvedBy;
     private String createdAt;
     private String userName;
     private String userEmail;
@@ -66,6 +71,21 @@ public class SupportTicket {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
+
+    public String getResolutionNotes() { return resolutionNotes; }
+    public void setResolutionNotes(String resolutionNotes) { this.resolutionNotes = resolutionNotes; }
+
+    public String getAdminReply() { return adminReply; }
+    public void setAdminReply(String adminReply) { this.adminReply = adminReply; }
+
+    public String getResolvedAt() { return resolvedAt; }
+    public void setResolvedAt(String resolvedAt) { this.resolvedAt = resolvedAt; }
+
+    public String getResolvedBy() { return resolvedBy; }
+    public void setResolvedBy(String resolvedBy) { this.resolvedBy = resolvedBy; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

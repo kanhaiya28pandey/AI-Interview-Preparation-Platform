@@ -17,6 +17,8 @@ import {
   LiveTestSubmission,
 } from "@/services/liveTestService";
 import { codingService } from "@/services/codingService";
+import { progressService } from "@/services/progressService";
+import { notificationService } from "@/services/notificationService";
 import { useAuth } from "@/context/AuthContext";
 import {
   Radio,
@@ -492,6 +494,49 @@ export const LiveTests: React.FC = () => {
     liveTestService.saveSubmission(submission);
     setAllSubmissions(liveTestService.getAllSubmissions());
 
+    // Award XP, touch streak, and sync master student record & backend
+    const codingQuestionsCount = activeArenaTest.sections?.reduce(
+      (acc, s) => acc + (s.questions?.filter((q) => q.type === "CODING").length || 0),
+      0
+    ) || 0;
+    const { xpEarned } = progressService.recordLiveTestSubmission(user?.userId, {
+      contestId: activeArenaTest.id,
+      title: activeArenaTest.title,
+      domain: (activeArenaTest as any).domain || activeArenaTest.category || "General Assessment",
+      totalMarks,
+      score: calculatedScore,
+      percentage,
+      passed,
+      codingProblemsCount: codingQuestionsCount,
+    });
+
+    // Notify the student who submitted (strictly personal, no other student notified)
+    if (user?.userId) {
+      notificationService.notifyUser(user.userId, {
+        type: "contest",
+        title: subType === "AUTO_TAB_SWITCH" ? "Test Auto-Submitted (Violation)" : "Live Test Completed",
+        message:
+          subType === "AUTO_TAB_SWITCH"
+            ? `Your test "${activeArenaTest.title}" was auto-submitted due to tab switch infractions. Score: ${calculatedScore}/${totalMarks}.`
+            : `You scored ${calculatedScore}/${totalMarks} (${percentage.toFixed(0)}%) in "${activeArenaTest.title}". +${xpEarned} XP earned!`,
+        link: "/live-tests",
+        priority: subType === "AUTO_TAB_SWITCH" ? "danger" : passed ? "success" : "warning",
+      }).catch(() => {});
+    }
+
+    // Notify Admin Inbox about the live test activity
+    notificationService.notifyAdmins({
+      type: "contest",
+      title: subType === "AUTO_TAB_SWITCH" ? "Anti-Cheating Auto-Submit" : "Live Test Submission",
+      message: `${user?.name || "Student"} ${
+        subType === "AUTO_TAB_SWITCH"
+          ? "was auto-submitted (exceeded tab switches)"
+          : "submitted"
+      } "${activeArenaTest.title}" (${calculatedScore}/${totalMarks} - ${percentage.toFixed(0)}%).`,
+      link: "/admin/live-tests",
+      priority: subType === "AUTO_TAB_SWITCH" ? "danger" : "info",
+    }).catch(() => {});
+
     // Exit fullscreen if active
     try {
       if (document.fullscreenElement && document.exitFullscreen) {
@@ -508,7 +553,7 @@ export const LiveTests: React.FC = () => {
     setSelectedContestForReview(contestRef);
     setReviewResultModalOpen(true);
 
-    toast.success("Contest submission evaluated successfully! Review your result below.");
+    toast.success(`Contest evaluated successfully! You earned +${xpEarned} XP. Review your result below.`);
   };
 
   // Open Scorecard for an archived or finished test

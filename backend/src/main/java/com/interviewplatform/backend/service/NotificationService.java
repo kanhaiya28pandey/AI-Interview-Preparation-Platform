@@ -80,7 +80,7 @@ public class NotificationService {
     }
 
     public Notification notifyStudents(String type, String title, String message, String link, String priority) {
-        return createNotification("student_broadcast", "STUDENT", type, title, message, link, priority);
+        return createNotification("student_broadcast", "STUDENT_BROADCAST", type, title, message, link, priority);
     }
 
     public Notification notifyAdmins(String type, String title, String message, String link, String priority) {
@@ -88,25 +88,37 @@ public class NotificationService {
     }
 
     public Notification notifyUser(String userId, String type, String title, String message, String link, String priority) {
-        return createNotification(userId, "STUDENT", type, title, message, link, priority);
+        return createNotification(userId, "USER", type, title, message, link, priority);
     }
 
     private void broadcast(Notification notif) {
         List<ClientSubscription> deadSubs = new ArrayList<>();
+        String notifAudience = notif.getAudience() != null ? notif.getAudience().trim() : "USER";
+        String notifUserId = notif.getUserId() != null ? notif.getUserId().trim() : "";
 
         for (ClientSubscription sub : activeSubscriptions) {
             boolean shouldReceive = false;
+            String subUserId = sub.userId != null ? sub.userId.trim() : "";
 
-            if ("ALL".equalsIgnoreCase(notif.getAudience())) {
+            if ("ALL".equalsIgnoreCase(notifAudience)) {
                 shouldReceive = true;
-            } else if ("ADMIN".equalsIgnoreCase(notif.getAudience()) && sub.isAdmin) {
-                shouldReceive = true;
-            } else if ("STUDENT".equalsIgnoreCase(notif.getAudience()) && !sub.isAdmin) {
-                shouldReceive = true;
-            }
-
-            if (!shouldReceive && sub.userId != null && sub.userId.equalsIgnoreCase(notif.getUserId())) {
-                shouldReceive = true;
+            } else if ("ADMIN".equalsIgnoreCase(notifAudience) || "admin_inbox".equalsIgnoreCase(notifUserId)) {
+                // Admin notifications: only delivered to admins
+                if (sub.isAdmin) {
+                    shouldReceive = true;
+                }
+            } else if ("STUDENT_BROADCAST".equalsIgnoreCase(notifAudience) 
+                    || "student_broadcast".equalsIgnoreCase(notifUserId) 
+                    || ("STUDENT".equalsIgnoreCase(notifAudience) && "student_broadcast".equalsIgnoreCase(notifUserId))) {
+                // Student broadcasts: delivered to non-admin students
+                if (!sub.isAdmin) {
+                    shouldReceive = true;
+                }
+            } else {
+                // Individual user-targeted notification: ONLY if subscriber's userId matches notif's userId!
+                if (!subUserId.isEmpty() && !notifUserId.isEmpty() && subUserId.equalsIgnoreCase(notifUserId)) {
+                    shouldReceive = true;
+                }
             }
 
             if (shouldReceive) {
@@ -126,20 +138,33 @@ public class NotificationService {
     public List<Notification> getNotificationsForUser(String userId, boolean isAdmin) {
         List<Notification> all = notificationRepository.findAllByOrderByCreatedAtDesc();
         List<Notification> result = new ArrayList<>();
+        String normalizedUid = userId != null ? userId.trim() : "";
 
         for (Notification n : all) {
-            if ("ALL".equalsIgnoreCase(n.getAudience())) {
+            String notifUserId = n.getUserId() != null ? n.getUserId().trim() : "";
+            String aud = n.getAudience() != null ? n.getAudience().trim() : "USER";
+
+            if ("ALL".equalsIgnoreCase(aud)) {
                 result.add(n);
             } else if (isAdmin) {
-                if ("ADMIN".equalsIgnoreCase(n.getAudience()) || "admin_inbox".equalsIgnoreCase(n.getUserId())) {
-                    result.add(n);
-                } else if (userId != null && userId.equalsIgnoreCase(n.getUserId())) {
+                // Admin sees:
+                // 1. All admin operations / alerts ("ADMIN", "admin_inbox")
+                // 2. Notifications targeted directly to this admin's personal userId
+                if ("ADMIN".equalsIgnoreCase(aud) 
+                        || "admin_inbox".equalsIgnoreCase(notifUserId)
+                        || (!normalizedUid.isEmpty() && normalizedUid.equalsIgnoreCase(notifUserId))) {
                     result.add(n);
                 }
             } else {
-                if ("STUDENT".equalsIgnoreCase(n.getAudience()) || "student_broadcast".equalsIgnoreCase(n.getUserId())) {
+                // Student sees:
+                // 1. Broadcasts intended for all students ("STUDENT_BROADCAST" or "student_broadcast")
+                // 2. Personal notifications where notifUserId strictly equals this student's userId
+                // They MUST NEVER see notifications belonging to other students!
+                if ("STUDENT_BROADCAST".equalsIgnoreCase(aud) 
+                        || "student_broadcast".equalsIgnoreCase(notifUserId)
+                        || ("STUDENT".equalsIgnoreCase(aud) && "student_broadcast".equalsIgnoreCase(notifUserId))) {
                     result.add(n);
-                } else if (userId != null && userId.equalsIgnoreCase(n.getUserId())) {
+                } else if (!normalizedUid.isEmpty() && normalizedUid.equalsIgnoreCase(notifUserId)) {
                     result.add(n);
                 }
             }

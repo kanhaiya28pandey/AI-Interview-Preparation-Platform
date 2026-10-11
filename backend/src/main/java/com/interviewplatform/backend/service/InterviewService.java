@@ -14,6 +14,7 @@ import com.interviewplatform.backend.model.InterviewRole;
 import com.interviewplatform.backend.model.InterviewSession;
 import com.interviewplatform.backend.model.QuestionAnswer;
 import com.interviewplatform.backend.model.User;
+import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.repository.InterviewQuestionRepository;
 import com.interviewplatform.backend.repository.InterviewRoleRepository;
 import com.interviewplatform.backend.repository.InterviewSessionRepository;
@@ -164,14 +165,23 @@ public class InterviewService {
             session.setCompletedAt(LocalDateTime.now().toString());
             interviewSessionRepository.save(session);
 
-            // Update user profile stats: increment mockInterviewsCompleted
-            if (session.getUserId() != null) {
-                userProfileRepository.findByUserId(session.getUserId()).ifPresent(profile -> {
-                    if (profile.getStats() != null) {
-                        profile.getStats().setMockInterviewsCompleted(profile.getStats().getMockInterviewsCompleted() + 1);
-                        userProfileRepository.save(profile);
-                    }
-                });
+            // Update user profile stats: increment mockInterviewsCompleted, award scaled XP, update rating
+            int earnedXp = Math.max(50, (int) Math.round(150.0 * (feedback.getOverallScore() / 100.0)));
+            java.util.function.Consumer<UserProfile> updateProfileStats = profile -> {
+                if (profile.getStats() != null) {
+                    profile.getStats().setMockInterviewsCompleted(profile.getStats().getMockInterviewsCompleted() + 1);
+                    profile.getStats().setTotalXP(profile.getStats().getTotalXP() + earnedXp);
+                    int prevRating = profile.getStats().getOverallRating();
+                    int newRating = prevRating > 0 ? (prevRating + feedback.getOverallScore()) / 2 : feedback.getOverallScore();
+                    profile.getStats().setOverallRating(newRating);
+                    userProfileRepository.save(profile);
+                }
+            };
+
+            if (session.getUserId() != null && !session.getUserId().isBlank()) {
+                userProfileRepository.findByUserId(session.getUserId()).ifPresent(updateProfileStats);
+            } else if (session.getEmail() != null && !session.getEmail().isBlank()) {
+                userProfileRepository.findByEmail(session.getEmail()).ifPresent(updateProfileStats);
             }
         }
 

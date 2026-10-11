@@ -16,6 +16,7 @@ import {
   LiveTestSection,
   LiveTestSubmission,
 } from "@/services/liveTestService";
+import { notificationService } from "@/services/notificationService";
 import {
   Play,
   Pause,
@@ -270,7 +271,22 @@ export const AdminLiveTests: React.FC = () => {
 
   const handleComplete = (testId: string) => {
     liveTestService.updateTestStatus(testId, "Completed");
+    const test = liveTestService.getTestById(testId);
     toast.success("Contest marked as completed. Results are finalized.");
+    notificationService.notifyAdmins({
+      type: "contest",
+      title: "Contest Completed & Finalized",
+      message: `Contest "${test?.title || testId}" marked completed. Leaderboard and scorecards published.`,
+      link: "/admin/live-tests",
+      priority: "info",
+    }).catch(() => {});
+    notificationService.notifyAllStudents({
+      type: "contest",
+      title: "Contest Concluded",
+      message: `Results for "${test?.title || "Live Contest"}" are finalized. Check your performance report!`,
+      link: "/live-tests",
+      priority: "info",
+    }).catch(() => {});
   };
 
   const handleDeleteTest = (testId: string) => {
@@ -314,12 +330,54 @@ export const AdminLiveTests: React.FC = () => {
     if (contest.status === "Live") {
       liveTestService.updateTestStatus(contest.id, "Paused");
       toast.warning(`Contest "${contest.title}" paused. Countdown frozen.`);
+      notificationService.notifyAdmins({
+        type: "contest",
+        title: "Live Contest Paused",
+        message: `Admin paused contest "${contest.title}".`,
+        link: "/admin/live-tests",
+        priority: "warning",
+      }).catch(() => {});
+      notificationService.notifyAllStudents({
+        type: "contest",
+        title: "Contest Temporarily Paused",
+        message: `"${contest.title}" has been paused by the proctor. Timer is frozen.`,
+        link: "/live-tests",
+        priority: "warning",
+      }).catch(() => {});
     } else if (contest.status === "Paused") {
       liveTestService.updateTestStatus(contest.id, "Live");
       toast.success(`Contest "${contest.title}" resumed! Candidates can submit.`);
+      notificationService.notifyAdmins({
+        type: "contest",
+        title: "Live Contest Resumed",
+        message: `Admin resumed contest "${contest.title}".`,
+        link: "/admin/live-tests",
+        priority: "success",
+      }).catch(() => {});
+      notificationService.notifyAllStudents({
+        type: "contest",
+        title: "Contest Resumed",
+        message: `"${contest.title}" resumed! Candidates may continue submitting.`,
+        link: "/live-tests",
+        priority: "info",
+      }).catch(() => {});
     } else if (contest.status === "Scheduled") {
       liveTestService.updateTestStatus(contest.id, "Live");
       toast.success(`Contest "${contest.title}" is now LIVE!`);
+      notificationService.notifyAdmins({
+        type: "contest",
+        title: "Contest Started Live",
+        message: `Contest "${contest.title}" is now accepting candidate submissions.`,
+        link: "/admin/live-tests",
+        priority: "success",
+      }).catch(() => {});
+      notificationService.notifyAllStudents({
+        type: "contest",
+        title: "🔥 Campus Contest is LIVE",
+        message: `"${contest.title}" is now live! Enter now to participate.`,
+        link: "/live-tests",
+        priority: "success",
+      }).catch(() => {});
     }
     setTests(liveTestService.getAllTests());
   };
@@ -749,6 +807,23 @@ export const AdminLiveTests: React.FC = () => {
         sections: formSections,
         problems: [],
       });
+
+      notificationService.notifyAdmins({
+        type: "contest",
+        title: "Live Contest Created",
+        message: `Live test "${formTitle}" (${formStatus}) created. Total marks: ${formTotalMarks}.`,
+        link: "/admin/live-tests",
+        priority: "success",
+      }).catch(() => {});
+
+      notificationService.notifyAllStudents({
+        type: "contest",
+        title: formStatus === "Live" ? "🔥 Live Test Started" : "📅 New Test Scheduled",
+        message: `"${formTitle}" (${formDurationMinutes} mins, ${formTotalMarks} marks) - scheduled for ${new Date(isoScheduledTime).toLocaleString()}.`,
+        link: "/live-tests",
+        priority: formStatus === "Live" ? "success" : "info",
+      }).catch(() => {});
+
       toast.success(
         formStatus === "Live"
           ? `Live contest "${formTitle}" is now active and accepting submissions!`

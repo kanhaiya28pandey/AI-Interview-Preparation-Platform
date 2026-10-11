@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { ContextualHelpTooltip } from "@/components/common/ContextualHelpTooltip";
 import { profileService } from "@/services/profileService";
 import {
@@ -40,6 +40,7 @@ import {
   Sparkles,
   BookOpen,
   Code2,
+  Camera,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -60,6 +61,7 @@ export const Profile: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"personal" | "education" | "skills" | "preferences">("personal");
   const [showRecruiterPreview, setShowRecruiterPreview] = useState<boolean>(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Skill input helper state
   const [newSkillName, setNewSkillName] = useState<string>("");
@@ -71,7 +73,37 @@ export const Profile: React.FC = () => {
       setProfile(data);
       setLoading(false);
     });
+
+    const handleProfileUpdated = (e: any) => {
+      if (e.detail) {
+        setProfile(e.detail);
+      }
+    };
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
   }, []);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        try {
+          const updated = await profileService.updateProfile({
+            avatar: base64,
+            isCustomAvatar: true,
+          });
+          setProfile(updated);
+        } catch (err) {
+          console.error("Failed to upload profile photo:", err);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Save handler for any section
   const handleSaveSection = async (updatedData: Partial<UserProfile>) => {
@@ -87,10 +119,17 @@ export const Profile: React.FC = () => {
     bio: profile?.bio || "",
     phone: profile?.phone || "",
     location: profile?.location || "",
+    gender: profile?.gender || "",
+    dateOfBirth: profile?.dateOfBirth || "",
     languages: profile?.languages || [],
   }), [profile]);
 
   const educationInitialData = useMemo(() => ({
+    college: profile?.college || "",
+    degree: profile?.degree || "",
+    branch: profile?.branch || "",
+    rollNumber: profile?.rollNumber || "",
+    graduationYear: profile?.graduationYear || "",
     educationEntries: profile?.educationEntries || [],
     schoolEducation: profile?.schoolEducation || {
       board10th: "",
@@ -157,9 +196,24 @@ export const Profile: React.FC = () => {
     <div className="space-y-6 max-w-5xl mx-auto text-text-primary">
       {/* Top Profile Header Card (Single Merged Header) */}
       <Card className="p-6 bg-surface border-border flex flex-col md:flex-row items-center md:items-start gap-6 relative overflow-hidden">
-        {/* Left: ONE Avatar Ring */}
-        <div className="shrink-0 flex justify-center">
+        {/* Left: ONE Avatar Ring with Camera Trigger */}
+        <div className="relative group shrink-0 flex justify-center">
           <AvatarCompletionRing profile={profile} size="xl" />
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            title="Upload / Change Profile Photo"
+            className="absolute -bottom-1 -right-1 p-2 rounded-full bg-surface-raised border border-cyan-400/50 text-cyan-400 hover:text-white hover:bg-cyan-500/30 hover:border-cyan-400 transition-all flex items-center justify-center cursor-pointer shadow-md hover:scale-110"
+          >
+            <Camera className="w-3.5 h-3.5" />
+          </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarUpload}
+            className="hidden"
+          />
         </div>
 
         {/* Right: Stacked Vertically */}
@@ -208,9 +262,15 @@ export const Profile: React.FC = () => {
           <p className="text-xs text-text-muted font-mono flex items-center justify-center md:justify-start gap-1.5 flex-wrap">
             <GraduationCap className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>
-              {profile.degree || profile.college
-                ? `${profile.degree ? profile.degree : ""}${profile.degree && profile.college ? " • " : ""}${profile.college ? profile.college : ""}${profile.graduationYear ? ` (${profile.graduationYear})` : ""}`
-                : "Education details not added yet"}
+              {(() => {
+                const displayDegree = profile.degree || profile.educationEntries?.[0]?.degree;
+                const displayCollege = profile.college || profile.educationEntries?.[0]?.institution;
+                const displayYear = profile.graduationYear || profile.educationEntries?.[0]?.endYear;
+                if (displayDegree || displayCollege) {
+                  return `${displayDegree ? displayDegree : ""}${displayDegree && displayCollege ? " • " : ""}${displayCollege ? displayCollege : ""}${displayYear ? ` (${displayYear})` : ""}`;
+                }
+                return "Education details not added yet";
+              })()}
             </span>
           </p>
 
@@ -330,6 +390,18 @@ export const Profile: React.FC = () => {
                   value={personalSection.draft.location}
                   onChange={(e) => personalSection.setDraft({ ...personalSection.draft, location: e.target.value })}
                 />
+                <Input
+                  label="Gender"
+                  value={personalSection.draft.gender}
+                  onChange={(e) => personalSection.setDraft({ ...personalSection.draft, gender: e.target.value })}
+                  placeholder="e.g. Male / Female / Non-binary"
+                />
+                <Input
+                  label="Date of Birth"
+                  type="date"
+                  value={personalSection.draft.dateOfBirth}
+                  onChange={(e) => personalSection.setDraft({ ...personalSection.draft, dateOfBirth: e.target.value })}
+                />
                 <div className="sm:col-span-2">
                   <Input
                     label="Headline / Professional Tagline"
@@ -362,6 +434,15 @@ export const Profile: React.FC = () => {
                     {profile.location || "Location not set"} &bull; {profile.phone || "No phone"}
                   </p>
                 </div>
+
+                {(profile.gender || profile.dateOfBirth) && (
+                  <div>
+                    <span className="font-mono text-text-muted uppercase text-[10px] block">Demographics</span>
+                    <p className="text-sm font-medium text-text-primary mt-0.5">
+                      {profile.gender || "Gender not set"} {profile.dateOfBirth ? `• DOB: ${profile.dateOfBirth}` : ""}
+                    </p>
+                  </div>
+                )}
 
                 <div className="sm:col-span-2">
                   <span className="font-mono text-text-muted uppercase text-[10px] block">Professional Headline</span>
@@ -589,6 +670,35 @@ export const Profile: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* University Roll & Identification */}
+                <div className="pt-4 border-t border-border space-y-4">
+                  <h4 className="text-xs font-mono uppercase text-text-secondary">University Roll & Campus Identification</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="University Roll No. / Student Reg. ID"
+                      value={educationSection.draft.rollNumber || ""}
+                      onChange={(e) =>
+                        educationSection.setDraft({
+                          ...educationSection.draft,
+                          rollNumber: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. RA2111003010452 or 22CS0104"
+                    />
+                    <Input
+                      label="College / Campus Branch"
+                      value={educationSection.draft.branch || ""}
+                      onChange={(e) =>
+                        educationSection.setDraft({
+                          ...educationSection.draft,
+                          branch: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Computer Science & Engineering"
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -636,6 +746,17 @@ export const Profile: React.FC = () => {
                         </p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {(profile.rollNumber || profile.branch) && (
+                  <div className="pt-4 border-t border-border flex items-center justify-between text-xs font-mono">
+                    <span className="text-text-muted">
+                      University Roll No: <span className="text-cyan-400 font-semibold">{profile.rollNumber || "Not set"}</span>
+                    </span>
+                    <span className="text-text-muted">
+                      Campus Branch: <span className="text-text-primary font-semibold">{profile.branch || "Not set"}</span>
+                    </span>
                   </div>
                 )}
               </div>
