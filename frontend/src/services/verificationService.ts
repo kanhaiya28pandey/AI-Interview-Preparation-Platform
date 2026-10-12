@@ -281,7 +281,20 @@ export const verificationService = {
     userId: string,
     email?: string
   ): Promise<{ status: VerificationStatus; submission?: VerificationSubmission }> {
-    await delay(50);
+    try {
+      const query = new URLSearchParams();
+      if (userId) query.append("userId", userId);
+      if (email) query.append("email", email);
+      const res = await api.get(`/api/v1/verification/status?${query.toString()}`);
+      if (res.data && res.data.status) {
+        return {
+          status: res.data.status as VerificationStatus,
+          submission: res.data.submission || undefined,
+        };
+      }
+    } catch (e) {
+      // Backend not yet authenticated or network issue
+    }
     return this.resolveStatus(userId, email);
   },
 
@@ -364,12 +377,15 @@ export const verificationService = {
   },
 
   async getAllSubmissions(): Promise<VerificationSubmission[]> {
-    if (USE_MOCKS) {
-      await delay(100);
-      return getStoredSubmissions();
+    try {
+      const res = await api.get("/api/v1/admin/verifications");
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        return res.data;
+      }
+    } catch (e) {
+      console.warn("Backend getAllSubmissions notice:", e);
     }
-    const res = await api.get("/api/v1/admin/verifications");
-    return res.data;
+    return getStoredSubmissions();
   },
 
   async reviewVerification(
@@ -629,5 +645,13 @@ export const verificationService = {
       rejectionNotes,
     });
     return res.data;
+  },
+
+  async deleteRejectedVerification(id: string): Promise<void> {
+    try {
+      await api.delete(`/api/v1/admin/verifications/${id}`);
+    } catch {
+      await api.delete(`/api/v1/admin/users/${id}`).catch(() => {});
+    }
   },
 };

@@ -46,7 +46,21 @@ export const useVerificationStatus = (): UseVerificationStatusResult => {
       return;
     }
 
-    const res = verificationService.resolveStatus(user.userId, user.email);
+    let res = verificationService.resolveStatus(user.userId, user.email);
+
+    // Also check backend status API to get real-time verification from MongoDB
+    try {
+      const backendRes = await verificationService.getVerificationStatus(user.userId, user.email);
+      if (backendRes && backendRes.status && backendRes.status !== "Unverified") {
+        res = {
+          status: backendRes.status,
+          submission: backendRes.submission || res.submission,
+        };
+      }
+    } catch {
+      // fallback to resolveStatus
+    }
+
     const prevStatus = previousStatusRef.current;
 
     setStatus(res.status);

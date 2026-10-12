@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,8 +43,8 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { Progress } from "@/components/ui/Progress";
-import { FAQ_CATEGORIES, FAQItem } from "@/mocks/faqs";
-import { supportService, SupportTicket } from "@/services/supportService";
+import { FAQ_CATEGORIES } from "@/mocks/faqs";
+import { supportService, SupportTicket, HelpArticle } from "@/services/supportService";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
@@ -58,6 +58,7 @@ const ticketSchema = z.object({
     "Feedback",
     "Other",
   ]),
+  priority: z.enum(["Low", "Medium", "High", "Critical"]),
   subject: z
     .string()
     .min(5, "Subject must be at least 5 characters")
@@ -87,7 +88,8 @@ export const HelpCenter: React.FC = () => {
     targetFaqParam || null
   );
 
-  // Tickets & Profile Data
+  // Dynamic Help Articles & Tickets
+  const [articles, setArticles] = useState<HelpArticle[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [votes, setVotes] = useState<Record<string, "up" | "down">>({});
@@ -120,6 +122,7 @@ export const HelpCenter: React.FC = () => {
     resolver: zodResolver(ticketSchema),
     defaultValues: {
       category: "Bug Report",
+      priority: "Medium",
       subject: "",
       description: "",
     },
@@ -127,12 +130,29 @@ export const HelpCenter: React.FC = () => {
 
   useEffect(() => {
     // Load initial support data
+    supportService.getArticles().then(setArticles);
     supportService.getTickets().then(setTickets);
     setVotes(supportService.getFaqVotes());
     profileService.getProfile().then(setProfile);
 
+    // Real-time synchronization listeners
+    const handleArticlesUpdated = (e: any) => {
+      if (e.detail) setArticles(e.detail);
+    };
+    const handleTicketsUpdated = (e: any) => {
+      if (e.detail) setTickets(e.detail);
+    };
+
+    window.addEventListener("help-articles-updated", handleArticlesUpdated);
+    window.addEventListener("support-tickets-updated", handleTicketsUpdated);
+
     // Run system diagnostics
     runSystemDiagnostics();
+
+    return () => {
+      window.removeEventListener("help-articles-updated", handleArticlesUpdated);
+      window.removeEventListener("support-tickets-updated", handleTicketsUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -168,9 +188,19 @@ export const HelpCenter: React.FC = () => {
     });
   };
 
-  const handleVote = (faqId: string, type: "up" | "down") => {
+  const handleVote = async (faqId: string, type: "up" | "down") => {
     const newVotes = supportService.saveFaqVote(faqId, type);
     setVotes({ ...newVotes });
+    try {
+      const updated = await supportService.voteArticle(faqId, type === "up");
+      if (updated) {
+        setArticles((prev) =>
+          prev.map((a) => (a.id === updated.id ? updated : a))
+        );
+      }
+    } catch {
+      // Non-blocking fallback
+    }
     toast.success(
       type === "up" ? "Feedback recorded! Thanks." : "Thanks for your feedback."
     );
@@ -195,6 +225,7 @@ export const HelpCenter: React.FC = () => {
     try {
       const newTicket = await supportService.createTicket({
         category: data.category,
+        priority: data.priority,
         subject: data.subject,
         description: data.description,
         attachmentName: attachmentName || undefined,
@@ -213,21 +244,50 @@ export const HelpCenter: React.FC = () => {
     }
   };
 
+  // Combine dynamic backend/localStorage articles with fallback FAQ mocks
+  const activeArticles = useMemo(() => {
+    if (articles.length > 0) return articles;
+    return FAQ_CATEGORIES.flatMap((cat) =>
+      cat.items.map((item) => ({
+        ...item,
+        author: "Placement Cell",
+        createdAt: new Date().toISOString(),
+      }))
+    );
+  }, [articles]);
+
+  // Derive unique categories from active articles
+  const categoriesList = useMemo(() => {
+    const map = new Map<string, number>();
+    activeArticles.forEach((a) => {
+      const cat = a.category || "General";
+      map.set(cat, (map.get(cat) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, count]) => ({
+      name,
+      count,
+      slug: name.toLowerCase().replace(/\s+/g, "-"),
+    }));
+  }, [activeArticles]);
+
   // Filter FAQs based on category tab & search query
-  const allFaqs = FAQ_CATEGORIES.flatMap((cat) => cat.items);
-  const filteredFaqs = allFaqs.filter((item) => {
-    const matchesCategory =
-      selectedCategory === "all" ||
-      item.category.toLowerCase().replace(/\s+/g, "-") === selectedCategory;
+  const filteredFaqs = useMemo(() => {
+    return activeArticles.filter((item) => {
+      const itemCategorySlug = (item.category || "").toLowerCase().replace(/\s+/g, "-");
+      const matchesCategory =
+        selectedCategory === "all" ||
+        itemCategorySlug === selectedCategory ||
+        item.category.toLowerCase() === selectedCategory.toLowerCase();
 
-    const matchesSearch =
-      !searchQuery.trim() ||
-      item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch =
+        !searchQuery.trim() ||
+        item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.tags && item.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
 
-    return matchesCategory && matchesSearch;
-  });
+      return matchesCategory && matchesSearch;
+    });
+  }, [activeArticles, selectedCategory, searchQuery]);
 
   // Checklist Items Calculation
   const checklistItems = [
@@ -377,20 +437,20 @@ export const HelpCenter: React.FC = () => {
                     : "bg-surface-raised text-text-muted hover:text-text-primary"
                 }`}
               >
-                All Categories ({allFaqs.length})
+                All Topics ({activeArticles.length})
               </button>
-              {FAQ_CATEGORIES.map((cat) => (
+              {categoriesList.map((cat) => (
                 <button
-                  key={cat.id}
+                  key={cat.slug}
                   type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
+                  onClick={() => setSelectedCategory(cat.slug)}
                   className={`px-3 py-1 rounded-lg transition-colors shrink-0 ${
-                    selectedCategory === cat.id
+                    selectedCategory === cat.slug
                       ? "bg-cyan-400/20 text-cyan-300 border border-cyan-400/40 font-semibold"
                       : "bg-surface-raised text-text-muted hover:text-text-primary"
                   }`}
                 >
-                  {cat.title} ({cat.items.length})
+                  {cat.name} ({cat.count})
                 </button>
               ))}
             </div>
@@ -676,21 +736,39 @@ export const HelpCenter: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit(onSubmitTicket)} className="space-y-4 text-xs font-sans">
-              <div>
-                <label className="block text-xs font-mono uppercase text-text-secondary mb-1">
-                  Ticket Category
-                </label>
-                <select
-                  {...register("category")}
-                  className="w-full p-3 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
-                >
-                  <option value="Bug Report">Bug Report</option>
-                  <option value="Feature Request">Feature Request</option>
-                  <option value="Account Issue">Account Issue</option>
-                  <option value="Feedback">Feedback</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.category && <p className="text-red-400 text-[11px] mt-1">{errors.category.message}</p>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-mono uppercase text-text-secondary mb-1">
+                    Ticket Category
+                  </label>
+                  <select
+                    {...register("category")}
+                    className="w-full p-3 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+                  >
+                    <option value="Bug Report">Bug Report</option>
+                    <option value="Feature Request">Feature Request</option>
+                    <option value="Account Issue">Account Issue</option>
+                    <option value="Feedback">Feedback</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  {errors.category && <p className="text-red-400 text-[11px] mt-1">{errors.category.message}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase text-text-secondary mb-1">
+                    Urgency / Priority
+                  </label>
+                  <select
+                    {...register("priority")}
+                    className="w-full p-3 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+                  >
+                    <option value="Low">Low - Suggestion / Minor</option>
+                    <option value="Medium">Medium - Regular Question</option>
+                    <option value="High">High - Impeding Practice</option>
+                    <option value="Critical">Critical - Platform Blocker</option>
+                  </select>
+                  {errors.priority && <p className="text-red-400 text-[11px] mt-1">{errors.priority.message}</p>}
+                </div>
               </div>
 
               <div>
@@ -766,33 +844,65 @@ export const HelpCenter: React.FC = () => {
               </div>
 
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {tickets.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedTicket(t)}
-                    className="p-3.5 bg-surface-raised border border-border rounded-xl hover:border-cyan-400/40 cursor-pointer transition-colors space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-cyan-400">{t.id}</span>
-                      <span
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
-                          t.status === "Resolved"
-                            ? "bg-teal-400/20 text-teal-400 border-teal-400/40"
-                            : "bg-amber-400/20 text-amber-400 border-amber-400/40"
-                        }`}
-                      >
-                        {t.status}
-                      </span>
-                    </div>
-
-                    <h4 className="text-xs font-bold text-text-primary line-clamp-1">{t.subject}</h4>
-
-                    <div className="flex justify-between items-center text-[11px] font-mono text-text-muted pt-1">
-                      <span>{t.category}</span>
-                      <span>{new Date(t.createdAt).toLocaleDateString()}</span>
-                    </div>
+                {tickets.length === 0 ? (
+                  <div className="text-center py-8 text-text-muted text-xs font-mono">
+                    No tickets submitted yet. If you face any issues, use the form on the left.
                   </div>
-                ))}
+                ) : (
+                  tickets.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTicket(t)}
+                      className="p-3.5 bg-surface-raised border border-border rounded-xl hover:border-cyan-400/40 cursor-pointer transition-colors space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-cyan-400">{t.id}</span>
+                          <span
+                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-semibold uppercase ${
+                              t.priority === "Critical"
+                                ? "bg-red-500/20 text-red-400 border border-red-500/40"
+                                : t.priority === "High"
+                                ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                                : t.priority === "Low"
+                                ? "bg-text-muted/20 text-text-muted border border-border"
+                                : "bg-blue-500/20 text-blue-400 border border-blue-500/40"
+                            }`}
+                          >
+                            {t.priority || "Medium"}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
+                            t.status === "Resolved"
+                              ? "bg-teal-400/20 text-teal-400 border-teal-400/40"
+                              : t.status === "In Review"
+                              ? "bg-blue-400/20 text-blue-400 border-blue-400/40"
+                              : "bg-amber-400/20 text-amber-400 border-amber-400/40"
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+                      </div>
+
+                      <h4 className="text-xs font-bold text-text-primary line-clamp-1">{t.subject}</h4>
+
+                      {t.adminReply && (
+                        <div className="p-2 rounded-lg bg-surface border border-teal-400/30 text-[11px] text-teal-300">
+                          <span className="font-semibold block text-[9px] uppercase text-teal-400 font-mono">
+                            Admin Reply:
+                          </span>
+                          <p className="line-clamp-2 mt-0.5">{t.adminReply}</p>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center text-[11px] font-mono text-text-muted pt-1 border-t border-border/50">
+                        <span>{t.category}</span>
+                        <span>{new Date(t.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </div>
@@ -961,11 +1071,28 @@ export const HelpCenter: React.FC = () => {
         >
           <div className="space-y-4 py-2 font-mono text-xs">
             <div className="flex justify-between items-center pb-2 border-b border-border">
-              <span className="text-cyan-400 font-bold">{selectedTicket.category}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-cyan-400 font-bold">{selectedTicket.category}</span>
+                <span
+                  className={`text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase ${
+                    selectedTicket.priority === "Critical"
+                      ? "bg-red-500/20 text-red-400 border border-red-500/40"
+                      : selectedTicket.priority === "High"
+                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                      : selectedTicket.priority === "Low"
+                      ? "bg-text-muted/20 text-text-muted border border-border"
+                      : "bg-blue-500/20 text-blue-400 border border-blue-500/40"
+                  }`}
+                >
+                  {selectedTicket.priority || "Medium"} Priority
+                </span>
+              </div>
               <span
                 className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
                   selectedTicket.status === "Resolved"
                     ? "bg-teal-400/20 text-teal-400 border-teal-400/40"
+                    : selectedTicket.status === "In Review"
+                    ? "bg-blue-400/20 text-blue-400 border-blue-400/40"
                     : "bg-amber-400/20 text-amber-400 border-amber-400/40"
                 }`}
               >
@@ -980,20 +1107,54 @@ export const HelpCenter: React.FC = () => {
 
             <div>
               <span className="text-text-muted text-[10px] uppercase block">Description</span>
-              <p className="text-text-secondary font-sans text-xs leading-relaxed bg-surface-raised p-3 rounded-xl border border-border mt-0.5">
+              <p className="text-text-secondary font-sans text-xs leading-relaxed bg-surface-raised p-3 rounded-xl border border-border mt-0.5 whitespace-pre-wrap">
                 {selectedTicket.description}
               </p>
             </div>
 
-            {selectedTicket.attachmentName && (
-              <div>
-                <span className="text-text-muted text-[10px] uppercase block">Attachment</span>
-                <p className="text-teal-400 font-bold mt-0.5">✓ {selectedTicket.attachmentName}</p>
+            {selectedTicket.adminReply && (
+              <div className="p-3.5 rounded-xl bg-teal-400/10 border border-teal-400/30 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-teal-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Official Administrator Reply
+                  </span>
+                  {selectedTicket.resolvedAt && (
+                    <span className="text-text-muted text-[10px]">
+                      {new Date(selectedTicket.resolvedAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <p className="text-text-primary font-sans text-xs leading-relaxed">
+                  {selectedTicket.adminReply}
+                </p>
+                {selectedTicket.resolvedBy && (
+                  <span className="text-[10px] text-text-muted block pt-1 border-t border-teal-400/20">
+                    Handled by: {selectedTicket.resolvedBy}
+                  </span>
+                )}
               </div>
             )}
 
-            <div className="pt-2 text-[11px] text-text-muted flex justify-between">
-              <span>Submitted by: {selectedTicket.userName}</span>
+            {selectedTicket.attachmentName && (
+              <div className="space-y-1">
+                <span className="text-text-muted text-[10px] uppercase block">Attachment</span>
+                <p className="text-teal-400 font-bold text-xs flex items-center gap-1.5">
+                  <Paperclip className="w-3.5 h-3.5" /> {selectedTicket.attachmentName}
+                </p>
+                {selectedTicket.attachmentDataUrl && (
+                  <div className="mt-2 p-2 bg-surface-raised border border-border rounded-xl">
+                    <img
+                      src={selectedTicket.attachmentDataUrl}
+                      alt="Attachment Preview"
+                      className="max-h-48 rounded object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="pt-2 text-[11px] text-text-muted flex justify-between border-t border-border/50">
+              <span>Submitted by: {selectedTicket.userName || "Student"}</span>
               <span>{new Date(selectedTicket.createdAt).toLocaleString()}</span>
             </div>
           </div>

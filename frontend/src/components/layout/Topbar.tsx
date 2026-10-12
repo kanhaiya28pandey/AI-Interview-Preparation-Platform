@@ -53,9 +53,10 @@ export const Topbar: React.FC<TopbarProps> = ({
   isSidebarCollapsed = false,
   onToggleSidebarCollapse,
 }) => {
-  const { user, logout, isDemoMode } = useAuth();
+  const { user, logout, isDemoMode, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationFilter, setNotificationFilter] = useState<string>("all");
   const [showQuickHelp, setShowQuickHelp] = useState(false);
   const [quickHelpQuery, setQuickHelpQuery] = useState("");
   const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications();
@@ -64,6 +65,34 @@ export const Topbar: React.FC<TopbarProps> = ({
   const helpRef = useRef<HTMLDivElement>(null);
   const { isDark, toggleTheme } = useAppearance();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  const notifCounts = {
+    all: notifications.length,
+    support: notifications.filter((n) => n.type === "support").length,
+    contest: notifications.filter((n) => n.type === "contest").length,
+    progress: notifications.filter((n) =>
+      ["coding", "interview", "quiz", "streak", "profile", "resume"].includes(n.type)
+    ).length,
+    verif: notifications.filter((n) =>
+      ["verification", "interview", "coding"].includes(n.type)
+    ).length,
+  };
+
+  const filteredNotifications = notifications.filter((n) => {
+    if (notificationFilter === "all") return true;
+    if (isAdmin()) {
+      if (notificationFilter === "support") return n.type === "support";
+      if (notificationFilter === "contest") return n.type === "contest";
+      if (notificationFilter === "verif")
+        return ["verification", "interview", "coding"].includes(n.type);
+    } else {
+      if (notificationFilter === "progress")
+        return ["coding", "interview", "quiz", "streak", "profile", "resume"].includes(n.type);
+      if (notificationFilter === "contest") return n.type === "contest";
+      if (notificationFilter === "support") return n.type === "support";
+    }
+    return true;
+  });
 
   useEffect(() => {
     profileService.getProfile().then((data) => setProfile(data));
@@ -238,7 +267,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                   type="button"
                   onClick={() => {
                     setShowQuickHelp(false);
-                    navigate("/help");
+                    navigate(isAdmin() ? "/admin/help" : "/help");
                   }}
                   className="text-[11px] font-mono text-cyan-400 hover:underline flex items-center gap-1 font-semibold"
                 >
@@ -266,7 +295,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                       key={faq.id}
                       onClick={() => {
                         setShowQuickHelp(false);
-                        navigate(`/help?faq=${faq.id}`);
+                        navigate(isAdmin() ? `/admin/help?faq=${faq.id}` : `/help?faq=${faq.id}`);
                       }}
                       className="p-2.5 bg-surface-raised border border-border rounded-lg hover:border-cyan-400/40 cursor-pointer transition-colors space-y-1 text-left"
                     >
@@ -288,7 +317,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                 size="sm"
                 onClick={() => {
                   setShowQuickHelp(false);
-                  navigate("/help");
+                  navigate(isAdmin() ? "/admin/help" : "/help");
                 }}
                 className="w-full text-xs font-mono gap-1"
               >
@@ -327,12 +356,21 @@ export const Topbar: React.FC<TopbarProps> = ({
               <div className="flex justify-between items-center pb-2.5 border-b border-border">
                 <div className="flex items-center gap-2">
                   <span className="font-serif text-xs font-bold text-text-primary tracking-tight">Notifications</span>
+                  {isAdmin() ? (
+                    <span className="text-[9px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 rounded font-bold uppercase">
+                      Admin
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-mono text-cyan-400 bg-cyan-400/10 border border-cyan-400/30 px-1.5 py-0.5 rounded font-bold uppercase">
+                      Personal
+                    </span>
+                  )}
                   {unreadCount > 0 ? (
-                    <span className="text-[10px] font-mono text-cyan-400 font-semibold bg-cyan-400/15 border border-cyan-400/30 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-mono text-cyan-400 font-semibold bg-cyan-400/15 border border-cyan-400/30 px-1.5 py-0.2 rounded-full">
                       {unreadCount} new
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono text-text-muted bg-surface border border-border px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-mono text-text-muted bg-surface border border-border px-1.5 py-0.2 rounded-full">
                       Caught up
                     </span>
                   )}
@@ -364,18 +402,123 @@ export const Topbar: React.FC<TopbarProps> = ({
                 </div>
               </div>
 
+              {/* Notification Filter Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[10px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => setNotificationFilter("all")}
+                  className={`px-2 py-0.5 rounded-lg shrink-0 transition-colors ${
+                    notificationFilter === "all"
+                      ? "bg-cyan-400/20 text-cyan-300 font-bold border border-cyan-400/40"
+                      : "bg-surface text-text-muted hover:text-text-primary border border-border"
+                  }`}
+                >
+                  All ({notifCounts.all})
+                </button>
+                {isAdmin() ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationFilter("support")}
+                      className={`px-2 py-0.5 rounded-lg shrink-0 transition-colors ${
+                        notificationFilter === "support"
+                          ? "bg-pink-400/20 text-pink-300 font-bold border border-pink-400/40"
+                          : "bg-surface text-text-muted hover:text-text-primary border border-border"
+                      }`}
+                    >
+                      Queries ({notifCounts.support})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationFilter("contest")}
+                      className={`px-2 py-0.5 rounded-lg shrink-0 transition-colors ${
+                        notificationFilter === "contest"
+                          ? "bg-amber-400/20 text-amber-300 font-bold border border-amber-400/40"
+                          : "bg-surface text-text-muted hover:text-text-primary border border-border"
+                      }`}
+                    >
+                      Live Tests ({notifCounts.contest})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationFilter("verif")}
+                      className={`px-2 py-0.5 rounded-lg shrink-0 transition-colors ${
+                        notificationFilter === "verif"
+                          ? "bg-teal-400/20 text-teal-300 font-bold border border-teal-400/40"
+                          : "bg-surface text-text-muted hover:text-text-primary border border-border"
+                      }`}
+                    >
+                      Activity ({notifCounts.verif})
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationFilter("progress")}
+                      className={`px-2 py-0.5 rounded-lg shrink-0 transition-colors ${
+                        notificationFilter === "progress"
+                          ? "bg-indigo-400/20 text-indigo-300 font-bold border border-indigo-400/40"
+                          : "bg-surface text-text-muted hover:text-text-primary border border-border"
+                      }`}
+                    >
+                      My Progress ({notifCounts.progress})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationFilter("contest")}
+                      className={`px-2 py-0.5 rounded-lg shrink-0 transition-colors ${
+                        notificationFilter === "contest"
+                          ? "bg-amber-400/20 text-amber-300 font-bold border border-amber-400/40"
+                          : "bg-surface text-text-muted hover:text-text-primary border border-border"
+                      }`}
+                    >
+                      Live Tests ({notifCounts.contest})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationFilter("support")}
+                      className={`px-2 py-0.5 rounded-lg shrink-0 transition-colors ${
+                        notificationFilter === "support"
+                          ? "bg-pink-400/20 text-pink-300 font-bold border border-pink-400/40"
+                          : "bg-surface text-text-muted hover:text-text-primary border border-border"
+                      }`}
+                    >
+                      Support ({notifCounts.support})
+                    </button>
+                  </>
+                )}
+              </div>
+
               <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
-                {notifications.length === 0 ? (
+                {filteredNotifications.length === 0 ? (
                   <div className="py-8 px-4 text-center space-y-2">
                     <div className="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center mx-auto text-text-muted">
                       <Inbox className="w-5 h-5 opacity-60" />
                     </div>
-                    <p className="text-xs font-semibold text-text-primary">You're all caught up</p>
-                    <p className="text-[11px] text-text-muted">No notifications yet</p>
+                    <p className="text-xs font-semibold text-text-primary">
+                      {notificationFilter !== "all"
+                        ? "No notifications in this filter"
+                        : "You're all caught up"}
+                    </p>
+                    <p className="text-[11px] text-text-muted">
+                      {isAdmin()
+                        ? "No pending student queries or contest events."
+                        : "No personal alerts. Keep practicing to track your achievements!"}
+                    </p>
                   </div>
                 ) : (
-                  notifications.map((n) => {
+                  filteredNotifications.map((n) => {
                     const isUnread = !n.read;
+                    const priorityBorder =
+                      n.priority === "danger"
+                        ? "border-l-4 border-l-red-500"
+                        : n.priority === "warning"
+                        ? "border-l-4 border-l-amber-500"
+                        : n.priority === "success"
+                        ? "border-l-4 border-l-teal-400"
+                        : "border-l-4 border-l-cyan-400";
+
                     return (
                       <div
                         key={n.id}
@@ -388,7 +531,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                         }}
                         tabIndex={0}
                         role="button"
-                        className={`group relative w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400/40 block ${
+                        className={`group relative w-full text-left p-2.5 rounded-xl border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400/40 block ${priorityBorder} ${
                           isUnread
                             ? "bg-surface border-cyan-400/40 shadow-sm hover:bg-surface-raised hover:border-cyan-400"
                             : "bg-surface/40 border-border opacity-80 hover:opacity-100 hover:bg-surface-raised"
@@ -400,15 +543,18 @@ export const Topbar: React.FC<TopbarProps> = ({
                               {renderNotificationIcon(n.type, n.priority)}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] font-mono uppercase px-1 py-0.2 rounded bg-surface border border-border text-text-muted shrink-0">
+                                  {n.type}
+                                </span>
                                 <span className={`text-xs truncate ${isUnread ? "font-bold text-text-primary" : "font-medium text-text-secondary"}`}>
                                   {n.title}
                                 </span>
                                 {isUnread && (
-                                  <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
                                 )}
                               </div>
-                              <p className="text-[11px] text-text-secondary leading-relaxed mt-0.5 line-clamp-2">
+                              <p className="text-[11px] text-text-secondary leading-relaxed mt-1 line-clamp-2">
                                 {n.message}
                               </p>
                               <span className="text-[10px] text-text-muted font-mono mt-1.5 block">
@@ -438,7 +584,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 
         {/* User Profile Avatar Link */}
         <NavLink
-          to="/profile"
+          to={isAdmin() ? "/admin/settings" : "/profile"}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity pl-1"
           title={`Logged in as ${user?.name || "User"} (${user?.role || "STUDENT"})`}
         >

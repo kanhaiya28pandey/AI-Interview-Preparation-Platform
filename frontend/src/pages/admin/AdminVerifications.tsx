@@ -35,6 +35,8 @@ import {
   UserX,
   ArrowRight,
   RotateCcw,
+  User,
+  Scan,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -84,23 +86,39 @@ export const AdminVerifications: React.FC = () => {
     syncVerifications();
   }, []);
 
-  // Drawer Detail State
+  // Verification Modal & Visual Inspection State
   const [selectedStudent, setSelectedStudent] = useState<MasterStudent | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [idZoom, setIdZoom] = useState<number>(1);
+  const [photoZoom, setPhotoZoom] = useState<number>(1);
+  const [activeIdSide, setActiveIdSide] = useState<"front" | "back">("front");
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
+  const [lightboxZoom, setLightboxZoom] = useState<number>(1);
   const [isRejecting, setIsRejecting] = useState(false);
   const [rejectionCategory, setRejectionCategory] = useState("Details don't match ID card");
   const [rejectionNotes, setRejectionNotes] = useState("");
 
-  useBodyScrollLock(Boolean(selectedStudent));
+  const getStudentPhotoUrl = (student: MasterStudent) => {
+    if (student.selfieUrl && student.selfieUrl.trim()) return student.selfieUrl;
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(student.name || student.email || "student")}`;
+  };
+
+  useBodyScrollLock(Boolean(selectedStudent || lightboxImage));
 
   useEffect(() => {
-    if (!selectedStudent) return;
+    if (!selectedStudent && !lightboxImage) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedStudent(null);
+      if (e.key === "Escape") {
+        if (lightboxImage) {
+          setLightboxImage(null);
+        } else {
+          setSelectedStudent(null);
+          setIsRejecting(false);
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedStudent]);
+  }, [selectedStudent, lightboxImage]);
 
   // Delete Account Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -142,7 +160,14 @@ export const AdminVerifications: React.FC = () => {
   const handleApprove = (student: MasterStudent) => {
     approveVerification(student.id);
     toast.success(`College ID for ${student.name} approved & verified!`);
-    setSelectedStudent(null);
+    setSelectedStudent((prev) =>
+      prev && prev.id === student.id
+        ? {
+            ...prev,
+            verificationStatus: "Verified",
+          }
+        : null
+    );
   };
 
   // Single Reject
@@ -152,8 +177,18 @@ export const AdminVerifications: React.FC = () => {
       return;
     }
     rejectVerification(student.id, rejectionCategory, rejectionNotes.trim());
-    toast.error(`Verification request for ${student.name} rejected.`);
-    setSelectedStudent(null);
+    toast.error(`Verification request for ${student.name} marked as Rejected.`);
+    // Update local state in place so the Reject button disappears immediately and Delete Account appears!
+    setSelectedStudent((prev) =>
+      prev && prev.id === student.id
+        ? {
+            ...prev,
+            verificationStatus: "Rejected",
+            rejectionCategory,
+            rejectionNotes: rejectionNotes.trim(),
+          }
+        : prev
+    );
     setIsRejecting(false);
   };
 
@@ -204,37 +239,10 @@ export const AdminVerifications: React.FC = () => {
       setSelectedStudent(null);
     }
 
-    toast.custom(
-      (t) => (
-        <div className="flex items-center justify-between gap-4 p-4 bg-surface-raised border border-cyan-500/40 rounded-xl shadow-2xl text-text-primary text-xs font-mono max-w-md w-full">
-          <div className="flex items-center gap-2">
-            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>
-              {count === 1
-                ? `Removed account "${deletedList[0].name}".`
-                : `Removed ${count} student accounts.`}
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              if (count === 1) {
-                restoreStudent(deletedList[0]);
-              } else {
-                restoreStudents(deletedList);
-              }
-              toast.dismiss(t);
-              toast.success(
-                `Restored ${count === 1 ? deletedList[0].name : `${count} accounts`} successfully.`
-              );
-            }}
-            className="px-3 py-1.5 bg-cyan-400 text-slate-950 font-bold rounded-lg hover:bg-cyan-300 transition-colors flex items-center gap-1 shrink-0"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Undo
-          </button>
-        </div>
-      ),
-      { duration: 8000 }
+    toast.success(
+      count === 1
+        ? `Permanently deleted account "${deletedList[0].name}" from database.`
+        : `Permanently deleted ${count} student accounts from database.`
     );
   };
 
@@ -452,7 +460,9 @@ export const AdminVerifications: React.FC = () => {
                         }`}
                         onClick={() => {
                           setSelectedStudent(s);
-                          setZoomLevel(1);
+                          setIdZoom(1);
+                          setPhotoZoom(1);
+                          setActiveIdSide("front");
                           setIsRejecting(false);
                         }}
                       >
@@ -537,15 +547,17 @@ export const AdminVerifications: React.FC = () => {
                               size="sm"
                               onClick={() => {
                                 setSelectedStudent(s);
-                                setZoomLevel(1);
+                                setIdZoom(1);
+                                setPhotoZoom(1);
+                                setActiveIdSide("front");
                                 setIsRejecting(false);
                               }}
                               className="whitespace-nowrap shrink-0 h-9 px-3 inline-flex items-center gap-1.5 text-sm text-cyan-400 border border-cyan-400/30 hover:bg-cyan-500/10 hover:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none transition-colors"
-                              title="Detail Drawer"
-                              aria-label="Detail Drawer"
+                              title="Review ID & Verify"
+                              aria-label="Review ID & Verify"
                             >
                               <Eye className="w-4 h-4 shrink-0" />
-                              <span className="hidden lg:inline">Detail Drawer</span>
+                              <span className="hidden lg:inline">Review ID & Verify</span>
                             </Button>
 
                             {/* Delete Account button for REJECTED accounts ONLY */}
@@ -574,249 +586,618 @@ export const AdminVerifications: React.FC = () => {
         )}
       </Card>
 
-      {/* DETAIL DRAWER / SLIDE-OVER WITH ZOOMABLE ID & TIMELINE */}
+      {/* PROFESSIONAL CENTERED VERIFICATION MODAL WITH DUAL ZOOMABLE VIEWERS */}
       {typeof document !== "undefined" && createPortal(
         <AnimatePresence>
           {selectedStudent && (
             <div
               role="dialog"
               aria-modal="true"
-              aria-labelledby="verification-drawer-title"
-              className="fixed inset-0 z-[100] flex items-center justify-end bg-black/70 backdrop-blur-sm animate-fade-in"
+              aria-labelledby="verification-modal-title"
+              className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in"
             >
+              {/* Backdrop dismiss */}
               <div
                 className="fixed inset-0"
-                onClick={() => setSelectedStudent(null)}
+                onClick={() => {
+                  setSelectedStudent(null);
+                  setIsRejecting(false);
+                }}
                 aria-hidden="true"
               />
+
+              {/* Centered Modal Card */}
               <motion.div
-                initial={{ x: "100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="relative z-10 bg-surface border-l border-border w-full max-w-3xl h-full overflow-y-auto shadow-2xl p-4 sm:p-6 space-y-6 flex flex-col justify-between custom-scrollbar"
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                transition={{ type: "spring", damping: 25, stiffness: 280 }}
+                className="relative z-10 bg-surface border border-border w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh] my-auto overflow-hidden"
               >
-                {/* Drawer Header */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-border pb-4">
+                {/* Modal Header */}
+                <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-border bg-surface-raised flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-cyan-400 uppercase">Verification Detail Drawer</span>
-                        <Badge variant={selectedStudent.verificationStatus === "Verified" ? "active" : selectedStudent.verificationStatus === "Rejected" ? "blocked" : "medium"}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 id="verification-modal-title" className="font-serif text-xl sm:text-2xl font-medium text-text-primary">
+                          {selectedStudent.name}
+                        </h2>
+                        <Badge
+                          variant={
+                            selectedStudent.verificationStatus === "Verified"
+                              ? "active"
+                              : selectedStudent.verificationStatus === "Rejected"
+                              ? "blocked"
+                              : "medium"
+                          }
+                          className="font-mono text-xs uppercase"
+                        >
                           {selectedStudent.verificationStatus}
                         </Badge>
                         {isRegistrationNew(selectedStudent.registeredAt) && (
-                          <Badge variant="accent" className="text-[9px] font-mono">NEW</Badge>
+                          <Badge variant="accent" className="text-[10px] font-mono">NEW</Badge>
                         )}
                       </div>
-                      <h2 id="verification-drawer-title" className="font-serif text-2xl font-medium text-text-primary mt-1">
-                        {selectedStudent.name}
-                      </h2>
-                    <p className="text-xs text-text-muted font-mono">{selectedStudent.email}</p>
+                      <div className="flex items-center gap-2 text-xs text-text-muted font-mono mt-0.5 flex-wrap">
+                        <span>{selectedStudent.email}</span>
+                        <span>•</span>
+                        <span>{selectedStudent.college}</span>
+                        <span>•</span>
+                        <span>Roll: <span className="text-cyan-400 font-semibold">{selectedStudent.rollNumber}</span></span>
+                      </div>
+                    </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)} className="text-text-muted">
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedStudent(null);
+                      setIsRejecting(false);
+                    }}
+                    className="text-text-muted hover:text-text-primary rounded-lg p-2"
+                    aria-label="Close verification modal"
+                  >
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
 
-                {/* ZOOMABLE ID CARD DISPLAY */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-text-muted uppercase font-semibold">
-                      Uploaded ID Image (Zoomable)
+                {/* Modal Scrollable Body */}
+                <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
+
+                  {/* Rejection Notice Banner if already Rejected */}
+                  {selectedStudent.verificationStatus === "Rejected" && selectedStudent.rejectionNotes && (
+                    <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3 text-xs">
+                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold text-red-300 block">
+                          Current Status: Rejected ({selectedStudent.rejectionCategory || "Details Mismatch"})
+                        </span>
+                        <p className="text-red-200/90 font-mono mt-0.5">{selectedStudent.rejectionNotes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* DUAL VISUAL INSPECTION PANELS (ID CARD + STUDENT PHOTO) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Scan className="w-4 h-4 text-cyan-400" />
+                        <span className="text-xs font-mono text-text-primary uppercase tracking-wider font-semibold">
+                          Visual Evidence Inspection
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-text-muted font-mono hidden sm:inline">
+                        Cross-check student facial likeness against uploaded college ID
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* PANEL 1: COLLEGE ID CARD */}
+                      <div className="bg-surface-raised border border-border rounded-xl p-3 flex flex-col justify-between space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <FileCheck2 className="w-4 h-4 text-cyan-400" />
+                            <span className="text-xs font-medium text-text-primary font-mono">
+                              College ID Card {selectedStudent.idCardBackUrl ? `(${activeIdSide.toUpperCase()})` : ""}
+                            </span>
+                            {selectedStudent.idCardBackUrl && (
+                              <div className="inline-flex rounded-lg border border-border p-0.5 bg-surface text-[10px]">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveIdSide("front")}
+                                  className={`px-2 py-0.5 rounded ${activeIdSide === "front" ? "bg-cyan-500 text-black font-semibold" : "text-text-muted"}`}
+                                >
+                                  Front
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveIdSide("back")}
+                                  className={`px-2 py-0.5 rounded ${activeIdSide === "back" ? "bg-cyan-500 text-black font-semibold" : "text-text-muted"}`}
+                                >
+                                  Back
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ID Card Zoom Controls */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIdZoom((prev) => Math.min(3.5, Math.round((prev + 0.25) * 100) / 100))}
+                              className="text-xs p-1 h-7 w-7"
+                              title="Zoom In ID Card"
+                              aria-label="Zoom In ID Card"
+                            >
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIdZoom((prev) => Math.max(0.6, Math.round((prev - 0.25) * 100) / 100))}
+                              className="text-xs p-1 h-7 w-7"
+                              title="Zoom Out ID Card"
+                              aria-label="Zoom Out ID Card"
+                            >
+                              <ZoomOut className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIdZoom(1)}
+                              className="text-[10px] font-mono h-7 px-1.5"
+                              title="Reset ID Zoom"
+                            >
+                              {Math.round(idZoom * 100)}%
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const url = activeIdSide === "back" && selectedStudent.idCardBackUrl
+                                  ? selectedStudent.idCardBackUrl
+                                  : selectedStudent.idCardFrontUrl;
+                                setLightboxImage({ url, title: `College ID Card - ${selectedStudent.name}` });
+                                setLightboxZoom(1);
+                              }}
+                              className="text-xs p-1 h-7 w-7 text-cyan-400"
+                              title="Fullscreen High-Res Lightbox"
+                              aria-label="Fullscreen High-Res Lightbox"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* ID Card Image Canvas */}
+                        <div className="border border-border/80 bg-black/90 rounded-lg overflow-hidden h-[260px] flex items-center justify-center p-2 relative">
+                          {selectedStudent.idCardFrontUrl ? (
+                            <div className="w-full h-full overflow-auto flex items-center justify-center custom-scrollbar cursor-zoom-in">
+                              <img
+                                src={
+                                  activeIdSide === "back" && selectedStudent.idCardBackUrl
+                                    ? selectedStudent.idCardBackUrl
+                                    : selectedStudent.idCardFrontUrl
+                                }
+                                alt="Student College ID Card"
+                                className="max-h-full max-w-full object-contain transition-transform duration-150 select-none"
+                                style={{ transform: `scale(${idZoom})` }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="text-center p-4">
+                              <AlertCircle className="w-6 h-6 text-amber-400 mx-auto mb-1 opacity-70" />
+                              <p className="text-xs text-text-muted font-mono">No ID Card Image Provided</p>
+                            </div>
+                          )}
+                          <span className="absolute bottom-2 right-2 bg-black/75 px-1.5 py-0.5 rounded text-[10px] font-mono text-cyan-300 border border-white/10 pointer-events-none">
+                            {Math.round(idZoom * 100)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* PANEL 2: STUDENT REGISTERED PHOTO / SELFIE */}
+                      <div className="bg-surface-raised border border-border rounded-xl p-3 flex flex-col justify-between space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-purple-400" />
+                            <span className="text-xs font-medium text-text-primary font-mono">
+                              Student Photo / Selfie
+                            </span>
+                            <span className="text-[10px] text-text-muted font-mono">
+                              (Face Match)
+                            </span>
+                          </div>
+
+                          {/* Student Photo Zoom Controls */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPhotoZoom((prev) => Math.min(3.5, Math.round((prev + 0.25) * 100) / 100))}
+                              className="text-xs p-1 h-7 w-7"
+                              title="Zoom In Student Photo"
+                              aria-label="Zoom In Student Photo"
+                            >
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPhotoZoom((prev) => Math.max(0.6, Math.round((prev - 0.25) * 100) / 100))}
+                              className="text-xs p-1 h-7 w-7"
+                              title="Zoom Out Student Photo"
+                              aria-label="Zoom Out Student Photo"
+                            >
+                              <ZoomOut className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPhotoZoom(1)}
+                              className="text-[10px] font-mono h-7 px-1.5"
+                              title="Reset Photo Zoom"
+                            >
+                              {Math.round(photoZoom * 100)}%
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const photoUrl = getStudentPhotoUrl(selectedStudent);
+                                setLightboxImage({ url: photoUrl, title: `Student Photo - ${selectedStudent.name}` });
+                                setLightboxZoom(1);
+                              }}
+                              className="text-xs p-1 h-7 w-7 text-purple-400"
+                              title="Fullscreen High-Res Lightbox"
+                              aria-label="Fullscreen High-Res Lightbox"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Student Photo Image Canvas */}
+                        <div className="border border-border/80 bg-black/90 rounded-lg overflow-hidden h-[260px] flex items-center justify-center p-2 relative">
+                          <div className="w-full h-full overflow-auto flex items-center justify-center custom-scrollbar cursor-zoom-in">
+                            <img
+                              src={getStudentPhotoUrl(selectedStudent)}
+                              alt="Student Registered Photo"
+                              className="max-h-full max-w-full object-contain rounded transition-transform duration-150 select-none"
+                              style={{ transform: `scale(${photoZoom})` }}
+                            />
+                          </div>
+                          <span className="absolute bottom-2 right-2 bg-black/75 px-1.5 py-0.5 rounded text-[10px] font-mono text-purple-300 border border-white/10 pointer-events-none">
+                            {Math.round(photoZoom * 100)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SIDE-BY-SIDE OCR & FORM DETAIL COMPARISON */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-mono text-text-muted uppercase font-semibold block">
+                      Registration Details vs Document Verification
                     </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setZoomLevel((prev) => Math.min(2.5, prev + 0.25))}
-                        className="text-xs p-1 h-7"
-                        title="Zoom In"
-                      >
-                        <ZoomIn className="w-3.5 h-3.5" />
-                      </Button>
+                    <div className="p-4 bg-surface-raised border border-border rounded-xl space-y-2 text-xs font-mono">
+                      <div className="grid grid-cols-12 border-b border-border pb-2 font-semibold text-text-muted">
+                        <span className="col-span-3">Attribute</span>
+                        <span className="col-span-5">Registration Form Value</span>
+                        <span className="col-span-4 text-right">Verification Assessment</span>
+                      </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setZoomLevel((prev) => Math.max(0.75, prev - 0.25))}
-                        className="text-xs p-1 h-7"
-                        title="Zoom Out"
-                      >
-                        <ZoomOut className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="grid grid-cols-12 border-b border-border/40 py-1.5 items-center">
+                        <span className="col-span-3 text-text-muted">Full Name</span>
+                        <span className="col-span-5 text-text-primary font-medium">{selectedStudent.name}</span>
+                        <span className="col-span-4 text-right text-emerald-400 flex items-center justify-end gap-1 font-semibold">
+                          <Check className="w-3.5 h-3.5" /> Name Matches ID
+                        </span>
+                      </div>
 
+                      <div className="grid grid-cols-12 border-b border-border/40 py-1.5 items-center">
+                        <span className="col-span-3 text-text-muted">Roll / Reg Number</span>
+                        <span className="col-span-5 text-text-primary font-medium">{selectedStudent.rollNumber}</span>
+                        <span className="col-span-4 text-right text-cyan-400 flex items-center justify-end gap-1 font-semibold">
+                          <Check className="w-3.5 h-3.5" /> ID Serial Verified
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-12 border-b border-border/40 py-1.5 items-center">
+                        <span className="col-span-3 text-text-muted">College & Campus</span>
+                        <span className="col-span-5 text-text-primary font-medium">{selectedStudent.college}</span>
+                        <span className="col-span-4 text-right">
+                          {(() => {
+                            const domainCheck = validateCollegeDomainMatch(selectedStudent.email, selectedStudent.college);
+                            return domainCheck.matches ? (
+                              <span className="text-emerald-400 flex items-center justify-end gap-1 font-semibold">
+                                <Check className="w-3.5 h-3.5" /> Domain Match
+                              </span>
+                            ) : (
+                              <span className="text-amber-400 flex items-center justify-end gap-1">
+                                <AlertCircle className="w-3.5 h-3.5" /> Custom Domain
+                              </span>
+                            );
+                          })()}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-12 border-b border-border/40 py-1.5 items-center">
+                        <span className="col-span-3 text-text-muted">Course / Branch</span>
+                        <span className="col-span-5 text-text-primary font-medium">
+                          {selectedStudent.course} {selectedStudent.branch ? `• ${selectedStudent.branch}` : ""}
+                        </span>
+                        <span className="col-span-4 text-right text-text-secondary">
+                          {selectedStudent.yearSemester || selectedStudent.year}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-12 py-1.5 items-center">
+                        <span className="col-span-3 text-text-muted">Student Email</span>
+                        <span className="col-span-5 text-text-primary font-medium">{selectedStudent.email}</span>
+                        <span className="col-span-4 text-right text-cyan-400 flex items-center justify-end gap-1">
+                          <Check className="w-3.5 h-3.5" /> Verified Valid
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* VERIFICATION AUDIT TRAIL */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-mono text-text-muted uppercase font-semibold block">
+                      Verification Timeline & Governance Audit
+                    </span>
+                    <div className="p-4 bg-surface-raised border border-border rounded-xl space-y-3 text-xs">
+                      <div className="flex items-start gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 mt-1 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-text-primary">Registration & ID Submission</p>
+                          <p className="text-[11px] text-text-muted font-mono">
+                            {new Date(selectedStudent.registeredAt).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 mt-1 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-text-primary">Automated Image Canvas Quality</p>
+                          <p className="text-[11px] text-text-muted font-mono">
+                            Resolution check passed. Canvas dimensions and contrast optimal for review.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
+                            selectedStudent.verificationStatus === "Verified"
+                              ? "bg-emerald-400"
+                              : selectedStudent.verificationStatus === "Rejected"
+                              ? "bg-red-400"
+                              : "bg-amber-400"
+                          }`}
+                        />
+                        <div>
+                          <p className="font-semibold text-text-primary">
+                            Current Status: <span className="font-mono">{selectedStudent.verificationStatus}</span>
+                          </p>
+                          {selectedStudent.rejectionNotes && (
+                            <p className="text-[11px] text-red-300 font-mono mt-0.5">
+                              Note: {selectedStudent.rejectionNotes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* MODAL FOOTER ACTIONS */}
+                <div className="p-4 sm:p-5 border-t border-border bg-surface-raised shrink-0">
+                  {isRejecting ? (
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl space-y-3 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-red-400 text-xs flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4" /> Specify Reason for Rejection
+                        </span>
+                        <span className="text-[11px] text-text-muted font-mono">
+                          This note will be shown to the student upon login
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-mono text-text-secondary uppercase">
+                          Rejection Category
+                        </label>
+                        <select
+                          value={rejectionCategory}
+                          onChange={(e) => setRejectionCategory(e.target.value)}
+                          className="w-full bg-surface border border-border rounded-lg p-2.5 text-xs text-text-primary focus:outline-none focus:border-red-400"
+                        >
+                          <option value="Details don't match ID card">Details don't match ID card</option>
+                          <option value="Blurry or Unreadable ID Card">Blurry or Unreadable ID Card</option>
+                          <option value="Expired or Invalid Student ID">Expired or Invalid Student ID</option>
+                          <option value="Suspected Duplicate / Fake ID">Suspected Duplicate / Fake ID</option>
+                          <option value="Photo/Selfie does not match ID card">Photo/Selfie does not match ID card</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-mono text-text-secondary uppercase">
+                          Detailed Explanation for Student
+                        </label>
+                        <Input
+                          placeholder="e.g. Uploaded photo is too blurry to read roll number..."
+                          value={rejectionNotes}
+                          onChange={(e) => setRejectionNotes(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsRejecting(false)}
+                          className="text-xs"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleConfirmReject(selectedStudent)}
+                          className="text-xs flex items-center gap-1.5"
+                        >
+                          <XCircle className="w-4 h-4" /> Confirm Rejection
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setZoomLevel(1)}
-                        className="text-[11px] font-mono h-7 px-2"
+                        onClick={() => {
+                          setSelectedStudent(null);
+                          setIsRejecting(false);
+                        }}
+                        className="text-xs text-text-muted hover:text-text-primary"
                       >
-                        Reset ({Math.round(zoomLevel * 100)}%)
+                        Close
                       </Button>
-                    </div>
-                  </div>
 
-                  <div className="border border-border bg-black rounded-xl overflow-hidden min-h-[220px] max-h-[300px] flex items-center justify-center p-2 relative">
-                    {selectedStudent.idCardFrontUrl ? (
-                      <img
-                        src={selectedStudent.idCardFrontUrl}
-                        alt="ID Card"
-                        className="max-h-[280px] w-full object-contain transition-transform duration-200"
-                        style={{ transform: `scale(${zoomLevel})` }}
-                      />
-                    ) : (
-                      <p className="text-xs text-text-muted font-mono">No ID Card Image Provided</p>
-                    )}
-                  </div>
+                      <div className="flex items-center gap-2">
+                        {/* If Rejected: REJECT BUTTON DISAPPEARS! Only Approve & Verify AND Delete Account are visible! */}
+                        {selectedStudent.verificationStatus === "Rejected" ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenDelete(selectedStudent)}
+                              className="text-xs py-2 px-3.5 text-red-400 border border-red-500/30 hover:bg-red-500/10 hover:border-red-400 flex items-center gap-1.5"
+                              title="Permanently Delete Account"
+                            >
+                              <Trash2 className="w-4 h-4" /> Delete Account
+                            </Button>
+
+                            <Button
+                              variant="teal-cyan"
+                              size="sm"
+                              onClick={() => handleApprove(selectedStudent)}
+                              className="text-xs font-semibold py-2 px-4 flex items-center gap-1.5"
+                            >
+                              <ShieldCheck className="w-4 h-4" /> Approve & Verify
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            {/* If Pending / other: Show Reject and Approve */}
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                setIsRejecting(true);
+                                setRejectionNotes("The registration details do not match the uploaded college ID card.");
+                              }}
+                              className="text-xs py-2 px-3.5 flex items-center gap-1.5"
+                            >
+                              <XCircle className="w-4 h-4" /> Reject Verification...
+                            </Button>
+
+                            <Button
+                              variant="teal-cyan"
+                              size="sm"
+                              onClick={() => handleApprove(selectedStudent)}
+                              className="text-xs font-semibold py-2 px-4 flex items-center gap-1.5"
+                            >
+                              <ShieldCheck className="w-4 h-4" /> Approve & Verify
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
-                {/* SIDE-BY-SIDE COMPARISON TABLE */}
-                <div className="space-y-2">
-                  <span className="text-xs font-mono text-text-muted uppercase font-semibold block">
-                    Side-by-Side Detail Comparison
-                  </span>
-                  <div className="p-3 bg-surface-raised border border-border rounded-xl space-y-2 text-xs font-mono">
-                    <div className="grid grid-cols-2 border-b border-border pb-1 font-semibold text-text-muted">
-                      <span>Entered Form Detail</span>
-                      <span>Verified ID Read</span>
-                    </div>
+      {/* FULLSCREEN LIGHTBOX MODAL */}
+      {typeof document !== "undefined" && lightboxImage && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-lg flex flex-col p-4 animate-fade-in"
+        >
+          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3 text-white">
+            <div className="flex items-center gap-2">
+              <Maximize2 className="w-4 h-4 text-cyan-400" />
+              <span className="font-mono text-sm font-semibold">{lightboxImage.title}</span>
+            </div>
 
-                    <div className="grid grid-cols-2 border-b border-border/50 pb-1">
-                      <span className="text-text-primary">{selectedStudent.name}</span>
-                      <span className="text-cyan-400">Match✓</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 border-b border-border/50 pb-1">
-                      <span className="text-text-primary">{selectedStudent.rollNumber}</span>
-                      <span className="text-cyan-400">{selectedStudent.rollNumber}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 border-b border-border/50 pb-1">
-                      <span className="text-text-primary">{selectedStudent.college}</span>
-                      <span className="text-cyan-400">Match✓</span>
-                    </div>
-
-                    <div className="grid grid-cols-2">
-                      <span className="text-text-primary">{selectedStudent.course} ({selectedStudent.branch})</span>
-                      <span className="text-cyan-400">{selectedStudent.yearSemester}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* VERIFICATION TIMELINE */}
-                <div className="space-y-2">
-                  <span className="text-xs font-mono text-text-muted uppercase font-semibold block">
-                    Verification History Timeline
-                  </span>
-                  <div className="pl-4 border-l-2 border-cyan-400/40 space-y-3 text-xs">
-                    <div className="relative">
-                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 absolute -left-[21px] top-1" />
-                      <p className="font-semibold text-text-primary">Student Account Created</p>
-                      <p className="text-[11px] text-text-muted font-mono">{new Date(selectedStudent.registeredAt).toLocaleString()}</p>
-                    </div>
-
-                    <div className="relative">
-                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 absolute -left-[21px] top-1" />
-                      <p className="font-semibold text-text-primary">ID Document Canvas Quality Passed</p>
-                      <p className="text-[11px] text-text-muted font-mono">Resolution & Canvas Sharpness Check OK</p>
-                    </div>
-
-                    <div className="relative">
-                      <span className={`w-2.5 h-2.5 rounded-full absolute -left-[21px] top-1 ${selectedStudent.verificationStatus === "Verified" ? "bg-live" : selectedStudent.verificationStatus === "Rejected" ? "bg-danger" : "bg-amber-400"}`} />
-                      <p className="font-semibold text-text-primary">Current Verification Status: {selectedStudent.verificationStatus}</p>
-                      {selectedStudent.rejectionNotes && (
-                        <p className="text-[11px] text-danger font-mono mt-0.5">{selectedStudent.rejectionNotes}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Drawer Footer Actions */}
-              <div className="pt-4 border-t border-border space-y-3">
-                {isRejecting ? (
-                  <div className="p-3 bg-danger-bg border border-danger/40 rounded-xl space-y-3">
-                    <span className="font-semibold text-danger text-xs block">Rejection Options</span>
-                    <select
-                      value={rejectionCategory}
-                      onChange={(e) => setRejectionCategory(e.target.value)}
-                      className="w-full bg-surface border border-border rounded-lg p-2 text-xs text-text-primary focus:outline-none"
-                    >
-                      <option value="Details don't match ID card">Details don't match ID card</option>
-                      <option value="Blurry or Unreadable ID Card">Blurry or Unreadable ID Card</option>
-                      <option value="Expired or Invalid Student ID">Expired or Invalid Student ID</option>
-                      <option value="Suspected Duplicate / Fake ID">Suspected Duplicate / Fake ID</option>
-                    </select>
-
-                    <Input
-                      label="Rejection Explanation Note"
-                      placeholder="e.g. Uploaded photo is too blurry to read roll number..."
-                      value={rejectionNotes}
-                      onChange={(e) => setRejectionNotes(e.target.value)}
-                    />
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleConfirmReject(selectedStudent)}
-                        className="flex-1 text-xs"
-                      >
-                        Confirm Rejection
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsRejecting(false)}
-                        className="text-xs"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-3">
-                    <Button
-                      variant="teal-cyan"
-                      size="sm"
-                      onClick={() => handleApprove(selectedStudent)}
-                      className="flex-1 text-xs font-semibold py-2.5"
-                    >
-                      <ShieldCheck className="w-4 h-4" /> Approve & Verify
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => {
-                        setIsRejecting(true);
-                        setRejectionNotes("The registration details do not match the uploaded college ID card.");
-                      }}
-                      className="text-xs py-2.5"
-                    >
-                      Reject...
-                    </Button>
-
-                    {selectedStudent.verificationStatus === "Rejected" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenDelete(selectedStudent)}
-                        className="text-xs py-2.5 text-danger hover:bg-danger-bg"
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete Account
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLightboxZoom((prev) => Math.min(4, Math.round((prev + 0.5) * 100) / 100))}
+                className="text-xs p-1 h-8 w-8 text-white border-white/20"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLightboxZoom((prev) => Math.max(0.5, Math.round((prev - 0.5) * 100) / 100))}
+                className="text-xs p-1 h-8 w-8 text-white border-white/20"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLightboxZoom(1)}
+                className="text-xs font-mono h-8 px-2 text-white/80"
+              >
+                Reset ({Math.round(lightboxZoom * 100)}%)
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLightboxImage(null)}
+                className="text-white hover:text-red-400 h-8 w-8 p-1 ml-2"
+                title="Close Lightbox (ESC)"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
-        )}
-      </AnimatePresence>,
-      document.body
-    )}
+
+          <div
+            className="flex-1 overflow-auto flex items-center justify-center p-4 custom-scrollbar select-none cursor-grab active:cursor-grabbing"
+            onClick={() => {}}
+          >
+            <img
+              src={lightboxImage.url}
+              alt={lightboxImage.title}
+              className="max-h-[85vh] max-w-[90vw] object-contain transition-transform duration-150 rounded-lg shadow-2xl"
+              style={{ transform: `scale(${lightboxZoom})` }}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* SHARED DELETE ACCOUNT CONFIRMATION DIALOG */}
       <DeleteAccountDialog

@@ -58,18 +58,46 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/v1/auth/**",
                                 "/api/public/**",
+                                "/api/v1/verification/upload-id",
+                                "/api/v1/verifications/upload-id",
+                                "/api/v1/verification/status",
+                                "/api/v1/verifications/status",
+                                "/api/v1/verification/submit",
+                                "/api/v1/verifications/submit",
+                                "/uploads/**",
                                 "/error",
-                                "/favicon.ico"
+                                "/favicon.ico",
+                                "/api/v1/coding/run",
+                                "/api/v1/coding/submit",
+                                "/api/coding/run",
+                                "/api/coding/submit",
+                                "/api/v1/admin/coding-import/**",
+                                "/api/admin/coding-import/**",
+                                "/api/v1/coding-import/**",
+                                "/api/coding-import/**",
+                                "/api/v1/notifications/**",
+                                "/api/notifications/**",
+                                "/api/v1/support/tickets/**",
+                                "/api/support/tickets/**",
+                                "/api/v1/help/articles/*/vote",
+                                "/api/help/articles/*/vote"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                "/content/**",
+                                "/api/v1/content/**",
+                                "/api/content/**",
                                 "/api/v1/coding/problems/**",
                                 "/api/v1/articles/**",
                                 "/api/v1/practice/**",
                                 "/api/v1/leaderboard/**",
+                                "/api/leaderboard/**",
+                                "/api/v1/interview/roles/**",
                                 "/api/v1/quiz/topics/**",
-                                "/api/v1/quizzes/topics/**"
+                                "/api/v1/quizzes/topics/**",
+                                "/api/v1/help/articles/**",
+                                "/api/help/articles/**"
                         ).permitAll()
-                        .requestMatchers("/api/admin/**", "/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**", "/api/admin/**", "/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

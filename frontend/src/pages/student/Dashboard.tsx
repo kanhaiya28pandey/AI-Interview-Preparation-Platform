@@ -4,10 +4,12 @@ import { useAuth } from "@/context/AuthContext";
 import { StatCard } from "@/components/common/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { CardSkeleton } from "@/components/common/Skeletons";
-import { Video, Code2, Flame, Award, TrendingUp, AlertOctagon, Compass, X } from "lucide-react";
+import { Video, Code2, Flame, Award, TrendingUp, AlertOctagon, Compass, X, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { profileService } from "@/services/profileService";
 import { progressService } from "@/services/progressService";
 import { isDemoUser } from "@/lib/userScope";
@@ -195,13 +197,55 @@ export const StudentDashboard: React.FC = () => {
 
           <div className="flex gap-3 z-10 shrink-0 flex-wrap">
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Button variant="primary" size="md" onClick={() => navigate("/mock-interview")}>
-                <Video className="w-4 h-4" /> Start Mock Interview
+              <Button
+                variant={verifStatus === "Verified" ? "primary" : "outline"}
+                size="md"
+                onClick={() => {
+                  if (verifStatus !== "Verified") {
+                    toast.warning("Mock Interview is locked. Your identity is pending verification by admin.", {
+                      action: {
+                        label: "Check Status",
+                        onClick: () => navigate("/verify-identity"),
+                      },
+                    });
+                    return;
+                  }
+                  navigate("/mock-interview");
+                }}
+                className={verifStatus !== "Verified" ? "border-amber-400/40 text-amber-300" : ""}
+                title={verifStatus !== "Verified" ? "Locked until Admin Verification" : undefined}
+              >
+                {verifStatus !== "Verified" ? <Lock className="w-4 h-4 text-amber-400" /> : <Video className="w-4 h-4" />}
+                <span>Start Mock Interview</span>
+                {verifStatus !== "Verified" && (
+                  <Badge variant="accent" className="text-[10px] py-0 px-1.5 ml-1">Locked</Badge>
+                )}
               </Button>
             </motion.div>
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Button variant="outline" size="md" onClick={() => navigate("/coding")}>
-                <Code2 className="w-4 h-4" /> Coding Arena
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => {
+                  if (verifStatus !== "Verified") {
+                    toast.warning("Coding Arena is locked. Your identity is pending verification by admin.", {
+                      action: {
+                        label: "Check Status",
+                        onClick: () => navigate("/verify-identity"),
+                      },
+                    });
+                    return;
+                  }
+                  navigate("/coding");
+                }}
+                className={verifStatus !== "Verified" ? "border-amber-400/40 text-amber-300" : ""}
+                title={verifStatus !== "Verified" ? "Locked until Admin Verification" : undefined}
+              >
+                {verifStatus !== "Verified" ? <Lock className="w-4 h-4 text-amber-400" /> : <Code2 className="w-4 h-4" />}
+                <span>Coding Arena</span>
+                {verifStatus !== "Verified" && (
+                  <Badge variant="accent" className="text-[10px] py-0 px-1.5 ml-1">Locked</Badge>
+                )}
               </Button>
             </motion.div>
           </div>

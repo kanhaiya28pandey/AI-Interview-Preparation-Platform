@@ -222,8 +222,38 @@ export const profileService = {
       updatedAt: new Date().toISOString(),
     };
 
+    // If education entries exist, synchronize top-level college, degree, graduationYear, and branch
+    if (updatedProfile.educationEntries && updatedProfile.educationEntries.length > 0) {
+      const primaryEdu = updatedProfile.educationEntries[0];
+      if (primaryEdu.institution && (!updatedProfile.college || updates.educationEntries)) {
+        updatedProfile.college = primaryEdu.institution;
+      }
+      if (primaryEdu.degree && (!updatedProfile.degree || updates.educationEntries)) {
+        updatedProfile.degree = primaryEdu.degree;
+      }
+      if (primaryEdu.endYear && (!updatedProfile.graduationYear || updates.educationEntries)) {
+        updatedProfile.graduationYear = String(primaryEdu.endYear);
+      }
+      if (primaryEdu.fieldOfStudy && (!updatedProfile.branch || updates.educationEntries)) {
+        updatedProfile.branch = primaryEdu.fieldOfStudy;
+      }
+    }
+
     if (updates.skillsList) {
       updatedProfile.skills = updates.skillsList.map((s) => s.name);
+    }
+
+    if (updates.avatar) {
+      updatedProfile.avatar = updates.avatar;
+      updatedProfile.isCustomAvatar = true;
+      if (!updatedProfile.photoChecklist || Object.values(updatedProfile.photoChecklist).filter(Boolean).length < 2) {
+        updatedProfile.photoChecklist = {
+          clearFace: true,
+          plainBackground: true,
+          noGlasses: true,
+          goodLighting: true,
+        };
+      }
     }
 
     const activeUserRaw = localStorage.getItem("ai_interview_prep_user");
@@ -232,20 +262,62 @@ export const profileService = {
       try {
         const activeUser = JSON.parse(activeUserRaw);
         if (activeUser?.userId) userId = activeUser.userId;
-        if (updates.name || updates.email) {
-          const updatedAuth = {
-            ...activeUser,
-            ...(updates.name ? { name: updates.name } : {}),
-            ...(updates.email ? { email: updates.email } : {}),
-          };
-          localStorage.setItem("ai_interview_prep_user", JSON.stringify(updatedAuth));
-        }
+        const updatedAuth = {
+          ...activeUser,
+          ...(updatedProfile.name ? { name: updatedProfile.name } : {}),
+          ...(updatedProfile.email ? { email: updatedProfile.email } : {}),
+          ...(updatedProfile.college ? { college: updatedProfile.college } : {}),
+          ...(updatedProfile.branch ? { branch: updatedProfile.branch } : {}),
+          ...(updatedProfile.avatar ? { avatarUrl: updatedProfile.avatar } : {}),
+          ...(updatedProfile.phone ? { phone: updatedProfile.phone } : {}),
+        };
+        localStorage.setItem("ai_interview_prep_user", JSON.stringify(updatedAuth));
       } catch (e) {
         console.error("Failed to parse active user during updateProfile:", e);
       }
     }
 
     localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(updatedProfile));
+
+    // Keep Master Student directory and Admin view synchronized
+    try {
+      const rawMaster = localStorage.getItem("ai_interview_prep_master_students_v2");
+      if (rawMaster) {
+        const masterStudents = JSON.parse(rawMaster);
+        if (Array.isArray(masterStudents)) {
+          let matched = false;
+          const updatedList = masterStudents.map((s: any) => {
+            if (s.userId === userId || (s.email && s.email.toLowerCase() === updatedProfile.email?.toLowerCase())) {
+              matched = true;
+              return {
+                ...s,
+                name: updatedProfile.name || s.name,
+                college: updatedProfile.college || s.college,
+                branch: updatedProfile.branch || s.branch,
+                course: updatedProfile.degree || s.course,
+                rollNumber: updatedProfile.rollNumber || s.rollNumber,
+                phone: updatedProfile.phone || s.phone,
+                selfieUrl: (updatedProfile.isCustomAvatar && updatedProfile.avatar) ? updatedProfile.avatar : s.selfieUrl,
+                profileCompletion: calculateProfileCompletion(updatedProfile),
+              };
+            }
+            return s;
+          });
+          if (matched) {
+            localStorage.setItem("ai_interview_prep_master_students_v2", JSON.stringify(updatedList));
+            window.dispatchEvent(new Event("master-students-updated"));
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to sync master student directory:", e);
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: updatedProfile }));
+    } catch {
+      // ignore
+    }
 
     // Check completion milestones (50%, 80%, 100%)
     try {

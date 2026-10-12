@@ -48,10 +48,20 @@ export const Login: React.FC = () => {
       setIsSuccess(true);
       setTimeout(() => {
         const role = authRes.role ? authRes.role.toUpperCase() : "STUDENT";
-        if (role === "ADMIN" || role === "ROLE_ADMIN") {
-          navigate("/admin", { replace: true });
+        const isAdminUser = role === "ADMIN" || role === "ROLE_ADMIN";
+
+        if (isAdminUser) {
+          const isValidAdminPath = from && from.startsWith("/admin") && from !== "/403";
+          navigate(isValidAdminPath ? from : "/admin", { replace: true });
         } else {
-          navigate(from === "/admin" ? "/dashboard" : from, { replace: true });
+          // Normal student must NEVER be redirected to /admin or /403
+          const isAllowedStudentPath =
+            from &&
+            !from.startsWith("/admin") &&
+            from !== "/403" &&
+            from !== "/login" &&
+            from !== "/register";
+          navigate(isAllowedStudentPath ? from : "/dashboard", { replace: true });
         }
       }, 700);
     } catch (err: any) {

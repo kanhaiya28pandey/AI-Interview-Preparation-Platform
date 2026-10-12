@@ -8,6 +8,8 @@ target/
 .env.*.local
 *.env
 !.env.example
+uploads/
+!uploads/.gitkeep
 
 ### STS ###
 .apt_generated

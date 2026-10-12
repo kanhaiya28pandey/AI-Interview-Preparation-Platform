@@ -37,7 +37,7 @@ export const QuickActions: React.FC = () => {
   const adminActions = [
     { label: "Content Manager", icon: Plus, path: "/admin/content", color: "text-cyan-400 bg-cyan-500/10" },
     { label: "Verify Students", icon: FileCheck2, path: "/admin/verifications", color: "text-amber-400 bg-amber-500/10" },
-    { label: "Coding Benchmarks", icon: Code2, path: "/admin/coding-tests", color: "text-violet-400 bg-violet-500/10" },
+    { label: "Coding Question Bank", icon: Code2, path: "/admin/coding-tests", color: "text-violet-400 bg-violet-500/10" },
     { label: "Analytics & Reports", icon: BarChart3, path: "/admin/reports", color: "text-emerald-400 bg-emerald-500/10" },
   ];
 

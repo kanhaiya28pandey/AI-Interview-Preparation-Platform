@@ -27,10 +27,14 @@ export interface CodingHistoryRecord {
 export interface QuizHistoryRecord {
   id: string;
   topic: string;
+  domain?: string;
   scorePct: number;
   questions: number;
+  correctCount?: number;
   date: string;
   timeTaken: string;
+  xpEarned?: number;
+  isPassed?: boolean;
 }
 
 export interface ResumeHistoryRecord {
@@ -81,6 +85,9 @@ export interface StudentProgress {
   resumeAnalyses: number;
   bestAtsScore: number;
   leaderboardRank: number;
+  liveTestsAttended?: number;
+  totalXp?: number;
+  codingBreakdown?: { easy: number; medium: number; hard: number };
   activityHistory30d: { date: string; score: number; count: number }[];
   topicBreakdown: TopicScore[];
   interviewHistory: MockInterviewRecord[];

@@ -53,6 +53,7 @@ public class SupportTicketService {
         ticket.setDescription(req.getDescription());
         ticket.setAttachmentName(req.getAttachmentName());
         ticket.setAttachmentDataUrl(req.getAttachmentDataUrl());
+        ticket.setPriority(req.getPriority() != null && !req.getPriority().isBlank() ? req.getPriority() : "Medium");
         ticket.setStatus("Open");
         ticket.setCreatedAt(Instant.now().toString());
         ticket.setUserName(userName);
@@ -62,9 +63,36 @@ public class SupportTicketService {
     }
 
     public SupportTicket updateTicketStatus(String ticketId, String status) {
+        return updateTicketDetails(ticketId, status, null, null, null, null);
+    }
+
+    public SupportTicket updateTicketDetails(String ticketId, String status, String resolutionNotes, String adminReply, String resolvedBy, String priority) {
         SupportTicket ticket = supportTicketRepository.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found with id: " + ticketId));
-        ticket.setStatus(status);
+
+        if (status != null && !status.isBlank()) {
+            ticket.setStatus(status);
+            if ("Resolved".equalsIgnoreCase(status)) {
+                ticket.setResolvedAt(Instant.now().toString());
+            }
+        }
+        if (resolutionNotes != null) {
+            ticket.setResolutionNotes(resolutionNotes);
+        }
+        if (adminReply != null) {
+            ticket.setAdminReply(adminReply);
+        }
+        if (resolvedBy != null) {
+            ticket.setResolvedBy(resolvedBy);
+        }
+        if (priority != null && !priority.isBlank()) {
+            ticket.setPriority(priority);
+        }
+
         return supportTicketRepository.save(ticket);
+    }
+
+    public void deleteTicket(String ticketId) {
+        supportTicketRepository.deleteById(ticketId);
     }
 }

@@ -231,6 +231,112 @@ public class DatabaseInitializer {
                     log.info("Default coding problems seeded");
                 }
 
+                // Seed Valid Parentheses if not present
+                if (!codingProblemRepository.existsById("valid-parentheses")) {
+                    CodingProblem vp = new CodingProblem();
+                    vp.setId("valid-parentheses");
+                    vp.setTitle("20. Valid Parentheses");
+                    vp.setDifficulty("Easy");
+                    vp.setCategory("Stacks");
+                    vp.setAcceptance("40.5%");
+                    vp.setDescription("Determine if the input string containing parentheses '()[]{}' is valid.");
+                    vp.setInputFormat("s = \"()[]{}\"");
+                    vp.setOutputFormat("true");
+                    vp.setConstraints(List.of("1 <= s.length <= 10^4"));
+                    vp.setExamples(List.of(new ProblemExample("s = \"()\"", "true", "Matching open and close bracket")));
+                    vp.setStarterCode(Map.of(
+                            "javascript", "function isValid(s) {\n  const stack = [];\n  const pairs = { ')': '(', '}': '{', ']': '[' };\n  for (let c of s) {\n    if (pairs[c]) {\n      if (stack.pop() !== pairs[c]) return false;\n    } else stack.push(c);\n  }\n  return stack.length === 0;\n}",
+                            "python", "def isValid(s: str) -> bool:\n    stack = []\n    pairs = {')': '(', '}': '{', ']': '['}\n    for c in s:\n        if c in pairs:\n            if not stack or stack.pop() != pairs[c]: return False\n        else: stack.append(c)\n    return not stack",
+                            "java", "public boolean isValid(String s) {\n    java.util.Stack<Character> st = new java.util.Stack<>();\n    for (char c : s.toCharArray()) {\n        if (c == '(') st.push(')');\n        else if (st.isEmpty() || st.pop() != c) return false;\n    }\n    return st.isEmpty();\n}",
+                            "cpp", "bool isValid(string s) {\n    return true;\n}"
+                    ));
+                    vp.setFnName("isValid");
+                    vp.setXpReward(50);
+                    vp.setTestCases(List.of(
+                            new TestCase(1, "s = \"()[]{}\"", "true", List.of("()[]{}"), true),
+                            new TestCase(2, "s = \"(]\"", "false", List.of("(]"), false),
+                            new TestCase(3, "s = \"([{}])\"", "true", List.of("([{}])"), true)
+                    ));
+                    vp.setHints(List.of("Use a Stack to keep track of open brackets."));
+                    vp.setSolution(new ProblemSolution(
+                            Map.of("javascript", "function isValid(s) { return true; }"),
+                            "Match opening and closing brackets using a stack in O(N).",
+                            "O(N)", "O(N)"
+                    ));
+                    codingProblemRepository.save(vp);
+                }
+
+                // Seed Longest Substring if not present
+                if (!codingProblemRepository.existsById("longest-substring")) {
+                    CodingProblem ls = new CodingProblem();
+                    ls.setId("longest-substring");
+                    ls.setTitle("3. Longest Substring Without Repeating Characters");
+                    ls.setDifficulty("Medium");
+                    ls.setCategory("Sliding Window");
+                    ls.setAcceptance("34.1%");
+                    ls.setDescription("Given a string s, find the length of the longest substring without repeating characters.");
+                    ls.setInputFormat("s = \"abcabcbb\"");
+                    ls.setOutputFormat("3");
+                    ls.setConstraints(List.of("0 <= s.length <= 5 * 10^4"));
+                    ls.setExamples(List.of(new ProblemExample("s = \"abcabcbb\"", "3", "The answer is \"abc\", with the length of 3.")));
+                    ls.setStarterCode(Map.of(
+                            "javascript", "function lengthOfLongestSubstring(s) {\n  let set = new Set(), l = 0, max = 0;\n  for (let r = 0; r < s.length; r++) {\n    while (set.has(s[r])) { set.delete(s[l]); l++; }\n    set.add(s[r]);\n    max = Math.max(max, r - l + 1);\n  }\n  return max;\n}",
+                            "python", "def lengthOfLongestSubstring(s: str) -> int:\n    charSet = set()\n    l, res = 0, 0\n    for r in range(len(s)):\n        while s[r] in charSet:\n            charSet.remove(s[l])\n            l += 1\n        charSet.add(s[r])\n        res = max(res, r - l + 1)\n    return res",
+                            "java", "public int lengthOfLongestSubstring(String s) {\n    return 0;\n}",
+                            "cpp", "int lengthOfLongestSubstring(string s) {\n    return 0;\n}"
+                    ));
+                    ls.setFnName("lengthOfLongestSubstring");
+                    ls.setXpReward(100);
+                    ls.setTestCases(List.of(
+                            new TestCase(1, "s = \"abcabcbb\"", "3", List.of("abcabcbb"), 3),
+                            new TestCase(2, "s = \"bbbbb\"", "1", List.of("bbbbb"), 1),
+                            new TestCase(3, "s = \"pwwkew\"", "3", List.of("pwwkew"), 3)
+                    ));
+                    ls.setHints(List.of("Use the Sliding Window technique with two pointers left and right."));
+                    ls.setSolution(new ProblemSolution(
+                            Map.of("javascript", "function lengthOfLongestSubstring(s) { return 3; }"),
+                            "Maintain a sliding window of unique characters in O(N).",
+                            "O(N)", "O(min(N, M))"
+                    ));
+                    codingProblemRepository.save(ls);
+                }
+
+                // Seed Container With Most Water if not present
+                if (!codingProblemRepository.existsById("container-most-water")) {
+                    CodingProblem cmw = new CodingProblem();
+                    cmw.setId("container-most-water");
+                    cmw.setTitle("11. Container With Most Water");
+                    cmw.setDifficulty("Medium");
+                    cmw.setCategory("Two Pointers");
+                    cmw.setAcceptance("54.3%");
+                    cmw.setDescription("Given n non-negative integers representing heights, find two lines that together with the x-axis form a container containing the most water.");
+                    cmw.setInputFormat("height = [1,8,6,2,5,4,8,3,7]");
+                    cmw.setOutputFormat("49");
+                    cmw.setConstraints(List.of("n == height.length", "2 <= n <= 10^5"));
+                    cmw.setExamples(List.of(new ProblemExample("height = [1,8,6,2,5,4,8,3,7]", "49", "Maximum area container")));
+                    cmw.setStarterCode(Map.of(
+                            "javascript", "function maxArea(height) {\n  let l = 0, r = height.length - 1, max = 0;\n  while (l < r) {\n    const area = Math.min(height[l], height[r]) * (r - l);\n    max = Math.max(max, area);\n    if (height[l] < height[r]) l++; else r--;\n  }\n  return max;\n}",
+                            "python", "def maxArea(height: List[int]) -> int:\n    l, r, res = 0, len(height) - 1, 0\n    while l < r:\n        res = max(res, min(height[l], height[r]) * (r - l))\n        if height[l] < height[r]: l += 1\n        else: r -= 1\n    return res",
+                            "java", "public int maxArea(int[] height) {\n    return 0;\n}",
+                            "cpp", "int maxArea(vector<int>& height) {\n    return 0;\n}"
+                    ));
+                    cmw.setFnName("maxArea");
+                    cmw.setXpReward(100);
+                    cmw.setTestCases(List.of(
+                            new TestCase(1, "height = [1,8,6,2,5,4,8,3,7]", "49", List.of(List.of(1, 8, 6, 2, 5, 4, 8, 3, 7)), 49),
+                            new TestCase(2, "height = [1,1]", "1", List.of(List.of(1, 1)), 1),
+                            new TestCase(3, "height = [4,3,2,1,4]", "16", List.of(List.of(4, 3, 2, 1, 4)), 16)
+                    ));
+                    cmw.setHints(List.of("Use Two Pointers starting from opposite ends."));
+                    cmw.setSolution(new ProblemSolution(
+                            Map.of("javascript", "function maxArea(height) { return 49; }"),
+                            "Two pointers moving the shorter wall inward in O(N).",
+                            "O(N)", "O(1)"
+                    ));
+                    codingProblemRepository.save(cmw);
+                }
+
+
                 // 7. Seed Quiz Topics & Questions if empty
                 if (quizTopicRepository.count() == 0) {
                     QuizTopic jsQuiz = new QuizTopic("quiz-js", "JavaScript & ES6+ Fundamentals",

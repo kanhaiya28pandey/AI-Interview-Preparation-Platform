@@ -546,7 +546,7 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
                           Q{idx + 1}. {q.questionText}
                         </span>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-[10px] text-text-muted">
-                          {q.options.map((opt, oIdx) => (
+                          {q.options.map((opt: string, oIdx: number) => (
                             <span key={oIdx} className={oIdx === q.correctOptionIndex ? "text-live font-bold" : ""}>
                               {String.fromCharCode(65 + oIdx)}. {opt} {oIdx === q.correctOptionIndex && "✓"}
                             </span>

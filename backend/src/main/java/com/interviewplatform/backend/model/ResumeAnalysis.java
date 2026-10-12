@@ -34,6 +34,7 @@ public class ResumeAnalysis {
     private List<SectionAnalysis> sections = new ArrayList<>();
     private List<RoleFitItem> roleFitComparison = new ArrayList<>();
     private List<AnalysisHistoryItem> history = new ArrayList<>();
+    private JdMatchDetail jdMatch = new JdMatchDetail();
 
     public ResumeAnalysis() {}
 
@@ -90,4 +91,7 @@ public class ResumeAnalysis {
 
     public List<AnalysisHistoryItem> getHistory() { return history; }
     public void setHistory(List<AnalysisHistoryItem> history) { this.history = history; }
+
+    public JdMatchDetail getJdMatch() { return jdMatch; }
+    public void setJdMatch(JdMatchDetail jdMatch) { this.jdMatch = jdMatch; }
 }

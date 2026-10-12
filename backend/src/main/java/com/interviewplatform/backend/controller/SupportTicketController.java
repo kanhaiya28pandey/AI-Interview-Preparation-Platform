@@ -21,9 +21,11 @@ import jakarta.validation.Valid;
 public class SupportTicketController {
 
     private final SupportTicketService supportTicketService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public SupportTicketController(SupportTicketService supportTicketService) {
+    public SupportTicketController(SupportTicketService supportTicketService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.supportTicketService = supportTicketService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -38,6 +40,17 @@ public class SupportTicketController {
     public ResponseEntity<SupportTicket> createTicket(@Valid @RequestBody CreateTicketRequest request,
                                                       Authentication authentication) {
         String userId = authentication != null ? authentication.getName() : null;
-        return ResponseEntity.ok(supportTicketService.createTicket(userId, request));
+        SupportTicket created = supportTicketService.createTicket(userId, request);
+        try {
+            notificationService.notifyAdmins(
+                    "support",
+                    "New Help Request: " + created.getSubject(),
+                    (created.getUserName() != null ? created.getUserName() : "Student") + " submitted a support query: " + (created.getDescription() != null ? created.getDescription() : "Help requested."),
+                    "/admin/help",
+                    "warning"
+            );
+        } catch (Exception ignored) {
+        }
+        return ResponseEntity.ok(created);
     }
 }

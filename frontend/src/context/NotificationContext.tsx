@@ -82,12 +82,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       fetchNotifications();
     });
 
-    // Background polling every 30 seconds if tab is active
+    // Background polling fallback every 8 seconds if tab is active
     const interval = setInterval(() => {
       if (!document.hidden && user?.userId) {
         fetchNotifications();
       }
-    }, 30000);
+    }, 8000);
 
     return () => {
       unsubscribe();

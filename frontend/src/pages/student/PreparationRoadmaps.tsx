@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Compass,
@@ -14,6 +14,20 @@ import {
   Sparkles,
   ChevronRight,
   ChevronDown,
+  Search,
+  Filter,
+  Layers,
+  Binary,
+  Layout,
+  Server,
+  BrainCircuit,
+  BarChart3,
+  Cloud,
+  Zap,
+  Check,
+  Flame,
+  Target,
+  GraduationCap,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -22,286 +36,101 @@ import { Progress } from "@/components/ui/Progress";
 import { useAuth } from "@/context/AuthContext";
 import { getScopedItem, setScopedItem } from "@/lib/userScope";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
+import { Domain, RoadmapWeek, RoadmapTask } from "@/lib/taxonomy";
 
-interface RoadmapWeek {
-  weekNumber: number;
-  title: string;
-  focus: string;
-  tasks: Array<{
-    id: string;
-    label: string;
-    type: "PRACTICE" | "QUIZ" | "CODING" | "INTERVIEW" | "READING";
-    linkUrl: string;
-    estimatedMinutes: number;
-  }>;
-}
+// Dynamic icon resolver
+const getDomainIcon = (iconName: string) => {
+  switch (iconName?.toLowerCase()) {
+    case "binary":
+      return Binary;
+    case "layout":
+      return Layout;
+    case "server":
+      return Server;
+    case "braincircuit":
+    case "brain-circuit":
+      return BrainCircuit;
+    case "barchart3":
+    case "bar-chart-3":
+      return BarChart3;
+    case "cloud":
+      return Cloud;
+    case "zap":
+      return Zap;
+    default:
+      return Layers;
+  }
+};
 
-interface RoleRoadmap {
-  id: string;
-  roleName: string;
-  domainSlug: string;
-  description: string;
-  durationWeeks: number;
-  totalHours: number;
-  weeks: RoadmapWeek[];
-}
-
-export const ROLE_ROADMAPS: RoleRoadmap[] = [
-  {
-    id: "role-sde",
-    roleName: "SDE (DSA Heavy)",
-    domainSlug: "dsa",
-    description: "Intensive 8-week algorithmic mastery curriculum for Google, Meta, Amazon placement coding rounds.",
-    durationWeeks: 8,
-    totalHours: 90,
-    weeks: [
-      {
-        weekNumber: 1,
-        title: "Arrays, Two Pointers & Sliding Window",
-        focus: "Prefix sum arrays, two-pointer bounds, and dynamic sliding window string substrings.",
-        tasks: [
-          { id: "sde-w1-1", label: "Solve 5 Two-Pointer benchmark problems", type: "CODING", linkUrl: "/coding", estimatedMinutes: 90 },
-          { id: "sde-w1-2", label: "Take Arrays & Hashing Concept Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-          { id: "sde-w1-3", label: "Read Sliding Window Invariant Guide", type: "READING", linkUrl: "/articles", estimatedMinutes: 15 },
-        ],
-      },
-      {
-        weekNumber: 2,
-        title: "Binary Search & Monotonic Stacks",
-        focus: "Searching on rotated arrays, search on monotonic answer space, and next greater element.",
-        tasks: [
-          { id: "sde-w2-1", label: "Solve 4 Rotated Array & Lower Bound problems", type: "CODING", linkUrl: "/coding", estimatedMinutes: 75 },
-          { id: "sde-w2-2", label: "Complete Stack & Monotonic Stack Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-        ],
-      },
-      {
-        weekNumber: 3,
-        title: "Trees, BST & Lowest Common Ancestor",
-        focus: "Tree DFS/BFS, binary search tree balance, and tree serialization algorithms.",
-        tasks: [
-          { id: "sde-w3-1", label: "Practice Binary Tree Path Sum & LCA", type: "CODING", linkUrl: "/coding", estimatedMinutes: 90 },
-          { id: "sde-w3-2", label: "Take Tree Traversal Precision Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-        ],
-      },
-      {
-        weekNumber: 4,
-        title: "Graphs: BFS, DFS & Topological Sort",
-        focus: "Connected components, cycle detection in directed graphs, and Course Schedule ordering.",
-        tasks: [
-          { id: "sde-w4-1", label: "Implement Dijkstra's & Kahn's Topological Sort", type: "CODING", linkUrl: "/coding", estimatedMinutes: 120 },
-          { id: "sde-w4-2", label: "Complete Graph Algorithms Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 25 },
-        ],
-      },
-      {
-        weekNumber: 5,
-        title: "Dynamic Programming Foundations",
-        focus: "1D memoization vs tabulation, House Robber patterns, and Coin Change unbounded knapsack.",
-        tasks: [
-          { id: "sde-w5-1", label: "Solve 6 Core Dynamic Programming challenges", type: "CODING", linkUrl: "/coding", estimatedMinutes: 140 },
-          { id: "sde-w5-2", label: "Take Dynamic Programming State Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-        ],
-      },
-      {
-        weekNumber: 6,
-        title: "Full Placement Mock Interview",
-        focus: "Simulated technical bar-raiser interview with live code execution and complexity defense.",
-        tasks: [
-          { id: "sde-w6-1", label: "Complete AI SDE Technical Interview Session", type: "INTERVIEW", linkUrl: "/mock-interview", estimatedMinutes: 45 },
-          { id: "sde-w6-2", label: "Review Interview Telemetry Feedback", type: "PRACTICE", linkUrl: "/practice", estimatedMinutes: 30 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "role-frontend",
-    roleName: "Frontend Engineer",
-    domainSlug: "frontend-development",
-    description: "Modern React architecture, DOM internals, state management, and web performance tuning.",
-    durationWeeks: 6,
-    totalHours: 65,
-    weeks: [
-      {
-        weekNumber: 1,
-        title: "JavaScript Engine Deep Dive & Event Loop",
-        focus: "Microtasks, Macrotasks, Closures, Prototypal Chain, and custom Promise implementation.",
-        tasks: [
-          { id: "fe-w1-1", label: "Take Advanced JavaScript Runtime Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 25 },
-          { id: "fe-w1-2", label: "Practice Debounce, Throttle & Custom Hooks", type: "PRACTICE", linkUrl: "/practice", estimatedMinutes: 60 },
-        ],
-      },
-      {
-        weekNumber: 2,
-        title: "React Fiber Architecture & Render Optimization",
-        focus: "Virtual DOM reconciliation, Concurrent Mode, useTransition, and memory leak mitigation.",
-        tasks: [
-          { id: "fe-w2-1", label: "Take React Architecture Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-          { id: "fe-w2-2", label: "Read Web Vitals & Bundle Optimization Guide", type: "READING", linkUrl: "/articles", estimatedMinutes: 20 },
-        ],
-      },
-      {
-        weekNumber: 3,
-        title: "Frontend Technical Interview Room",
-        focus: "Simulate a live UI architecture screen covering state management and system design.",
-        tasks: [
-          { id: "fe-w3-1", label: "Complete Frontend Engineer Mock Interview", type: "INTERVIEW", linkUrl: "/mock-interview", estimatedMinutes: 40 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "role-backend",
-    roleName: "Backend Engineer",
-    domainSlug: "backend-development",
-    description: "Spring Boot, Node.js, distributed transactions, database indexing, and Kafka streaming.",
-    durationWeeks: 6,
-    totalHours: 70,
-    weeks: [
-      {
-        weekNumber: 1,
-        title: "APIs, Authentication & Concurrency",
-        focus: "REST idempotency, JWT refresh tokens, rate limiting, and thread pool safety.",
-        tasks: [
-          { id: "be-w1-1", label: "Take Backend API Security & JWT Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-          { id: "be-w1-2", label: "Practice Database Connection Pool Tuning", type: "PRACTICE", linkUrl: "/practice", estimatedMinutes: 45 },
-        ],
-      },
-      {
-        weekNumber: 2,
-        title: "Database Indexing & Query Optimization",
-        focus: "B-Trees vs LSM, Composite index column ordering, EXPLAIN query profiling, and ACID locks.",
-        tasks: [
-          { id: "be-w2-1", label: "Take Database Normalization & Indexing Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 25 },
-          { id: "be-w2-2", label: "Read Storage Engine Internals Guide", type: "READING", linkUrl: "/articles", estimatedMinutes: 20 },
-        ],
-      },
-      {
-        weekNumber: 3,
-        title: "Backend Technical Interview Session",
-        focus: "Live system architecture interrogation on microservices, caching, and resiliency.",
-        tasks: [
-          { id: "be-w3-1", label: "Complete Backend AI Interview Room", type: "INTERVIEW", linkUrl: "/mock-interview", estimatedMinutes: 45 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "role-genai",
-    roleName: "Generative AI & LLM Engineer",
-    domainSlug: "ai-machine-learning",
-    description: "Transformer mechanics, RAG architecture, vector search, LangChain agents, and evaluation metrics.",
-    durationWeeks: 6,
-    totalHours: 75,
-    weeks: [
-      {
-        weekNumber: 1,
-        title: "Transformers, Attention & Prompt Engineering",
-        focus: "Self-attention mechanism, KV caching, tokenization, and few-shot Chain-of-Thought prompting.",
-        tasks: [
-          { id: "ai-w1-1", label: "Take LLM Fundamentals & Prompting Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 25 },
-          { id: "ai-w1-2", label: "Read Vector Embeddings & Similarity Guide", type: "READING", linkUrl: "/articles", estimatedMinutes: 15 },
-        ],
-      },
-      {
-        weekNumber: 2,
-        title: "RAG & Vector Database Pipelines",
-        focus: "Chunking strategies, HNSW vector indexing, hybrid search with BM25, and hallucination guardrails.",
-        tasks: [
-          { id: "ai-w2-1", label: "Take RAG Systems & Embeddings Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-          { id: "ai-w2-2", label: "Complete AI/ML Technical Mock Interview", type: "INTERVIEW", linkUrl: "/mock-interview", estimatedMinutes: 40 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "role-data-analyst",
-    roleName: "Data Analyst",
-    domainSlug: "data-analytics",
-    description: "SQL window functions, Python Pandas analysis, cohort metrics, Tableau, and business KPIs.",
-    durationWeeks: 5,
-    totalHours: 50,
-    weeks: [
-      {
-        weekNumber: 1,
-        title: "Advanced SQL Analytics & Window Functions",
-        focus: "Dense_rank, retention cohorts, lead/lag rolling averages, and subquery optimization.",
-        tasks: [
-          { id: "da-w1-1", label: "Take SQL Analytics & Joins Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 20 },
-          { id: "da-w1-2", label: "Practice Exploratory Data Analysis with Pandas", type: "PRACTICE", linkUrl: "/practice", estimatedMinutes: 60 },
-        ],
-      },
-      {
-        weekNumber: 2,
-        title: "Business Case Studies & Metrics",
-        focus: "A/B testing statistical significance, metric drop diagnostics, and executive dashboards.",
-        tasks: [
-          { id: "da-w2-1", label: "Complete Data Analyst Placement Interview", type: "INTERVIEW", linkUrl: "/mock-interview", estimatedMinutes: 35 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "role-devops",
-    roleName: "DevOps & Cloud Engineer",
-    domainSlug: "devops-cloud",
-    description: "Docker, Kubernetes, Terraform IaC, AWS infrastructure, CI/CD pipelines, and observability.",
-    durationWeeks: 6,
-    totalHours: 70,
-    weeks: [
-      {
-        weekNumber: 1,
-        title: "Containers & Orchestration",
-        focus: "Multi-stage Docker builds, Kubernetes Pods, Ingress Controllers, and Helm charts.",
-        tasks: [
-          { id: "do-w1-1", label: "Take Docker & Kubernetes Architecture Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 25 },
-          { id: "do-w1-2", label: "Read CI/CD Pipeline Hardening Guide", type: "READING", linkUrl: "/articles", estimatedMinutes: 20 },
-        ],
-      },
-      {
-        weekNumber: 2,
-        title: "Cloud Infrastructure & SRE Mock Round",
-        focus: "AWS VPC architecture, Terraform state locks, Prometheus metrics, and production outages.",
-        tasks: [
-          { id: "do-w2-1", label: "Complete Cloud & DevOps Mock Interview", type: "INTERVIEW", linkUrl: "/mock-interview", estimatedMinutes: 40 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "role-hr-behavioral",
-    roleName: "HR & Behavioral Prep",
-    domainSlug: "hr-behavioral",
-    description: "STAR framework responses, conflict resolution, leadership stories, and culture fit mastery.",
-    durationWeeks: 3,
-    totalHours: 30,
-    weeks: [
-      {
-        weekNumber: 1,
-        title: "STAR Story Construction & Elevator Pitch",
-        focus: "Situation, Task, Action, Result methodology with quantifiable business impacts.",
-        tasks: [
-          { id: "hr-w1-1", label: "Read Complete Behavioral STAR Guide", type: "READING", linkUrl: "/articles", estimatedMinutes: 15 },
-          { id: "hr-w1-2", label: "Take Behavioral Scenario Etiquette Quiz", type: "QUIZ", linkUrl: "/quiz", estimatedMinutes: 15 },
-        ],
-      },
-      {
-        weekNumber: 2,
-        title: "Behavioral & HR AI Interview Simulation",
-        focus: "Interactive 3-round simulated HR evaluation with immediate verbal feedback.",
-        tasks: [
-          { id: "hr-w2-1", label: "Complete Behavioral STAR AI Interview", type: "INTERVIEW", linkUrl: "/mock-interview", estimatedMinutes: 30 },
-        ],
-      },
-    ],
-  },
-];
+const getTaskTypeConfig = (type: string) => {
+  switch (type) {
+    case "CODING":
+      return {
+        icon: Code2,
+        label: "Coding Arena",
+        color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+        actionText: "Solve Now",
+      };
+    case "QUIZ":
+      return {
+        icon: HelpCircle,
+        label: "Concept Quiz",
+        color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+        actionText: "Take Quiz",
+      };
+    case "INTERVIEW":
+      return {
+        icon: Video,
+        label: "AI Mock Interview",
+        color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+        actionText: "Start Round",
+      };
+    case "READING":
+      return {
+        icon: BookOpen,
+        label: "Article & Guide",
+        color: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+        actionText: "Read Guide",
+      };
+    case "PRACTICE":
+    default:
+      return {
+        icon: Sparkles,
+        label: "Practice Track",
+        color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+        actionText: "Practice",
+      };
+  }
+};
 
 export const PreparationRoadmaps: React.FC = () => {
   const { user } = useAuth();
   const { domains } = useTaxonomy();
-  const [selectedRole, setSelectedRole] = useState<RoleRoadmap>(ROLE_ROADMAPS[0]);
+
+  // Active selected domain slug
+  const [selectedSlug, setSelectedSlug] = useState<string>(() => {
+    return domains[0]?.slug || "dsa";
+  });
+
+  // Keep selectedSlug valid if domains list changes
+  useEffect(() => {
+    if (domains.length > 0 && !domains.some((d) => d.slug === selectedSlug)) {
+      setSelectedSlug(domains[0].slug);
+    }
+  }, [domains, selectedSlug]);
+
+  const activeDomain = useMemo(() => {
+    return domains.find((d) => d.slug === selectedSlug) || domains[0];
+  }, [domains, selectedSlug]);
+
+  // Expanded weeks state
   const [expandedWeeks, setExpandedWeeks] = useState<number[]>([1, 2]);
 
-  // Read completed tasks for this user from scoped storage
+  // Task filtering
+  const [taskFilter, setTaskFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Scoped completed tasks tracking
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>(() => {
     return getScopedItem<string[]>(user?.userId, "roadmap_completed_tasks", []);
   });
@@ -326,190 +155,498 @@ export const PreparationRoadmaps: React.FC = () => {
     );
   };
 
-  // Calculate progress for active role
-  const allRoleTasks = selectedRole.weeks.flatMap((w) => w.tasks);
-  const completedInRole = allRoleTasks.filter((t) => completedTaskIds.includes(t.id)).length;
-  const progressPercent = allRoleTasks.length > 0 ? Math.round((completedInRole / allRoleTasks.length) * 100) : 0;
+  const expandAll = () => {
+    if (!activeDomain?.weeks) return;
+    setExpandedWeeks(activeDomain.weeks.map((w) => w.weekNumber));
+  };
+
+  const collapseAll = () => {
+    setExpandedWeeks([]);
+  };
+
+  // Helper to compute progress for any domain
+  const getDomainProgress = (dom: Domain) => {
+    const allTasks = dom.weeks?.flatMap((w) => w.tasks) || [];
+    if (allTasks.length === 0) return { total: 0, completed: 0, percent: 0 };
+    const completed = allTasks.filter((t) => completedTaskIds.includes(t.id)).length;
+    const percent = Math.round((completed / allTasks.length) * 100);
+    return { total: allTasks.length, completed, percent };
+  };
+
+  // Active domain stats
+  const activeStats = useMemo(() => {
+    if (!activeDomain) return { total: 0, completed: 0, percent: 0, totalHours: 0, durationWeeks: 0 };
+    const prog = getDomainProgress(activeDomain);
+    return {
+      ...prog,
+      totalHours: activeDomain.totalHours || 0,
+      durationWeeks: activeDomain.durationWeeks || activeDomain.weeks?.length || 0,
+    };
+  }, [activeDomain, completedTaskIds]);
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-8 animate-fade-in pb-16">
       {/* Top Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <Compass className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-serif text-2xl font-bold text-text-primary tracking-tight">
+                  Placement Preparation Roadmaps
+                </h1>
+                <Badge variant="accent" className="font-mono text-xs">
+                  {domains.length} Career Tracks
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                Comprehensive beginner-to-advanced placement curricula tailored for engineering roles and company recruitment rounds.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Progress pill */}
+        <div className="flex items-center gap-3 bg-surface-raised/60 border border-border px-4 py-2.5 rounded-2xl self-start md:self-auto">
+          <GraduationCap className="w-5 h-5 text-cyan-400 shrink-0" />
+          <div className="text-left">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider">
+              Total Milestones Solved
+            </div>
+            <div className="text-xs font-bold text-text-primary">
+              <span className="text-cyan-400">{completedTaskIds.length}</span> Tasks Completed Across Tracks
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DOMAIN SELECTION GRID - Full Clear Visibility */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h1 className="font-serif text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
-              <Compass className="w-6 h-6 text-cyan-400" /> Role Preparation Roadmaps
-            </h1>
-            <Badge variant="accent" className="font-mono text-xs">
-              Weekly Curricula
-            </Badge>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted font-mono flex items-center gap-1.5">
+              <Target className="w-4 h-4 text-cyan-400" /> Select Placement Domain & Track
+            </h2>
           </div>
-          <p className="text-xs sm:text-sm text-text-muted mt-1">
-            Structured week-by-week preparation paths tailored for specific engineering roles and company placement drives.
-          </p>
+          <span className="text-xs text-text-muted">
+            Click any track to view its full week-by-week curriculum
+          </span>
         </div>
-      </div>
 
-      {/* Role Picker Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        {ROLE_ROADMAPS.map((r) => {
-          const isSelected = selectedRole.id === r.id;
-          return (
-            <button
-              key={r.id}
-              onClick={() => setSelectedRole(r)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
-                isSelected
-                  ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/20 font-bold"
-                  : "bg-surface border border-border text-text-muted hover:text-text-primary hover:border-cyan-500/40"
-              }`}
-            >
-              <span>{r.roleName}</span>
-              <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${isSelected ? "bg-black/20 text-black font-bold" : "bg-surface-raised text-text-muted"}`}>
-                {r.durationWeeks}W
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+          {domains.map((dom) => {
+            const isSelected = activeDomain?.slug === dom.slug;
+            const IconComponent = getDomainIcon(dom.icon);
+            const { total, completed, percent } = getDomainProgress(dom);
 
-      {/* Active Roadmap Overview Card */}
-      <Card className="p-6 bg-surface border-border space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-text-primary">{selectedRole.roleName} Track</h2>
-              <Badge variant="outline" className="font-mono text-xs text-cyan-400 border-cyan-400/30">
-                {selectedRole.durationWeeks} Weeks • ~{selectedRole.totalHours} Total Hours
-              </Badge>
-            </div>
-            <p className="text-xs text-text-muted mt-1">{selectedRole.description}</p>
-          </div>
-
-          <div className="w-full sm:w-64 space-y-1.5 shrink-0">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-text-muted">Curriculum Progress</span>
-              <span className="text-cyan-400 font-bold">{progressPercent}%</span>
-            </div>
-            <Progress value={progressPercent} className="h-2" />
-            <span className="text-[10px] text-text-muted font-mono block text-right">
-              {completedInRole} of {allRoleTasks.length} milestones checked
-            </span>
-          </div>
-        </div>
-      </Card>
-
-      {/* Week by Week Accordions */}
-      <div className="space-y-4">
-        {selectedRole.weeks.map((wk) => {
-          const isExpanded = expandedWeeks.includes(wk.weekNumber);
-          const weekDoneCount = wk.tasks.filter((t) => completedTaskIds.includes(t.id)).length;
-          const isWeekCompleted = weekDoneCount === wk.tasks.length && wk.tasks.length > 0;
-
-          return (
-            <Card
-              key={wk.weekNumber}
-              className={`border transition-all duration-200 overflow-hidden ${
-                isWeekCompleted
-                  ? "bg-surface/70 border-emerald-500/30"
-                  : "bg-surface border-border hover:border-cyan-500/30"
-              }`}
-            >
+            return (
               <div
-                className="p-5 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none bg-surface-raised/40 hover:bg-surface-raised/70"
-                onClick={() => toggleWeek(wk.weekNumber)}
+                key={dom.id}
+                onClick={() => setSelectedSlug(dom.slug)}
+                className={`relative p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 group ${
+                  isSelected
+                    ? "bg-surface-raised border-cyan-400/80 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400/50"
+                    : "bg-surface border-border hover:border-cyan-500/40 hover:bg-surface-raised/60"
+                }`}
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs font-mono shrink-0 ${
-                      isWeekCompleted
-                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                        : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                    }`}
-                  >
-                    W{wk.weekNumber}
+                {/* Active Indicator Chip */}
+                {isSelected && (
+                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-cyan-500 text-black font-bold text-[10px] px-2 py-0.5 rounded-full font-mono shadow-sm">
+                    <Check className="w-3 h-3 stroke-[3]" /> Active Track
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                      {wk.title}
-                      {isWeekCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                )}
+
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
+                    style={{
+                      backgroundColor: `${dom.color}15`,
+                      color: dom.color,
+                      border: `1px solid ${dom.color}35`,
+                    }}
+                  >
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+
+                  <div className="min-w-0 flex-1 pr-6">
+                    <h3 className="font-bold text-sm text-text-primary group-hover:text-cyan-400 transition-colors truncate">
+                      {dom.name}
                     </h3>
-                    <p className="text-xs text-text-muted mt-0.5">{wk.focus}</p>
+                    <p className="text-[11px] text-text-muted mt-0.5 line-clamp-2 leading-relaxed">
+                      {dom.description}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs font-mono">
-                  <span className={isWeekCompleted ? "text-emerald-400 font-semibold" : "text-text-muted"}>
-                    {weekDoneCount}/{wk.tasks.length} tasks
-                  </span>
-                  <div className="text-text-muted">
-                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                {/* Level Badge */}
+                {dom.level && (
+                  <div className="mt-3">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-raised border border-border text-text-muted inline-block truncate max-w-full">
+                      {dom.level}
+                    </span>
                   </div>
+                )}
+
+                {/* Meta stats footer */}
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-[11px] text-text-muted font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-primary font-semibold">
+                      {dom.durationWeeks || dom.weeks?.length || 0}W
+                    </span>
+                    <span>•</span>
+                    <span>{dom.totalHours || 0}h Total</span>
+                    <span>•</span>
+                    <span>{dom.topics?.length || 0} Topics</span>
+                  </div>
+
+                  <span className={`font-semibold ${percent > 0 ? "text-cyan-400" : "text-text-muted"}`}>
+                    {percent}%
+                  </span>
+                </div>
+
+                {/* Micro Progress Bar */}
+                <div className="w-full bg-border/40 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-300"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ACTIVE ROADMAP DETAIL VIEW */}
+      {activeDomain && (
+        <div className="space-y-6 pt-2">
+          {/* Active Roadmap Banner & Overview */}
+          <Card className="p-6 bg-surface border-border overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="accent" className="font-mono text-xs">
+                    Curriculum Master
+                  </Badge>
+                  {activeDomain.level && (
+                    <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-300">
+                      {activeDomain.level}
+                    </Badge>
+                  )}
+                  {activeDomain.isCustom && (
+                    <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300">
+                      Custom Track
+                    </Badge>
+                  )}
+                </div>
+
+                <h2 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+                  {activeDomain.name} Placement Roadmap
+                </h2>
+                <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
+                  {activeDomain.description}
+                </p>
+
+                {/* Topics Covered Tag Cloud */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] font-mono text-text-muted mr-1">Core Modules:</span>
+                  {activeDomain.topics?.map((top) => (
+                    <span
+                      key={top.id}
+                      className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-surface-raised border border-border text-cyan-300"
+                    >
+                      {top.name}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              {isExpanded && (
-                <div className="p-5 border-t border-border bg-ink/20 space-y-3">
-                  {wk.tasks.map((task) => {
-                    const isChecked = completedTaskIds.includes(task.id);
-                    return (
+              {/* Progress Summary Card */}
+              <div className="bg-surface-raised/80 border border-border p-4 rounded-2xl min-w-[260px] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-text-muted">Track Completion</span>
+                  <span className="text-sm font-bold text-cyan-400 font-mono">
+                    {activeStats.percent}%
+                  </span>
+                </div>
+
+                <Progress value={activeStats.percent} className="h-2 bg-surface" />
+
+                <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-mono text-text-muted">
+                  <div className="bg-surface/60 p-2 rounded-xl border border-border">
+                    <div className="text-text-muted">Completed</div>
+                    <div className="font-bold text-text-primary text-xs mt-0.5">
+                      {activeStats.completed} / {activeStats.total} Tasks
+                    </div>
+                  </div>
+                  <div className="bg-surface/60 p-2 rounded-xl border border-border">
+                    <div className="text-text-muted">Estimated Prep</div>
+                    <div className="font-bold text-text-primary text-xs mt-0.5">
+                      {activeStats.durationWeeks}W ({activeStats.totalHours}h)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Controls Bar: Search, Task Type Filters, Expand/Collapse */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3 rounded-2xl border border-border">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-mono text-text-muted px-2 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" /> Filter:
+              </span>
+              {[
+                { id: "ALL", label: "All Tasks" },
+                { id: "CODING", label: "Coding" },
+                { id: "QUIZ", label: "Quizzes" },
+                { id: "INTERVIEW", label: "Interviews" },
+                { id: "READING", label: "Articles" },
+                { id: "PRACTICE", label: "Practice" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setTaskFilter(f.id)}
+                  className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                    taskFilter === f.id
+                      ? "bg-cyan-500 text-black font-semibold shadow-sm"
+                      : "text-text-muted hover:text-text-primary hover:bg-surface-raised"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter tasks..."
+                  className="pl-8 pr-3 py-1 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 w-36 sm:w-44"
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={expandedWeeks.length === (activeDomain.weeks?.length || 0) ? collapseAll : expandAll}
+                className="text-xs h-7 border-border hover:bg-surface-raised"
+              >
+                {expandedWeeks.length === (activeDomain.weeks?.length || 0) ? "Collapse All" : "Expand All"}
+              </Button>
+            </div>
+          </div>
+
+          {/* WEEKS ACCORDION LIST */}
+          <div className="space-y-4">
+            {(!activeDomain.weeks || activeDomain.weeks.length === 0) && (
+              <Card className="p-8 text-center bg-surface border-border">
+                <Compass className="w-10 h-10 text-text-muted mx-auto mb-2 opacity-50" />
+                <h3 className="font-bold text-sm text-text-primary">No Curriculum Weeks Defined Yet</h3>
+                <p className="text-xs text-text-muted mt-1 max-w-md mx-auto">
+                  This track is currently being organized by the administrator. Check back soon or add weeks in the Admin Taxonomy panel.
+                </p>
+              </Card>
+            )}
+
+            {activeDomain.weeks?.map((week) => {
+              const isExpanded = expandedWeeks.includes(week.weekNumber);
+
+              // Filter tasks by type and search query
+              const filteredTasks = week.tasks.filter((t) => {
+                const matchesType = taskFilter === "ALL" || t.type === taskFilter;
+                const matchesSearch =
+                  !searchQuery ||
+                  t.label.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesType && matchesSearch;
+              });
+
+              const weekCompletedCount = week.tasks.filter((t) =>
+                completedTaskIds.includes(t.id)
+              ).length;
+              const weekPercent =
+                week.tasks.length > 0
+                  ? Math.round((weekCompletedCount / week.tasks.length) * 100)
+                  : 0;
+
+              return (
+                <Card
+                  key={week.weekNumber}
+                  className={`border transition-all duration-200 overflow-hidden ${
+                    weekPercent === 100
+                      ? "border-emerald-500/30 bg-surface/90"
+                      : "border-border bg-surface hover:border-cyan-500/30"
+                  }`}
+                >
+                  {/* Week Header */}
+                  <div
+                    onClick={() => toggleWeek(week.weekNumber)}
+                    className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none bg-surface-raised/30 hover:bg-surface-raised/60 transition-colors"
+                  >
+                    <div className="flex items-start sm:items-center gap-3">
                       <div
-                        key={task.id}
-                        className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                          isChecked
-                            ? "bg-emerald-500/5 border-emerald-500/25"
-                            : "bg-surface border-border hover:border-cyan-500/20"
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
+                          weekPercent === 100
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                            : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          <button
-                            type="button"
-                            onClick={() => toggleTask(task.id)}
-                            className="mt-0.5 text-text-muted hover:text-cyan-400 transition-colors"
-                          >
-                            {isChecked ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                            ) : (
-                              <Circle className="w-4 h-4" />
-                            )}
-                          </button>
-                          <div>
-                            <span
-                              className={`text-xs font-medium block ${
-                                isChecked ? "line-through text-text-muted" : "text-text-primary"
+                        {weekPercent === 100 ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        ) : (
+                          `W${week.weekNumber}`
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-bold text-text-primary">
+                            {week.title}
+                          </h3>
+                          {weekPercent === 100 && (
+                            <Badge variant="accent" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
+                              Completed
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-text-muted mt-0.5 line-clamp-1">
+                          {week.focus}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
+                      <div className="text-left sm:text-right">
+                        <div className="text-xs font-mono font-bold text-text-primary">
+                          {weekCompletedCount}/{week.tasks.length} Done
+                        </div>
+                        <div className="text-[10px] text-text-muted font-mono">
+                          {weekPercent}% Completed
+                        </div>
+                      </div>
+
+                      <div className="w-16 hidden sm:block">
+                        <Progress value={weekPercent} className="h-1.5 bg-surface" />
+                      </div>
+
+                      <div className="p-1 text-text-muted hover:text-text-primary transition-colors">
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Week Tasks Breakdown */}
+                  {isExpanded && (
+                    <div className="p-4 sm:p-5 border-t border-border bg-ink/20 space-y-2.5">
+                      {filteredTasks.length === 0 ? (
+                        <p className="text-xs text-text-muted py-2 italic text-center">
+                          No tasks match the active filters for this week.
+                        </p>
+                      ) : (
+                        filteredTasks.map((task) => {
+                          const isDone = completedTaskIds.includes(task.id);
+                          const typeConfig = getTaskTypeConfig(task.type);
+                          const TypeIcon = typeConfig.icon;
+
+                          return (
+                            <div
+                              key={task.id}
+                              className={`p-3 sm:p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                                isDone
+                                  ? "bg-surface/40 border-border opacity-75"
+                                  : "bg-surface border-border hover:border-cyan-500/25 shadow-sm"
                               }`}
                             >
-                              {task.label}
-                            </span>
-                            <div className="flex items-center gap-2 mt-1 text-[11px] font-mono text-text-muted">
-                              <span className="px-1.5 py-0.2 rounded bg-surface-raised border border-border text-cyan-300">
-                                {task.type}
-                              </span>
-                              <span>•</span>
-                              <span>~{task.estimatedMinutes} mins</span>
-                            </div>
-                          </div>
-                        </div>
+                              <div className="flex items-start sm:items-center gap-3">
+                                {/* Checkbox */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleTask(task.id)}
+                                  className={`p-1 rounded-lg transition-colors mt-0.5 sm:mt-0 ${
+                                    isDone
+                                      ? "text-emerald-400 hover:text-text-muted"
+                                      : "text-text-muted hover:text-cyan-400"
+                                  }`}
+                                  title={isDone ? "Mark as incomplete" : "Mark as completed"}
+                                >
+                                  {isDone ? (
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-400 fill-emerald-500/20" />
+                                  ) : (
+                                    <Circle className="w-5 h-5 text-text-muted" />
+                                  )}
+                                </button>
 
-                        <Link to={task.linkUrl}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs h-7 border-border hover:bg-surface-raised text-cyan-400 flex items-center gap-1 w-full sm:w-auto justify-center"
-                          >
-                            <span>Launch</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </Button>
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span
+                                      className={`text-xs font-semibold ${
+                                        isDone
+                                          ? "line-through text-text-muted"
+                                          : "text-text-primary"
+                                      }`}
+                                    >
+                                      {task.label}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span
+                                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex items-center gap-1 ${typeConfig.color}`}
+                                    >
+                                      <TypeIcon className="w-3 h-3" />
+                                      {typeConfig.label}
+                                    </span>
+
+                                    <span className="text-[10px] font-mono text-text-muted flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {task.estimatedMinutes} mins
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Action Button */}
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
+                                <Link to={task.linkUrl}>
+                                  <Button
+                                    size="sm"
+                                    variant={isDone ? "outline" : "primary"}
+                                    className={`text-xs py-1 h-8 px-3 flex items-center gap-1.5 ${
+                                      isDone
+                                        ? "border-border text-text-muted hover:text-text-primary"
+                                        : "bg-cyan-500 hover:bg-cyan-400 text-black font-semibold"
+                                    }`}
+                                  >
+                                    {typeConfig.actionText}
+                                    <ArrowRight className="w-3 h-3" />
+                                  </Button>
+                                </Link>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

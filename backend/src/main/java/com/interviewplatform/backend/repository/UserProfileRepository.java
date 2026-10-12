@@ -17,4 +17,6 @@ public interface UserProfileRepository extends MongoRepository<UserProfile, Stri
     boolean existsByUserId(String userId);
 
     void deleteByUserId(String userId);
+
+    void deleteByEmail(String email);
 }

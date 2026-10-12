@@ -1,120 +1,132 @@
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import {
   Plus,
   Search,
   Filter,
-  SlidersHorizontal,
-  MoreVertical,
-  Edit2,
-  Copy,
-  Send,
   Eye,
-  Archive,
   Trash2,
-  Download,
-  History,
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  Code2,
-  Video,
-  BookOpen,
-  FileText,
-  Radio,
   Layers,
   Sparkles,
+  Clock,
+  Users,
+  Play,
+  Pause,
+  BarChart3,
+  Calendar,
   RotateCw,
+  Edit2,
+  Check,
+  Target,
+  Download,
+  FileText,
+  X,
+  AlertTriangle,
+  Award,
+  ChevronRight,
+  TrendingUp,
+  Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Dialog } from "@/components/ui/Dialog";
 import {
   ContentItem,
-  ContentType,
   ContentStatus,
   ContentSummary,
-  ContentAuditLog,
+  QuizQuestionItem,
+  TestPerformanceReport,
   contentManagerService,
 } from "@/services/contentManagerService";
-import { SharedContentWizard } from "@/components/admin/content/SharedContentWizard";
-import { StudentPreviewModal } from "@/components/admin/content/StudentPreviewModal";
-import { VersionHistoryModal } from "@/components/admin/content/VersionHistoryModal";
-import { RowActions } from "@/components/common/RowActions";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 
 export const ContentManagerHub: React.FC = () => {
   const { domains } = useTaxonomy();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [summary, setSummary] = useState<ContentSummary | null>(null);
-  const [auditLogs, setAuditLogs] = useState<ContentAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"INVENTORY" | "AUDIT">("INVENTORY");
 
   // Filters & Search
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("ALL");
-  const [subjectFilter, setSubjectFilter] = useState("ALL");
+  const [domainFilter, setDomainFilter] = useState("ALL");
   const [difficultyFilter, setDifficultyFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [sortBy, setSortBy] = useState("updatedAt");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Bulk Selection
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Creation Wizard Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createMode, setCreateMode] = useState<"AI" | "MANUAL" | "IMPORT">("AI");
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // Wizard state
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [wizardType, setWizardType] = useState<ContentType>("QUIZ");
-  const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
+  // AI Generator Form Fields
+  const [aiDomain, setAiDomain] = useState<string>("aptitude");
+  const [selectedTopics, setSelectedTopics] = useState<string[]>(["Quantitative Aptitude", "Logical Reasoning"]);
+  const [customTopicInput, setCustomTopicInput] = useState<string>("");
+  const [aiDifficulty, setAiDifficulty] = useState<"Easy" | "Medium" | "Hard" | "Mixed">("Medium");
+  const [aiQuestionCount, setAiQuestionCount] = useState<number>(5);
+  const [aiDurationMinutes, setAiDurationMinutes] = useState<number>(30);
+  const [aiPassPercentage, setAiPassPercentage] = useState<number>(70);
+  const [aiNegativeMarking, setAiNegativeMarking] = useState<boolean>(true);
 
-  // Modals state
+  // Manual Question Builder State
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualDescription, setManualDescription] = useState("");
+  const [manualDomain, setManualDomain] = useState("aptitude");
+  const [manualDuration, setManualDuration] = useState(30);
+  const [manualPassMark, setManualPassMark] = useState(70);
+  const [manualNegativeMarking, setManualNegativeMarking] = useState(true);
+  const [manualQuestions, setManualQuestions] = useState<QuizQuestionItem[]>([]);
+
+  // Single Question Editor Input
+  const [qText, setQText] = useState("");
+  const [qOpt0, setQOpt0] = useState("");
+  const [qOpt1, setQOpt1] = useState("");
+  const [qOpt2, setQOpt2] = useState("");
+  const [qOpt3, setQOpt3] = useState("");
+  const [qCorrectIdx, setQCorrectIdx] = useState(0);
+  const [qExplanation, setQExplanation] = useState("");
+  const [qSnippet, setQSnippet] = useState("");
+  const [qTopic, setQTopic] = useState("");
+
+  // Bulk JSON / CSV Import State
+  const [importJsonText, setImportJsonText] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
+
+  // Preview & Delete Modals
   const [previewItem, setPreviewItem] = useState<ContentItem | null>(null);
-  const [historyItem, setHistoryItem] = useState<ContentItem | null>(null);
-
-  // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<ContentItem | null>(null);
-  const [forceDeleteConfirm, setForceDeleteConfirm] = useState(false);
 
-  // Error state
-  const [error, setError] = useState<{
-    message: string;
-    is403: boolean;
-    isNetworkError: boolean;
-  } | null>(null);
+  // Edit Modal State
+  const [editItem, setEditItem] = useState<ContentItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDuration, setEditDuration] = useState(30);
+  const [editPassMark, setEditPassMark] = useState(70);
+
+  // Test Report & Analytics Modal State
+  const [reportTarget, setReportTarget] = useState<ContentItem | null>(null);
+  const [reportData, setReportData] = useState<TestPerformanceReport | null>(null);
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
-    setError(null);
     try {
-      const [contentData, summaryData, logsData] = await Promise.all([
+      const [contentData, summaryData] = await Promise.all([
         contentManagerService.listContent({
-          type: typeFilter,
-          subject: subjectFilter,
+          type: "QUIZ",
+          subject: domainFilter,
           difficulty: difficultyFilter,
           status: statusFilter,
           search,
-          sortBy,
-          sortDir,
         }),
         contentManagerService.getSummary(),
-        contentManagerService.getAuditLogs(),
       ]);
       setItems(contentData);
       setSummary(summaryData);
-      setAuditLogs(logsData);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Load content data error:", err);
-      const is403 = err?.response?.status === 403;
-      const isNetworkError = !err?.response || err?.code === "ERR_NETWORK";
-      let message = "An error occurred while loading content.";
-      if (isNetworkError) {
-        message = "Could not reach the server. Make sure the backend is running.";
-      } else if (is403) {
-        message = "You do not have permission to view this page.";
-      } else if (err?.response?.data?.message) {
-        message = err.response.data.message;
-      }
-      setError({ message, is403, isNetworkError });
     } finally {
       setIsLoading(false);
     }
@@ -122,798 +134,1534 @@ export const ContentManagerHub: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [typeFilter, subjectFilter, difficultyFilter, statusFilter, sortBy, sortDir]);
+    const handleUpdate = () => loadData();
+    window.addEventListener("content-updated", handleUpdate);
+    window.addEventListener("submissions-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("content-updated", handleUpdate);
+      window.removeEventListener("submissions-updated", handleUpdate);
+    };
+  }, [domainFilter, difficultyFilter, statusFilter, search]);
 
-  // Debounced search
+  // Set default domain topics when AI domain changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadData();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  const handleOpenWizard = (type: ContentType) => {
-    setWizardType(type);
-    setEditingItem(null);
-    setIsWizardOpen(true);
-  };
-
-  const handleEditItem = (item: ContentItem) => {
-    setEditingItem(item);
-    setWizardType(item.type);
-    setIsWizardOpen(true);
-  };
-
-  const handleDuplicate = async (item: ContentItem) => {
-    try {
-      await contentManagerService.duplicateContent(item.id);
-      await loadData();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleTogglePublish = async (item: ContentItem) => {
-    try {
-      if (item.status === "PUBLISHED") {
-        await contentManagerService.unpublishContent(item.id);
+    const matched = domains.find((d) => d.slug === aiDomain || d.slug.toLowerCase() === aiDomain.toLowerCase());
+    if (matched && matched.topics?.length > 0) {
+      setSelectedTopics(matched.topics.slice(0, 3).map((t) => t.name));
+    } else {
+      if (aiDomain.toLowerCase().includes("aptitude")) {
+        setSelectedTopics(["Quantitative Aptitude", "Logical Reasoning", "Time & Work"]);
+      } else if (aiDomain.toLowerCase().includes("dsa")) {
+        setSelectedTopics(["Arrays & Strings", "Binary Search", "Trees"]);
+      } else if (aiDomain.toLowerCase().includes("front")) {
+        setSelectedTopics(["React 19", "Web Performance", "TypeScript"]);
       } else {
-        await contentManagerService.publishContent(item.id);
+        setSelectedTopics(["Core Principles", "Architecture"]);
       }
-      await loadData();
-    } catch (e) {
-      console.error(e);
     }
+  }, [aiDomain, domains]);
+
+  const toggleTopicSelection = (topicName: string) => {
+    setSelectedTopics((prev) =>
+      prev.includes(topicName)
+        ? prev.filter((t) => t !== topicName)
+        : [...prev, topicName]
+    );
   };
 
-  const handleArchive = async (item: ContentItem) => {
+  const handleAddCustomTopic = (e: React.KeyboardEvent | React.MouseEvent) => {
+    if ("key" in e && e.key !== "Enter") return;
+    const clean = customTopicInput.trim();
+    if (!clean) return;
+    if (!selectedTopics.includes(clean)) {
+      setSelectedTopics((prev) => [...prev, clean]);
+    }
+    setCustomTopicInput("");
+  };
+
+  // 1-Click AI Test Generation
+  const handleGenerateAiTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGenerating(true);
     try {
-      await contentManagerService.archiveContent(item.id);
-      await loadData();
-    } catch (e) {
-      console.error(e);
+      await contentManagerService.generateAiTest({
+        domain: aiDomain,
+        topics: selectedTopics.length > 0 ? selectedTopics : ["Core Competencies"],
+        difficulty: aiDifficulty,
+        questionCount: aiQuestionCount,
+        durationMinutes: aiDurationMinutes,
+        passPercentage: aiPassPercentage,
+        negativeMarking: aiNegativeMarking,
+      });
+
+      setShowCreateModal(false);
+      loadData();
+    } catch (err) {
+      console.error("Failed to generate test:", err);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
+  // Manual Question Addition
+  const handleAddManualQuestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!qText.trim() || !qOpt0.trim() || !qOpt1.trim() || !qOpt2.trim() || !qOpt3.trim()) {
+      alert("Please provide the question prompt and all 4 options.");
+      return;
+    }
+
+    const newQ: QuizQuestionItem = {
+      id: `q-man-${Date.now()}-${manualQuestions.length + 1}`,
+      question: qText.trim(),
+      codeSnippet: qSnippet.trim() || undefined,
+      options: [qOpt0.trim(), qOpt1.trim(), qOpt2.trim(), qOpt3.trim()],
+      correctIndex: qCorrectIdx,
+      explanation: qExplanation.trim() || "Correct answer based on domain specifications.",
+      topic: qTopic.trim() || "General",
+      difficulty: "Medium",
+    };
+
+    setManualQuestions((prev) => [...prev, newQ]);
+    setQText("");
+    setQOpt0("");
+    setQOpt1("");
+    setQOpt2("");
+    setQOpt3("");
+    setQCorrectIdx(0);
+    setQExplanation("");
+    setQSnippet("");
+    setQTopic("");
+  };
+
+  const handlePublishManualQuiz = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualQuestions.length === 0) {
+      alert("Please add at least 1 question before publishing.");
+      return;
+    }
+
+    try {
+      await contentManagerService.createManualQuiz({
+        title: manualTitle.trim() || `${manualDomain.toUpperCase()} MCQ Quiz`,
+        description: manualDescription.trim() || `Author-crafted assessment with ${manualQuestions.length} questions.`,
+        domain: manualDomain,
+        topics: [manualDomain],
+        difficulty: "Medium",
+        durationMinutes: manualDuration,
+        passPercentage: manualPassMark,
+        negativeMarking: manualNegativeMarking,
+        questions: manualQuestions,
+      });
+
+      setShowCreateModal(false);
+      setManualQuestions([]);
+      setManualTitle("");
+      setManualDescription("");
+      loadData();
+    } catch (err) {
+      console.error("Failed to publish manual quiz:", err);
+    }
+  };
+
+  // Parse Bulk JSON Template
+  const handleLoadSampleJson = () => {
+    const sample = [
+      {
+        question: "What is the time complexity of searching an element in a balanced binary search tree?",
+        options: ["O(N^2)", "O(N)", "O(log N)", "O(1)"],
+        correctIndex: 2,
+        explanation: "In a balanced BST, height is bounded by log2(N), guaranteeing logarithmic search time.",
+        topic: "Trees",
+      },
+      {
+        question: "A pipe fills a tank in 10 hours and another empties it in 15 hours. How long to fill together?",
+        options: ["20 hours", "30 hours", "25 hours", "35 hours"],
+        correctIndex: 1,
+        explanation: "Net rate = (1/10) - (1/15) = (3 - 2)/30 = 1/30 per hour => 30 hours.",
+        topic: "Time & Work",
+      },
+    ];
+    setImportJsonText(JSON.stringify(sample, null, 2));
+    setImportError(null);
+  };
+
+  const handleApplyJsonImport = () => {
+    try {
+      setImportError(null);
+      const parsed = JSON.parse(importJsonText);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error("JSON must be a non-empty array of question objects.");
+      }
+
+      const validated: QuizQuestionItem[] = parsed.map((item, idx) => {
+        if (!item.question || !Array.isArray(item.options) || item.options.length < 2) {
+          throw new Error(`Question #${idx + 1} is missing 'question' or valid 'options' array.`);
+        }
+        return {
+          id: `q-imp-${Date.now()}-${idx + 1}`,
+          question: String(item.question),
+          options: item.options.map((o: any) => String(o)),
+          correctIndex: typeof item.correctIndex === "number" ? item.correctIndex : 0,
+          explanation: item.explanation ? String(item.explanation) : "Benchmark standard key.",
+          topic: item.topic ? String(item.topic) : "General",
+          codeSnippet: item.codeSnippet ? String(item.codeSnippet) : undefined,
+          difficulty: item.difficulty || "Medium",
+        };
+      });
+
+      setManualQuestions((prev) => [...prev, ...validated]);
+      setCreateMode("MANUAL");
+      setImportJsonText("");
+    } catch (err: any) {
+      setImportError(err.message || "Invalid JSON syntax.");
+    }
+  };
+
+  // Open Test Report Dialog
+  const handleOpenReport = async (item: ContentItem) => {
+    setReportTarget(item);
+    setIsLoadingReport(true);
+    try {
+      const data = await contentManagerService.getTestPerformanceReport(item.id);
+      setReportData(data);
+    } catch (err) {
+      console.error("Failed to load test report:", err);
+    } finally {
+      setIsLoadingReport(false);
+    }
+  };
+
+  // Export Attendees CSV
+  const handleExportAttendeesCsv = () => {
+    if (!reportData || reportData.attendees.length === 0) return;
+    const headers = ["Rank", "Student Name", "College", "Roll Number", "Score", "Total Marks", "Percentage", "Status", "Time (Seconds)", "Submitted At"];
+    const rows = reportData.attendees.map((a) => [
+      a.rank,
+      `"${a.userName}"`,
+      `"${a.college || 'N/A'}"`,
+      `"${a.rollNumber || 'N/A'}"`,
+      a.score,
+      a.totalMarks,
+      `${a.percentage}%`,
+      a.isPassed ? "PASSED" : "FAILED",
+      a.timeSpentSeconds,
+      a.submittedAt,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${reportData.testTitle.replace(/[^a-zA-Z0-9]/g, "_")}_report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Toggle Pause / Resume
+  const handleTogglePause = async (item: ContentItem) => {
+    try {
+      await contentManagerService.togglePauseContent(item.id);
+      loadData();
+    } catch (err) {
+      console.error("Toggle pause error:", err);
+    }
+  };
+
+  // Delete
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await contentManagerService.deleteContent(deleteTarget.id, forceDeleteConfirm);
+      await contentManagerService.deleteContent(deleteTarget.id);
       setDeleteTarget(null);
-      setForceDeleteConfirm(false);
-      await loadData();
-    } catch (err: any) {
-      alert(err.message || "Failed to delete item");
+      loadData();
+    } catch (err) {
+      console.error("Delete error:", err);
     }
   };
 
-  const handleBulkAction = async (action: "PUBLISH" | "UNPUBLISH" | "ARCHIVE" | "DELETE") => {
-    if (selectedIds.length === 0) return;
+  // Edit save
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editItem) return;
     try {
-      await contentManagerService.bulkAction(selectedIds, action);
-      setSelectedIds([]);
-      await loadData();
-    } catch (e) {
-      console.error(e);
+      await contentManagerService.updateContent(editItem.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        durationMinutes: editDuration,
+        passMarkPercent: editPassMark,
+        settings: {
+          ...editItem.settings,
+          durationMinutes: editDuration,
+          passPercentage: editPassMark,
+        },
+      });
+      setEditItem(null);
+      loadData();
+    } catch (err) {
+      console.error("Save edit error:", err);
     }
   };
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedIds(items.map((i) => i.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  const handleToggleSelect = (id: string) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter((x) => x !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
-  };
-
-  const handleDownloadJson = (item: ContentItem) => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(item, null, 2));
-    const dlAnchor = document.createElement("a");
-    dlAnchor.setAttribute("href", dataStr);
-    dlAnchor.setAttribute("download", `content-${item.id}.json`);
-    dlAnchor.click();
-  };
-
-  // Content type card definitions
-  const contentTypeCards: Array<{
-    type: ContentType;
-    label: string;
-    icon: any;
-    desc: string;
-  }> = [
-    { type: "QUIZ", label: "MCQ Quizzes", icon: HelpCircle, desc: "Timed tests & topic banks" },
-    { type: "MOCK_TEST", label: "Mock Tests", icon: Radio, desc: "Multi-section full placement tests" },
-    { type: "CODING_PROBLEM", label: "Coding Arena", icon: Code2, desc: "Algorithmic problems & tests" },
-    { type: "MOCK_INTERVIEW", label: "Mock Interviews", icon: Video, desc: "AI-led conversational tracks" },
-    { type: "PRACTICE_TOPIC", label: "Practice Tracks", icon: BookOpen, desc: "Topic progression hierarchies" },
-    { type: "ARTICLE", label: "Articles & Guides", icon: FileText, desc: "Markdown learning guides" },
+  // Active domain topics for topic chips
+  const currentDomainObj = domains.find(
+    (d) => d.slug === aiDomain || d.slug.toLowerCase() === aiDomain.toLowerCase()
+  );
+  const domainAvailableTopics = currentDomainObj?.topics?.map((t) => t.name) || [
+    "Quantitative Aptitude",
+    "Logical Reasoning",
+    "Verbal Ability",
+    "Data Interpretation",
+    "Time & Work",
+    "Percentages",
+    "Number Series",
+    "Syllogisms",
   ];
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-      {/* PAGE HEADER */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-in pb-16">
+      {/* Top Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
-            Content Manager Hub
-          </h1>
-          <p className="text-xs sm:text-sm text-text-muted mt-1">
-            Centrally author, curate, version, and publish all student learning content & assessments without code seeding.
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+                  MCQ Quizzes & Assessments Manager
+                </h1>
+                <Badge variant="accent" className="font-mono text-xs">
+                  {items.length} Active Quizzes
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                AI-synthesize domain-strict quizzes, choose multiple topics, customize timers & difficulty, import questions, and inspect student performance analytics.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
-            onClick={() => handleOpenWizard("QUIZ")}
-            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4 py-2 flex items-center gap-1.5 shadow-lg shadow-cyan-500/20"
+            onClick={() => {
+              setCreateMode("AI");
+              setShowCreateModal(true);
+            }}
+            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4 py-2 flex items-center gap-1.5 shadow-md shadow-cyan-500/20"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Create Content
+            <Sparkles className="w-3.5 h-3.5 fill-black" />
+            + Create / Synthesize MCQ Quiz
           </Button>
         </div>
       </div>
 
-      {/* TOP CONTENT TYPE CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-        {contentTypeCards.map((c) => {
-          const stats = summary?.statsByType?.[c.type] || { total: 0, draft: 0, published: 0, archived: 0 };
-          const Icon = c.icon;
-          return (
-            <div
-              key={c.type}
-              className="bg-surface border border-border hover:border-cyan-500/40 rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between shadow-sm hover:shadow-md"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-xs font-mono font-bold text-text-primary">
-                    {stats.total} total
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-bold text-text-primary truncate">{c.label}</h3>
-                  <p className="text-[10px] text-text-muted truncate">{c.desc}</p>
-                </div>
-
-                <div className="flex items-center gap-2 text-[10px] font-mono pt-1">
-                  <span className="text-emerald-400">{stats.published} pub</span>
-                  <span className="text-text-muted">•</span>
-                  <span className="text-amber-400">{stats.draft} draft</span>
-                </div>
-              </div>
-
-              <div className="pt-3 mt-3 border-t border-border/60">
-                <Button
-                  onClick={() => handleOpenWizard(c.type)}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-[11px] py-1 h-7 border-border hover:bg-surface-raised hover:border-cyan-500/40 text-cyan-300 flex items-center justify-center gap-1"
-                >
-                  <Plus className="w-3 h-3" />
-                  Create
-                </Button>
-              </div>
+      {/* Summary Telemetry Metrics Banner */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
+              Total MCQ Quizzes
+            </span>
+            <div className="text-xl font-bold text-text-primary font-mono mt-1">
+              {summary.totalItems}
             </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider block">
+              Active / Published
+            </span>
+            <div className="text-xl font-bold text-emerald-400 font-mono mt-1">
+              {summary.totalPublished}
+            </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block">
+              Paused / Draft
+            </span>
+            <div className="text-xl font-bold text-amber-400 font-mono mt-1">
+              {summary.totalDrafts}
+            </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border">
+            <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider block">
+              Total Student Attempts
+            </span>
+            <div className="text-xl font-bold text-cyan-400 font-mono mt-1 flex items-center gap-1">
+              <Users className="w-4 h-4" /> {summary.totalAttendees}
+            </div>
+          </div>
+
+          <div className="bg-surface p-4 rounded-2xl border border-border col-span-2 sm:col-span-1">
+            <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider block">
+              Avg Pass Rate
+            </span>
+            <div className="text-xl font-bold text-purple-400 font-mono mt-1">
+              {summary.avgPlatformPassRate}%
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Domain Quick Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border text-xs">
+        <button
+          onClick={() => setDomainFilter("ALL")}
+          className={`pb-2.5 px-3 font-medium transition-colors shrink-0 border-b-2 ${
+            domainFilter === "ALL"
+              ? "border-cyan-400 text-cyan-400 font-semibold"
+              : "border-transparent text-text-muted hover:text-text-primary"
+          }`}
+        >
+          All Domains ({items.length})
+        </button>
+        {domains.map((dom) => {
+          const isSelected = domainFilter.toLowerCase() === dom.slug.toLowerCase();
+          const count = items.filter(
+            (i) => i.subject.toLowerCase() === dom.slug.toLowerCase() || i.tags.some((t) => t.toLowerCase() === dom.slug.toLowerCase())
+          ).length;
+
+          return (
+            <button
+              key={dom.slug}
+              onClick={() => setDomainFilter(dom.slug)}
+              className={`pb-2.5 px-3 font-medium transition-colors shrink-0 border-b-2 flex items-center gap-1.5 ${
+                isSelected
+                  ? "border-cyan-400 text-cyan-400 font-semibold"
+                  : "border-transparent text-text-muted hover:text-text-primary"
+              }`}
+            >
+              <span>{dom.name}</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-surface-raised border border-border text-text-muted font-mono">
+                {count}
+              </span>
+            </button>
           );
         })}
       </div>
 
-      {/* HUB NAVIGATION TABS */}
-      <div className="border-b border-border flex items-center gap-4 text-xs font-medium">
-        <button
-          onClick={() => setActiveTab("INVENTORY")}
-          className={`pb-3 px-1 transition-colors flex items-center gap-2 ${
-            activeTab === "INVENTORY"
-              ? "text-cyan-400 border-b-2 border-cyan-400 font-bold"
-              : "text-text-muted hover:text-text-primary"
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          Content Inventory ({items.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("AUDIT")}
-          className={`pb-3 px-1 transition-colors flex items-center gap-2 ${
-            activeTab === "AUDIT"
-              ? "text-cyan-400 border-b-2 border-cyan-400 font-bold"
-              : "text-text-muted hover:text-text-primary"
-          }`}
-        >
-          <History className="w-4 h-4" />
-          Activity & Audit Logs
-        </button>
+      {/* Filter & Search Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-surface p-3 rounded-2xl border border-border">
+        {/* Search */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search quizzes by title, topics..."
+            className="w-full pl-9 pr-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400"
+          />
+        </div>
+
+        {/* Difficulty Filter */}
+        <div>
+          <select
+            value={difficultyFilter}
+            onChange={(e) => setDifficultyFilter(e.target.value)}
+            className="w-full px-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400"
+          >
+            <option value="ALL">All Difficulties</option>
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
+        </div>
+
+        {/* Status Filter */}
+        <div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="PUBLISHED">Active / Published</option>
+            <option value="DRAFT">Paused / Draft</option>
+          </select>
+        </div>
       </div>
 
-      {/* TAB 1: INVENTORY TABLE & FILTERS */}
-      {activeTab === "INVENTORY" && (
-        <div className="space-y-4">
-          {/* FILTER & SEARCH BAR */}
-          <div className="p-4 bg-surface border border-border rounded-2xl flex flex-wrap items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by title, subject, or tag..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs bg-surface-raised border border-border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-
-            {/* Dropdown Filters */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
-              >
-                <option value="ALL">All Types</option>
-                <option value="QUIZ">MCQ Quizzes</option>
-                <option value="MOCK_TEST">Mock Tests</option>
-                <option value="CODING_PROBLEM">Coding Problems</option>
-                <option value="CODING_TEST">Coding Tests</option>
-                <option value="MOCK_INTERVIEW">Mock Interviews</option>
-                <option value="PRACTICE_TOPIC">Practice Topics</option>
-                <option value="ARTICLE">Articles</option>
-              </select>
-
-              <select
-                value={subjectFilter}
-                onChange={(e) => setSubjectFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
-              >
-                <option value="ALL">All Subjects</option>
-                {domains.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={difficultyFilter}
-                onChange={(e) => setDifficultyFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
-              >
-                <option value="ALL">All Difficulties</option>
-                <option value="Easy">Easy</option>
-                <option value="Medium">Medium</option>
-                <option value="Hard">Hard</option>
-                <option value="Mixed">Mixed</option>
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-surface-raised border border-border rounded-xl text-text-primary"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="PUBLISHED">Published</option>
-                <option value="DRAFT">Draft</option>
-                <option value="ARCHIVED">Archived</option>
-              </select>
-            </div>
-          </div>
-
-          {/* BULK ACTIONS TOOLBAR */}
-          {selectedIds.length > 0 && (
-            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-center justify-between text-xs animate-fade-in">
-              <span className="font-semibold text-cyan-300">
-                {selectedIds.length} item{selectedIds.length > 1 ? "s" : ""} selected
-              </span>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleBulkAction("PUBLISH")}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold py-1 h-7"
-                >
-                  Publish Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkAction("UNPUBLISH")}
-                  className="text-xs py-1 h-7 border-border hover:bg-surface text-amber-400"
-                >
-                  Unpublish Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkAction("ARCHIVE")}
-                  className="text-xs py-1 h-7 border-border hover:bg-surface text-text-muted"
-                >
-                  Archive Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBulkAction("DELETE")}
-                  className="text-xs py-1 h-7 border-red-500/30 hover:bg-red-500/10 text-red-400"
-                >
-                  Delete Selected
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* ERROR BANNER */}
-          {error && (
-            <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-200 animate-fade-in">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm text-red-300">
-                    {error.isNetworkError
-                      ? "Could not reach the server. Make sure the backend is running."
-                      : error.is403
-                      ? "You do not have permission to view this page."
-                      : error.message}
-                  </p>
-                  <p className="text-xs text-red-400/80">
-                    {error.isNetworkError
-                      ? "Backend service at http://localhost:8080 is unreachable. Make sure backend is running with ./mvnw.cmd spring-boot:run"
-                      : error.is403
-                      ? "Access is restricted to authorized administrators."
-                      : "Please check your network connection and retry."}
-                  </p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => loadData()}
-                className="border-red-500/40 text-red-300 hover:bg-red-500/20 text-xs shrink-0 flex items-center gap-1.5"
-              >
-                <RotateCw className="w-3.5 h-3.5" /> Retry
-              </Button>
-            </div>
-          )}
-
-          {/* UNIFIED CONTENT TABLE */}
-          <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-surface-raised border-b border-border text-text-muted uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="p-4 w-10">
-                      <input
-                        type="checkbox"
-                        checked={items.length > 0 && selectedIds.length === items.length}
-                        onChange={handleSelectAll}
-                        className="accent-cyan-400 rounded"
-                      />
-                    </th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("title");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Title
-                    </th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("type");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Type
-                    </th>
-                    <th className="p-4 font-semibold">Domain</th>
-                    <th className="p-4 font-semibold">Difficulty</th>
-                    <th className="p-4 font-semibold">Status</th>
-                    <th className="p-4 font-semibold">Created By</th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("attempts");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Attempts
-                    </th>
-                    <th
-                      className="p-4 font-semibold cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setSortBy("updatedAt");
-                        setSortDir(sortDir === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      Last Updated
-                    </th>
-                    <th className="p-4 text-right font-semibold w-[240px] min-w-[240px] whitespace-nowrap">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-border">
-                  {isLoading ? (
-                    Array.from({ length: 5 }).map((_, idx) => (
-                      <tr key={idx} className="animate-pulse border-b border-border/50">
-                        <td className="p-4"><div className="w-4 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-48 h-4 bg-surface-raised rounded mb-1.5" /><div className="w-32 h-3 bg-surface-raised/60 rounded" /></td>
-                        <td className="p-4"><div className="w-16 h-5 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-20 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-14 h-5 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-24 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-12 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4"><div className="w-20 h-4 bg-surface-raised rounded" /></td>
-                        <td className="p-4 text-right"><div className="w-24 h-7 bg-surface-raised rounded ml-auto" /></td>
-                      </tr>
-                    ))
-                  ) : error ? (
-                    <tr>
-                      <td colSpan={10} className="p-12 text-center text-text-muted space-y-3">
-                        <AlertCircle className="w-8 h-8 mx-auto text-red-400" />
-                        <p className="text-sm font-semibold text-text-primary">
-                          {error.isNetworkError
-                            ? "Could not reach the server. Make sure the backend is running."
-                            : error.is403
-                            ? "You do not have permission to view this page."
-                            : error.message}
-                        </p>
-                        <Button
-                          size="sm"
-                          onClick={() => loadData()}
-                          className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs py-1.5 px-3 mx-auto flex items-center gap-1.5"
-                        >
-                          <RotateCw className="w-3.5 h-3.5" /> Retry
-                        </Button>
-                      </td>
-                    </tr>
-                  ) : items.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="p-12 text-center text-text-muted space-y-3">
-                        <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
-                          <Plus className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-text-primary">No content items found</p>
-                          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
-                            {search || typeFilter !== "ALL" || subjectFilter !== "ALL"
-                              ? "No items match your active filters. Try clearing them or create a new assessment."
-                              : "Your content repository is currently empty. Get started by creating your first assessment."}
-                          </p>
-                        </div>
-                        <Button
-                          onClick={() => handleOpenWizard("QUIZ")}
-                          className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs py-1.5 px-4 mx-auto flex items-center gap-1.5"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Create
-                        </Button>
-                      </td>
-                    </tr>
-                  ) : (
-                    items.map((item) => {
-                      const isSelected = selectedIds.includes(item.id);
-                      return (
-                        <tr
-                          key={item.id}
-                          className={`hover:bg-surface-raised/60 transition-colors ${
-                            isSelected ? "bg-cyan-500/5" : ""
-                          }`}
-                        >
-                          <td className="p-4">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleToggleSelect(item.id)}
-                              className="accent-cyan-400 rounded"
-                            />
-                          </td>
-
-                          <td className="p-4 max-w-xs">
-                            <div className="font-semibold text-text-primary truncate">{item.title}</div>
-                            {item.description && (
-                              <div className="text-[11px] text-text-muted truncate mt-0.5">{item.description}</div>
-                            )}
-                          </td>
-
-                          <td className="p-4">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-surface-raised border border-border text-cyan-300">
-                              {item.type}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-text-muted">{item.subject}</td>
-
-                          <td className="p-4">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                                item.difficulty === "Easy"
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                  : item.difficulty === "Medium"
-                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                  : "bg-red-500/10 text-red-400 border border-red-500/20"
-                              }`}
-                            >
-                              {item.difficulty}
-                            </span>
-                          </td>
-
-                          <td className="p-4">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                item.status === "PUBLISHED"
-                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                                  : item.status === "DRAFT"
-                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                                  : "bg-slate-500/10 text-slate-400 border border-slate-500/30"
-                              }`}
-                            >
-                              {item.status}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-text-muted font-mono">{item.createdBy}</td>
-
-                          <td className="p-4 font-mono">
-                            <span
-                              className={`font-semibold ${
-                                item.studentAttempts > 0 ? "text-cyan-400" : "text-text-muted"
-                              }`}
-                            >
-                              {item.studentAttempts}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-text-muted font-mono text-[11px] whitespace-nowrap">
-                            {new Date(item.updatedAt).toLocaleDateString()}
-                          </td>
-
-                          <td className="p-4 text-right w-[240px] min-w-[240px] whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                            <RowActions className="gap-1">
-                              {/* Preview as Student */}
-                              <button
-                                onClick={() => setPreviewItem(item)}
-                                title="Preview as student"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Edit */}
-                              <button
-                                onClick={() => handleEditItem(item)}
-                                title="Edit assessment"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Version History */}
-                              <button
-                                onClick={() => setHistoryItem(item)}
-                                title="Version history"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <History className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Duplicate */}
-                              <button
-                                onClick={() => handleDuplicate(item)}
-                                title="Duplicate"
-                                className="p-1.5 text-text-muted hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Publish / Unpublish */}
-                              <button
-                                onClick={() => handleTogglePublish(item)}
-                                title={item.status === "PUBLISHED" ? "Unpublish to draft" : "Publish to students"}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                  item.status === "PUBLISHED"
-                                    ? "text-emerald-400 hover:bg-emerald-500/10"
-                                    : "text-amber-400 hover:bg-amber-500/10"
-                                }`}
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Archive */}
-                              <button
-                                onClick={() => handleArchive(item)}
-                                title="Archive"
-                                className="p-1.5 text-text-muted hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
-                              >
-                                <Archive className="w-3.5 h-3.5" />
-                              </button>
-
-                              {/* Delete */}
-                              <button
-                                onClick={() => {
-                                  setDeleteTarget(item);
-                                  setForceDeleteConfirm(false);
-                                }}
-                                title="Delete"
-                                className="p-1.5 text-text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </RowActions>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {/* Tests Grid */}
+      {isLoading ? (
+        <div className="py-16 text-center text-xs font-mono text-text-muted">
+          Loading MCQ assessment modules...
         </div>
-      )}
+      ) : items.length === 0 ? (
+        <Card className="p-12 text-center bg-surface border-border">
+          <Layers className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-40" />
+          <h3 className="font-bold text-base text-text-primary">No MCQ Quizzes Found</h3>
+          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+            Try adjusting your search criteria or click "+ Create / Synthesize MCQ Quiz" to generate a domain quiz immediately.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => {
+            const isPublished = item.status === "PUBLISHED" || item.status === "Published";
+            const qCount = item.questionsCount || item.contentData?.questions?.length || 5;
+            const timer = item.durationMinutes || item.settings?.durationMinutes || 30;
+            const attempts = item.studentAttempts || 0;
+            const avgScore = item.avgScorePercent || 75;
 
-      {/* TAB 2: AUDIT LOGS */}
-      {activeTab === "AUDIT" && (
-        <div className="bg-surface border border-border rounded-2xl p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary">Content Activity & Audit Log</h3>
-              <p className="text-xs text-text-muted">
-                Immutable trace of who created, edited, published, scheduled, or deleted assessments.
-              </p>
-            </div>
-            <span className="text-xs text-text-muted font-mono">{auditLogs.length} events recorded</span>
-          </div>
-
-          <div className="space-y-2">
-            {auditLogs.map((log) => (
-              <div
-                key={log.id}
-                className="p-3 bg-surface-raised border border-border rounded-xl flex items-center justify-between gap-4 text-xs"
+            return (
+              <Card
+                key={item.id}
+                className="p-5 bg-surface border-border hover:border-cyan-500/40 transition-all flex flex-col justify-between space-y-4 group"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-3">
+                  {/* Top Bar: Domain Chip & Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 font-semibold flex items-center gap-1">
+                      <HelpCircle className="w-3 h-3 text-purple-400" />
+                      MCQ QUIZ
+                    </span>
+
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                        log.action === "PUBLISH"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : log.action === "DELETE"
-                          ? "bg-red-500/20 text-red-400"
-                          : "bg-cyan-500/20 text-cyan-400"
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
+                        isPublished
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                          : "bg-amber-500/10 text-amber-400 border border-amber-500/30"
                       }`}
                     >
-                      {log.action}
+                      {isPublished ? (
+                        <>
+                          <CheckCircle2 className="w-2.5 h-2.5" /> Active
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="w-2.5 h-2.5" /> Paused
+                        </>
+                      )}
                     </span>
-                    <span className="font-semibold text-text-primary">{log.contentTitle}</span>
-                    <span className="text-text-muted font-mono text-[11px]">({log.contentType})</span>
                   </div>
-                  <p className="text-text-muted text-[11px]">{log.details}</p>
+
+                  {/* Title & Description */}
+                  <div>
+                    <h3 className="font-bold text-sm text-text-primary group-hover:text-cyan-400 transition-colors line-clamp-1">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-text-muted mt-1 line-clamp-2 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  {/* Domain & Topic Chips */}
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    <span className="text-[10px] font-mono bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 px-2 py-0.5 rounded font-semibold uppercase">
+                      {item.subject}
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded">
+                      {item.difficulty}
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" /> {timer}m
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded">
+                      {qCount} Questions
+                    </span>
+                  </div>
                 </div>
 
-                <div className="text-right text-[11px] text-text-muted font-mono shrink-0">
-                  <div>by {log.performedBy || "Admin"}</div>
-                  <div>{new Date(log.timestamp).toLocaleString()}</div>
+                {/* Telemetry Footer & Action Buttons */}
+                <div className="pt-3 border-t border-border space-y-3">
+                  {/* Telemetry numbers */}
+                  <div className="flex items-center justify-between text-[11px] font-mono text-text-muted">
+                    <span className="flex items-center gap-1 text-cyan-400 font-semibold">
+                      <Users className="w-3.5 h-3.5" /> {attempts} Attended
+                    </span>
+                    <span className="text-text-primary">
+                      {avgScore}% Avg Score
+                    </span>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex items-center justify-between gap-1.5 pt-1">
+                    <div className="flex items-center gap-1">
+                      {/* View Report & Analytics Button */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenReport(item)}
+                        className="text-xs h-7 px-2.5 border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-1 font-semibold"
+                        title="View attendee list and questions error analysis"
+                      >
+                        <BarChart3 className="w-3 h-3" /> Report
+                      </Button>
+
+                      {/* Pause / Resume Button */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleTogglePause(item)}
+                        className={`text-xs h-7 px-2 border-border flex items-center gap-1 ${
+                          isPublished
+                            ? "text-amber-400 hover:bg-amber-500/10"
+                            : "text-emerald-400 hover:bg-emerald-500/10"
+                        }`}
+                        title={isPublished ? "Pause quiz" : "Resume quiz"}
+                      >
+                        {isPublished ? (
+                          <>
+                            <Pause className="w-3 h-3" /> Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3 h-3 fill-emerald-400" /> Resume
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Edit */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditItem(item);
+                          setEditTitle(item.title);
+                          setEditDescription(item.description);
+                          setEditDuration(item.durationMinutes || 30);
+                          setEditPassMark(item.passMarkPercent || 70);
+                        }}
+                        className="text-xs h-7 px-2 border-border text-text-muted hover:text-text-primary"
+                        title="Edit quiz settings"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+
+                      {/* Preview */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPreviewItem(item)}
+                        className="text-xs h-7 px-2 border-border text-text-muted hover:text-text-primary"
+                        title="Preview questions"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                    </div>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(item)}
+                      className="p-1.5 text-text-muted hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                      title="Delete quiz"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      {/* SHARED AUTHORING WIZARD MODAL */}
-      <SharedContentWizard
-        isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
-        initialType={wizardType}
-        editingItem={editingItem}
-        onSaved={async () => {
-          await loadData();
-        }}
-      />
+      {/* MODAL 1: CREATE / SYNTHESIZE MCQ QUIZ (AI + MANUAL + IMPORT) */}
+      <Dialog
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create & Synthesize MCQ Quiz"
+        description="Choose between 1-Click AI Generation (domain-strict, shuffled answer keys), Manual Question Builder, or Bulk Questions Import."
+        maxWidthClass="max-w-2xl"
+      >
+        <div className="space-y-4">
+          {/* Sub-Tabs: AI vs Manual vs Import */}
+          <div className="flex border-b border-border text-xs gap-1 pb-1">
+            <button
+              onClick={() => setCreateMode("AI")}
+              className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
+                createMode === "AI"
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> 1-Click AI Synthesizer
+            </button>
+            <button
+              onClick={() => setCreateMode("MANUAL")}
+              className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
+                createMode === "MANUAL"
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              <Edit2 className="w-3.5 h-3.5" /> Manual Builder ({manualQuestions.length} Qs)
+            </button>
+            <button
+              onClick={() => setCreateMode("IMPORT")}
+              className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
+                createMode === "IMPORT"
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              <Download className="w-3.5 h-3.5" /> Bulk JSON / CSV Import
+            </button>
+          </div>
 
-      {/* STUDENT PERSPECTIVE PREVIEW MODAL */}
-      <StudentPreviewModal
-        isOpen={!!previewItem}
-        item={previewItem}
-        onClose={() => setPreviewItem(null)}
-      />
+          {/* TAB 1: AI GENERATOR */}
+          {createMode === "AI" && (
+            <form onSubmit={handleGenerateAiTest} className="space-y-4 pt-1">
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">
+                  Target Quiz Domain *
+                </label>
+                <select
+                  value={aiDomain}
+                  onChange={(e) => setAiDomain(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-semibold"
+                >
+                  {domains.map((d) => (
+                    <option key={d.slug} value={d.slug}>
+                      {d.name} {d.slug.toLowerCase().includes("aptitude") ? "(Strict Non-Coding Math & Reasoning)" : ""}
+                    </option>
+                  ))}
+                </select>
+                {aiDomain.toLowerCase().includes("aptitude") && (
+                  <p className="text-[11px] text-amber-400 mt-1 font-mono flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 shrink-0" />
+                    Domain Strictness Active: Aptitude questions only (Quantitative, Logical, Verbal). No code/Java/Python will be generated.
+                  </p>
+                )}
+              </div>
 
-      {/* VERSION HISTORY MODAL */}
-      <VersionHistoryModal
-        isOpen={!!historyItem}
-        item={historyItem}
-        onClose={() => setHistoryItem(null)}
-        onRestore={async (ver) => {
-          if (historyItem) {
-            await contentManagerService.restoreVersion(historyItem.id, ver);
-            await loadData();
-          }
-        }}
-      />
+              {/* Multiple Topics Selection in Domain */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-text-muted">
+                  Choose Multiple Topics in this Domain *
+                </label>
+                <div className="flex flex-wrap gap-1.5 p-2 bg-surface-raised/60 rounded-xl border border-border max-h-32 overflow-y-auto">
+                  {domainAvailableTopics.map((topic) => {
+                    const isSelected = selectedTopics.includes(topic);
+                    return (
+                      <button
+                        key={topic}
+                        type="button"
+                        onClick={() => toggleTopicSelection(topic)}
+                        className={`text-[11px] font-mono px-2.5 py-1 rounded-lg border transition-all ${
+                          isSelected
+                            ? "bg-cyan-500/20 text-cyan-300 border-cyan-400 font-semibold shadow-sm"
+                            : "bg-surface border-border text-text-muted hover:border-border-hover"
+                        }`}
+                      >
+                        {isSelected && "✓ "}
+                        {topic}
+                      </button>
+                    );
+                  })}
+                </div>
 
-      {/* DELETE CONFIRMATION MODAL WITH ATTEMPTS GUARD */}
-      {deleteTarget && typeof document !== "undefined" && createPortal(
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
-        >
-          <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-scale-in">
-            <h3 className="text-base font-bold text-text-primary flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              Confirm Content Deletion
-            </h3>
+                {/* Add Custom Topic */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={customTopicInput}
+                    onChange={(e) => setCustomTopicInput(e.target.value)}
+                    onKeyDown={handleAddCustomTopic}
+                    placeholder="Type custom sub-topic and press enter (e.g. Syllogisms or Sliding Window)..."
+                    className="flex-1 px-3 py-1.5 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAddCustomTopic}
+                    className="text-xs h-8 px-3 shrink-0"
+                  >
+                    + Add Topic
+                  </Button>
+                </div>
+              </div>
 
-            <p className="text-xs text-text-muted">
-              Are you sure you want to delete <strong className="text-text-primary">"{deleteTarget.title}"</strong>?
-            </p>
+              {/* Number of Questions, Timer, Difficulty */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Questions Count
+                  </label>
+                  <select
+                    value={aiQuestionCount}
+                    onChange={(e) => setAiQuestionCount(Number(e.target.value))}
+                    className="w-full px-2.5 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+                  >
+                    <option value={5}>5 Questions</option>
+                    <option value={10}>10 Questions</option>
+                    <option value={15}>15 Questions</option>
+                    <option value={20}>20 Questions</option>
+                    <option value={25}>25 Questions</option>
+                    <option value={30}>30 Questions</option>
+                  </select>
+                </div>
 
-            {deleteTarget.studentAttempts > 0 && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-2 text-amber-300">
-                <span className="font-semibold block">Warning: Active Student Attempts</span>
-                <span>
-                  This item has <strong>{deleteTarget.studentAttempts}</strong> recorded student attempts. Deleting it will permanently break past attempt analytics.
-                </span>
-                <div className="pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-amber-200">
-                    <input
-                      type="checkbox"
-                      checked={forceDeleteConfirm}
-                      onChange={(e) => setForceDeleteConfirm(e.target.checked)}
-                      className="accent-red-500"
-                    />
-                    <span>Force delete anyway and discard attempt history</span>
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Timer (Minutes)
+                  </label>
+                  <select
+                    value={aiDurationMinutes}
+                    onChange={(e) => setAiDurationMinutes(Number(e.target.value))}
+                    className="w-full px-2.5 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+                  >
+                    <option value={15}>15 Mins</option>
+                    <option value={20}>20 Mins</option>
+                    <option value={30}>30 Mins</option>
+                    <option value={45}>45 Mins</option>
+                    <option value={60}>60 Mins</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Difficulty
+                  </label>
+                  <select
+                    value={aiDifficulty}
+                    onChange={(e) => setAiDifficulty(e.target.value as any)}
+                    className="w-full px-2.5 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-semibold"
+                  >
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                    <option value="Mixed">Mixed (Balanced)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Passing Score & Negative Marking */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Passing Score (%)
+                  </label>
+                  <input
+                    type="number"
+                    min={40}
+                    max={100}
+                    value={aiPassPercentage}
+                    onChange={(e) => setAiPassPercentage(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-5">
+                  <input
+                    type="checkbox"
+                    id="negMark"
+                    checked={aiNegativeMarking}
+                    onChange={(e) => setAiNegativeMarking(e.target.checked)}
+                    className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-0 cursor-pointer"
+                  />
+                  <label htmlFor="negMark" className="text-xs text-text-muted select-none cursor-pointer">
+                    Negative Marking (-0.25 penalty)
                   </label>
                 </div>
               </div>
-            )}
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDeleteTarget(null);
-                  setForceDeleteConfirm(false);
-                }}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
+              <div className="p-3 bg-surface-raised/40 rounded-xl border border-border text-[11px] text-text-muted space-y-1">
+                <span className="font-semibold text-cyan-300 block">Mixed Correct Options Guarantee:</span>
+                <p>AI will generate questions with randomized correct answers distributed across A, B, C, and D, never defaulting to option A.</p>
+              </div>
 
-              {deleteTarget.studentAttempts > 0 && !forceDeleteConfirm ? (
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
                 <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
-                  onClick={async () => {
-                    await handleArchive(deleteTarget);
-                    setDeleteTarget(null);
-                  }}
-                  className="bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold"
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-xs"
                 >
-                  Archive Instead (Recommended)
+                  Cancel
                 </Button>
-              ) : (
                 <Button
+                  type="submit"
                   size="sm"
-                  onClick={handleConfirmDelete}
-                  className="bg-red-500 hover:bg-red-400 text-black text-xs font-semibold"
+                  disabled={isGenerating}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4 flex items-center gap-1.5"
                 >
-                  Confirm Delete
+                  <Sparkles className="w-3.5 h-3.5 fill-black" />
+                  {isGenerating ? "Synthesizing Domain Quiz..." : "Generate & Publish Quiz with AI"}
                 </Button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 2: MANUAL QUESTION BUILDER */}
+          {createMode === "MANUAL" && (
+            <div className="space-y-4 pt-1 max-h-[65vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Quiz Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={manualTitle}
+                    onChange={(e) => setManualTitle(e.target.value)}
+                    placeholder="e.g. Quantitative Speed & Ratios Test"
+                    className="w-full px-3 py-1.5 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Target Domain *
+                  </label>
+                  <select
+                    value={manualDomain}
+                    onChange={(e) => setManualDomain(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-semibold"
+                  >
+                    {domains.map((d) => (
+                      <option key={d.slug} value={d.slug}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Timer (Minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={180}
+                    value={manualDuration}
+                    onChange={(e) => setManualDuration(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1">
+                    Passing Mark (%)
+                  </label>
+                  <input
+                    type="number"
+                    min={30}
+                    max={100}
+                    value={manualPassMark}
+                    onChange={(e) => setManualPassMark(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Questions Added List Preview */}
+              {manualQuestions.length > 0 && (
+                <div className="p-3 bg-surface-raised/80 rounded-xl border border-cyan-500/30 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-cyan-400 font-mono">
+                      Added Questions ({manualQuestions.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setManualQuestions([])}
+                      className="text-[11px] text-rose-400 hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                    {manualQuestions.map((q, idx) => (
+                      <div
+                        key={idx}
+                        className="text-xs p-2 rounded bg-surface border border-border flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate text-text-primary font-mono">
+                          {idx + 1}. {q.question}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-mono">
+                            Correct: {String.fromCharCode(65 + q.correctIndex)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setManualQuestions((prev) => prev.filter((_, i) => i !== idx))
+                            }
+                            className="text-text-muted hover:text-rose-400 p-1"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              {/* Add Single Question Form */}
+              <div className="p-3.5 bg-surface rounded-xl border border-border space-y-2.5">
+                <span className="text-xs font-bold text-text-primary block font-mono">
+                  + Add Question #{manualQuestions.length + 1}
+                </span>
+
+                <div>
+                  <label className="block text-[11px] text-text-muted mb-0.5">Question Prompt *</label>
+                  <textarea
+                    rows={2}
+                    value={qText}
+                    onChange={(e) => setQText(e.target.value)}
+                    placeholder="Enter the question problem statement..."
+                    className="w-full px-3 py-1.5 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] text-text-muted mb-0.5 flex items-center gap-1 font-mono">
+                      <input
+                        type="radio"
+                        name="correctOpt"
+                        checked={qCorrectIdx === 0}
+                        onChange={() => setQCorrectIdx(0)}
+                        className="text-cyan-500 cursor-pointer"
+                      />
+                      Option A (Mark correct)
+                    </label>
+                    <input
+                      type="text"
+                      value={qOpt0}
+                      onChange={(e) => setQOpt0(e.target.value)}
+                      placeholder="Choice A text"
+                      className="w-full px-2.5 py-1 text-xs bg-surface-raised border border-border rounded text-text-primary focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-text-muted mb-0.5 flex items-center gap-1 font-mono">
+                      <input
+                        type="radio"
+                        name="correctOpt"
+                        checked={qCorrectIdx === 1}
+                        onChange={() => setQCorrectIdx(1)}
+                        className="text-cyan-500 cursor-pointer"
+                      />
+                      Option B (Mark correct)
+                    </label>
+                    <input
+                      type="text"
+                      value={qOpt1}
+                      onChange={(e) => setQOpt1(e.target.value)}
+                      placeholder="Choice B text"
+                      className="w-full px-2.5 py-1 text-xs bg-surface-raised border border-border rounded text-text-primary focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-text-muted mb-0.5 flex items-center gap-1 font-mono">
+                      <input
+                        type="radio"
+                        name="correctOpt"
+                        checked={qCorrectIdx === 2}
+                        onChange={() => setQCorrectIdx(2)}
+                        className="text-cyan-500 cursor-pointer"
+                      />
+                      Option C (Mark correct)
+                    </label>
+                    <input
+                      type="text"
+                      value={qOpt2}
+                      onChange={(e) => setQOpt2(e.target.value)}
+                      placeholder="Choice C text"
+                      className="w-full px-2.5 py-1 text-xs bg-surface-raised border border-border rounded text-text-primary focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-text-muted mb-0.5 flex items-center gap-1 font-mono">
+                      <input
+                        type="radio"
+                        name="correctOpt"
+                        checked={qCorrectIdx === 3}
+                        onChange={() => setQCorrectIdx(3)}
+                        className="text-cyan-500 cursor-pointer"
+                      />
+                      Option D (Mark correct)
+                    </label>
+                    <input
+                      type="text"
+                      value={qOpt3}
+                      onChange={(e) => setQOpt3(e.target.value)}
+                      placeholder="Choice D text"
+                      className="w-full px-2.5 py-1 text-xs bg-surface-raised border border-border rounded text-text-primary focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-text-muted mb-0.5">Solution Explanation</label>
+                  <input
+                    type="text"
+                    value={qExplanation}
+                    onChange={(e) => setQExplanation(e.target.value)}
+                    placeholder="Explain why the selected option is correct..."
+                    className="w-full px-3 py-1.5 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddManualQuestion}
+                    className="bg-surface-raised hover:bg-surface border border-border text-text-primary text-xs h-8 px-3"
+                  >
+                    + Add This Question
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handlePublishManualQuiz}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4"
+                >
+                  Publish Custom MCQ Quiz ({manualQuestions.length} Questions)
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: BULK JSON / CSV IMPORT */}
+          {createMode === "IMPORT" && (
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-medium text-text-muted">
+                  Paste JSON Array of Questions
+                </label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleLoadSampleJson}
+                  className="text-[11px] h-7 px-2 border-border text-cyan-400"
+                >
+                  Load Sample JSON Template
+                </Button>
+              </div>
+
+              <textarea
+                rows={9}
+                value={importJsonText}
+                onChange={(e) => setImportJsonText(e.target.value)}
+                placeholder='[{"question": "Sample?", "options": ["A", "B", "C", "D"], "correctIndex": 1, "explanation": "..."}]'
+                className="w-full p-3 font-mono text-xs bg-surface-raised border border-border rounded-xl text-text-primary focus:outline-none focus:border-cyan-400"
+              />
+
+              {importError && (
+                <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-400 text-xs font-mono flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  {importError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleApplyJsonImport}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4"
+                >
+                  Validate & Load Questions into Quiz
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Dialog>
+
+      {/* MODAL 2: DETAILED TEST PERFORMANCE & ATTENDEES REPORT */}
+      {reportTarget && (
+        <Dialog
+          isOpen={reportTarget !== null}
+          onClose={() => setReportTarget(null)}
+          title={`Performance & Attendees Report: ${reportTarget.title}`}
+          description={`Comprehensive assessment telemetry, attendee scores, and question difficulty breakdown for ${reportTarget.subject.toUpperCase()}.`}
+          maxWidthClass="max-w-4xl"
+        >
+          {isLoadingReport || !reportData ? (
+            <div className="py-16 text-center text-xs font-mono text-text-muted">
+              Loading assessment analytics and telemetry...
+            </div>
+          ) : (
+            <div className="space-y-5 max-h-[72vh] overflow-y-auto pr-1">
+              {/* Top KPI Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-surface-raised p-3.5 rounded-xl border border-border">
+                  <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider block">
+                    Total Attendees
+                  </span>
+                  <div className="text-xl font-bold font-mono text-cyan-400 mt-1 flex items-center gap-1">
+                    <Users className="w-4 h-4" /> {reportData.totalAttendees}
+                  </div>
+                </div>
+
+                <div className="bg-surface-raised p-3.5 rounded-xl border border-border">
+                  <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider block">
+                    Average Score
+                  </span>
+                  <div className="text-xl font-bold font-mono text-text-primary mt-1">
+                    {reportData.avgScore}%
+                  </div>
+                </div>
+
+                <div className="bg-surface-raised p-3.5 rounded-xl border border-border">
+                  <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider block">
+                    Passing Rate
+                  </span>
+                  <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
+                    {reportData.passRate}%
+                  </div>
+                </div>
+
+                <div className="bg-surface-raised p-3.5 rounded-xl border border-border">
+                  <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider block">
+                    Average Duration
+                  </span>
+                  <div className="text-xl font-bold font-mono text-text-primary mt-1">
+                    {reportData.avgTimeSpentMinutes} Mins
+                  </div>
+                </div>
+              </div>
+
+              {/* Question-by-Question Correctness Analysis */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-text-muted">
+                    Question-by-Question Accuracy & Error Analysis
+                  </h4>
+                  <span className="text-[11px] font-mono text-text-muted">
+                    {reportData.questionStats.length} Evaluated Questions
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {reportData.questionStats.map((q, idx) => {
+                    const isHard = q.accuracyPercentage < 55;
+                    const isHighPerform = q.accuracyPercentage >= 75;
+
+                    return (
+                      <div
+                        key={q.questionId || idx}
+                        className="p-3 bg-surface-raised rounded-xl border border-border space-y-2 text-xs"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="font-semibold text-text-primary leading-relaxed">
+                            {idx + 1}. {q.question}
+                          </span>
+                          <span
+                            className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold shrink-0 ${
+                              isHighPerform
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : isHard
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                            }`}
+                          >
+                            {q.accuracyPercentage}% Accuracy
+                          </span>
+                        </div>
+
+                        {/* Accuracy Bar */}
+                        <div className="w-full bg-surface h-2 rounded-full overflow-hidden border border-border">
+                          <div
+                            className={`h-full transition-all ${
+                              isHighPerform
+                                ? "bg-emerald-500"
+                                : isHard
+                                ? "bg-rose-500"
+                                : "bg-amber-500"
+                            }`}
+                            style={{ width: `${q.accuracyPercentage}%` }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] font-mono text-text-muted">
+                          <span>
+                            Correct Key: <strong className="text-emerald-400">Option {String.fromCharCode(65 + q.correctIndex)}</strong> ({q.options[q.correctIndex]})
+                          </span>
+                          <span>
+                            {q.correctAttempts} / {q.totalAttempts} students answered correctly
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Student Attendees Roster */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-text-muted">
+                    Student Attendees Roster ({reportData.attendees.length})
+                  </h4>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleExportAttendeesCsv}
+                    className="text-xs h-7 px-3 border-border text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-1 font-semibold"
+                  >
+                    <Download className="w-3 h-3" /> Export CSV Report
+                  </Button>
+                </div>
+
+                <div className="border border-border rounded-xl overflow-hidden bg-surface">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="bg-surface-raised border-b border-border text-[11px] text-text-muted">
+                      <tr>
+                        <th className="py-2.5 px-3">Rank</th>
+                        <th className="py-2.5 px-3">Student Name</th>
+                        <th className="py-2.5 px-3">College / Roll</th>
+                        <th className="py-2.5 px-3">Score</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {reportData.attendees.map((att) => (
+                        <tr key={att.submissionId} className="hover:bg-surface-raised/40">
+                          <td className="py-2.5 px-3 font-bold text-text-muted">
+                            #{att.rank}
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-text-primary font-sans">
+                            {att.userName}
+                          </td>
+                          <td className="py-2.5 px-3 text-text-muted text-[11px]">
+                            {att.college || "SRM IST"} · {att.rollNumber || "RA2111003"}
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-cyan-400">
+                            {att.percentage}% ({att.score}/{att.totalMarks})
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                att.isPassed
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                  : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                              }`}
+                            >
+                              {att.isPassed ? "PASSED" : "FAILED"}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-text-muted text-[11px]">
+                            {Math.round(att.timeSpentSeconds / 60)}m {att.timeSpentSeconds % 60}s
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </Dialog>
+      )}
+
+      {/* MODAL 3: EDIT TEST SETTINGS */}
+      <Dialog
+        isOpen={editItem !== null}
+        onClose={() => setEditItem(null)}
+        title="Edit Quiz Details"
+        description="Update title, description, time limit, and passing score."
+        maxWidthClass="max-w-md"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-text-muted mb-1">Quiz Title</label>
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-semibold"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-text-muted mb-1">Description</label>
+            <textarea
+              rows={2}
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">Timer (Minutes)</label>
+              <input
+                type="number"
+                min={5}
+                max={180}
+                value={editDuration}
+                onChange={(e) => setEditDuration(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-muted mb-1">Pass Mark (%)</label>
+              <input
+                type="number"
+                min={30}
+                max={100}
+                value={editPassMark}
+                onChange={(e) => setEditPassMark(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs bg-surface-raised border border-border rounded-lg text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              />
             </div>
           </div>
-        </div>,
-        document.body
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditItem(null)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4"
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* MODAL 4: PREVIEW QUESTIONS */}
+      {previewItem && (
+        <Dialog
+          isOpen={previewItem !== null}
+          onClose={() => setPreviewItem(null)}
+          title={`Preview: ${previewItem.title}`}
+          description={`${previewItem.subject.toUpperCase()} · ${previewItem.durationMinutes} Mins · ${
+            previewItem.contentData?.questions?.length || 0
+          } Questions`}
+          maxWidthClass="max-w-2xl"
+        >
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+            {previewItem.contentData?.questions?.map((q: any, idx: number) => (
+              <div
+                key={q.id || idx}
+                className="p-3.5 bg-surface-raised border border-border rounded-xl space-y-2 text-xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold text-text-primary">
+                    {idx + 1}. {q.question}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] shrink-0 font-mono">
+                    {q.topic || q.difficulty || "MCQ"}
+                  </Badge>
+                </div>
+
+                {q.codeSnippet && (
+                  <pre className="p-2.5 bg-ink rounded-lg font-mono text-[11px] text-cyan-300 overflow-x-auto border border-border/80">
+                    {q.codeSnippet}
+                  </pre>
+                )}
+
+                {q.options && (
+                  <div className="space-y-1 pt-1">
+                    {q.options.map((opt: string, optIdx: number) => (
+                      <div
+                        key={optIdx}
+                        className={`p-2 rounded-lg border font-mono text-[11px] flex items-center gap-2 ${
+                          optIdx === q.correctIndex
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 font-semibold"
+                            : "bg-surface border-border text-text-muted"
+                        }`}
+                      >
+                        <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[9px] shrink-0">
+                          {String.fromCharCode(65 + optIdx)}
+                        </span>
+                        <span>{opt}</span>
+                        {optIdx === q.correctIndex && (
+                          <span className="ml-auto text-[10px] text-emerald-400 font-bold">
+                            ✓ Correct Option
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {q.explanation && (
+                  <p className="text-[11px] text-text-muted bg-surface/60 p-2 rounded border border-border/60">
+                    <span className="text-cyan-400 font-semibold">Explanation: </span>
+                    {q.explanation}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Dialog>
       )}
+
+      {/* MODAL 5: CONFIRM DELETE */}
+      <Dialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Confirm Delete Quiz"
+        description="Are you sure you want to delete this MCQ quiz?"
+        maxWidthClass="max-w-sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-muted">
+            Are you sure you want to permanently delete{" "}
+            <span className="font-bold text-text-primary">
+              {deleteTarget?.title}
+            </span>
+            ? This will remove all associated student attempt records and telemetry.
+          </p>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteTarget(null)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmDelete}
+              className="bg-rose-500 hover:bg-rose-400 text-white font-semibold text-xs px-4"
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

@@ -13,7 +13,7 @@ import com.interviewplatform.backend.model.PracticeTopic;
 import com.interviewplatform.backend.service.PracticeService;
 
 @RestController
-@RequestMapping("/api/v1/practice")
+@RequestMapping({"/api/v1/practice", "/api/practice"})
 public class PracticeController {
 
     private final PracticeService practiceService;
@@ -22,7 +22,7 @@ public class PracticeController {
         this.practiceService = practiceService;
     }
 
-    @GetMapping("/topics")
+    @GetMapping({"/topics", "/tracks"})
     public ResponseEntity<List<PracticeTopic>> getTopics() {
         List<PracticeTopic> topics = practiceService.getTopics();
         return ResponseEntity.ok(topics);

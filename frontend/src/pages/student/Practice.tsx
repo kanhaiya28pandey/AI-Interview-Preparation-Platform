@@ -1,74 +1,279 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { practiceService } from "@/services/practiceService";
 import { progressService } from "@/services/progressService";
-import { PracticeTopic, PracticeQuestion } from "@/mocks/practiceData";
+import {
+  ContentItem,
+  StudentTestSubmission,
+} from "@/services/contentManagerService";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { Dialog } from "@/components/ui/Dialog";
-import { CardSkeleton } from "@/components/common/Skeletons";
-import { EmptyState } from "@/components/common/EmptyState";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { useAuth } from "@/context/AuthContext";
-import { getScopedItem, setScopedItem } from "@/lib/userScope";
 import {
   Search,
   BookOpen,
   Layers,
-  Coffee,
-  Users,
-  Code,
-  Database,
-  Cloud,
   ChevronRight,
+  ChevronLeft,
   CheckCircle2,
+  XCircle,
   Sparkles,
-  ArrowRight,
+  Clock,
   RotateCcw,
   Flame,
   Layout,
   Binary,
+  HelpCircle,
+  Video,
+  Award,
+  Trophy,
+  Users,
+  Play,
+  ArrowRight,
+  AlertTriangle,
+  Check,
+  Target,
+  BarChart3,
+  Server,
+  Cloud,
+  Zap,
+  GraduationCap,
 } from "lucide-react";
+import { toast } from "sonner";
+
+// Dynamic domain icon resolver
+const getDomainIcon = (iconName: string) => {
+  switch (iconName?.toLowerCase()) {
+    case "binary":
+      return Binary;
+    case "layout":
+      return Layout;
+    case "server":
+      return Server;
+    case "braincircuit":
+    case "brain-circuit":
+      return Sparkles;
+    case "barchart3":
+    case "bar-chart-3":
+      return BarChart3;
+    case "cloud":
+      return Cloud;
+    case "zap":
+      return Zap;
+    default:
+      return Layers;
+  }
+};
+
+const getTypeConfig = (type: string) => {
+  const t = type.toUpperCase();
+  if (t.includes("QUIZ")) {
+    return {
+      label: "MCQ Quiz",
+      icon: HelpCircle,
+      color: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    };
+  }
+  if (t.includes("MOCK_TEST") || t.includes("MOCK TEST")) {
+    return {
+      label: "Mock Test",
+      icon: Clock,
+      color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+    };
+  }
+  if (t.includes("INTERVIEW")) {
+    return {
+      label: "AI Mock Interview",
+      icon: Video,
+      color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+    };
+  }
+  return {
+    label: "Practice Track",
+    icon: Sparkles,
+    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  };
+};
+
+// Robust question sanitizer ensuring options and fields are always defined
+const extractTestQuestions = (test: ContentItem | null): any[] => {
+  if (!test) return [];
+
+  let rawList: any[] = [];
+  if (Array.isArray(test.contentData?.questions)) {
+    rawList = test.contentData.questions;
+  } else if (Array.isArray(test.contentData)) {
+    rawList = test.contentData;
+  } else if (typeof test.contentData === "string") {
+    try {
+      const parsed = JSON.parse(test.contentData);
+      if (Array.isArray(parsed?.questions)) rawList = parsed.questions;
+      else if (Array.isArray(parsed)) rawList = parsed;
+    } catch {}
+  } else if (Array.isArray(test.payload?.questions)) {
+    rawList = test.payload.questions;
+  } else if (Array.isArray(test.payload?.mcqQuestions)) {
+    rawList = test.payload.mcqQuestions;
+  } else if (Array.isArray((test as any).questions)) {
+    rawList = (test as any).questions;
+  }
+
+  // If no questions found in item, synthesize default fallback questions for this test domain
+  if (!rawList || rawList.length === 0) {
+    const topic = test.topics?.[0] || test.title;
+    const subj = test.subject || "General";
+    rawList = [
+      {
+        id: `q-${test.id}-1`,
+        question: `What is the primary architectural requirement for ${topic} in ${subj}?`,
+        codeSnippet: `// Benchmark assessment standard for ${subj}\nfunction evaluateInvariant(context: ExecutionContext) {\n  return context.validateCorePrinciples();\n}`,
+        options: [
+          "Optimizes time complexity to O(1) amortized while guaranteeing data integrity",
+          "Executes unindexed full table scans causing unbounded latency spikes",
+          "Disables concurrency boundaries without transaction isolation",
+          "Forces blocking synchronous network round-trips for all requests",
+        ],
+        correctIndex: 0,
+        explanation: `Under industry-standard engineering guidelines, this strategy guarantees optimal performance while preserving architectural consistency.`,
+        difficulty: test.difficulty || "Medium",
+        topic: subj,
+        keyPoints: ["Optimal time and space bounds", "Strict concurrency protection", "Fault-tolerant failure handling"],
+      },
+      {
+        id: `q-${test.id}-2`,
+        question: `When implementing production workflows for ${topic}, what is the recommended design pattern?`,
+        options: [
+          "Decoupled asynchronous event processing with idempotency keys",
+          "Hardcoded static credentials in client-side bundles",
+          "Synchronous chained RPC calls without circuit breakers",
+          "Unbounded in-memory queueing without backpressure management",
+        ],
+        correctIndex: 0,
+        explanation: "Decoupling systems using event streams and idempotency prevents cascade failures and guarantees at-least-once delivery without duplicate state mutations.",
+        difficulty: test.difficulty || "Medium",
+        topic: subj,
+        keyPoints: ["Idempotent request handling", "Circuit breakers and backpressure", "Resilient state management"],
+      },
+      {
+        id: `q-${test.id}-3`,
+        question: `How do you diagnose and eliminate performance bottlenecks in ${subj}?`,
+        options: [
+          "Profiling telemetry traces, inspecting flame graphs, and monitoring P99 latency distribution",
+          "Restarting production servers randomly until throughput increases",
+          "Removing all unit tests and static validation rules",
+          "Increasing CPU cores without analyzing query execution plans",
+        ],
+        correctIndex: 0,
+        explanation: "P99 latency distribution and distributed tracing provide deterministic visibility into queue times, lock contention, and slow downstream dependencies.",
+        difficulty: test.difficulty || "Hard",
+        topic: subj,
+        keyPoints: ["P99 tail latency metrics", "Distributed flame graph inspection", "Root cause elimination"],
+      },
+    ];
+  }
+
+  return rawList.map((q: any, idx: number) => {
+    let options: string[] = [];
+    if (Array.isArray(q.options)) {
+      options = q.options.map((opt: any) => String(opt || ""));
+    } else if (typeof q.options === "object" && q.options !== null) {
+      options = Object.values(q.options).map((opt: any) => String(opt || ""));
+    } else if (Array.isArray(q.choices)) {
+      options = q.choices.map((c: any) => String(c || ""));
+    } else {
+      options = [
+        "Primary optimal implementation pattern",
+        "Alternative secondary design architecture",
+        "Legacy fallback configuration approach",
+        "High-throughput asynchronous event model",
+      ];
+    }
+
+    if (options.length < 2) {
+      options = [
+        "Primary optimal implementation pattern",
+        "Alternative secondary design architecture",
+        "Legacy fallback configuration approach",
+        "High-throughput asynchronous event model",
+      ];
+    }
+
+    return {
+      id: String(q.id || `q-${test.id}-${idx + 1}`),
+      question: String(q.question || q.questionText || q.title || q.prompt || `Assessment Question #${idx + 1}`),
+      codeSnippet: typeof q.codeSnippet === "string" ? q.codeSnippet : undefined,
+      options,
+      correctIndex: typeof q.correctIndex === "number" ? q.correctIndex : typeof q.correctOptionIndex === "number" ? q.correctOptionIndex : 0,
+      explanation: String(q.explanation || q.sampleAnswer || "Optimal implementation verified against benchmark standards."),
+      difficulty: String(q.difficulty || test.difficulty || "Medium"),
+      topic: String(q.topic || test.subject || "General"),
+      keyPoints: Array.isArray(q.keyPoints) ? q.keyPoints.map((k: any) => String(k)) : Array.isArray(q.idealAnswerPoints) ? q.idealAnswerPoints.map((k: any) => String(k)) : [],
+    };
+  });
+};
 
 export const Practice: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialDomain = searchParams.get("domain") || "ALL";
 
-  const { domains, normalizeDomain } = useTaxonomy();
+  const { domains } = useTaxonomy();
   const { user } = useAuth();
 
-  const [topics, setTopics] = useState<PracticeTopic[]>([]);
+  const [tests, setTests] = useState<ContentItem[]>([]);
+  const [submissions, setSubmissions] = useState<StudentTestSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters
   const [search, setSearch] = useState("");
   const [selectedDomain, setSelectedDomain] = useState<string>(initialDomain);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("ALL");
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
 
-  const [selectedTopic, setSelectedTopic] = useState<PracticeTopic | null>(null);
-  const [topicQuestions, setTopicQuestions] = useState<PracticeQuestion[]>([]);
-  const [modalLoading, setModalLoading] = useState(false);
+  // TEST ARENA STATES
+  const [activeTest, setActiveTest] = useState<ContentItem | null>(null);
+  const [arenaQuestions, setArenaQuestions] = useState<any[]>([]);
+  const [inTestArena, setInTestArena] = useState<boolean>(false);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
+  const [studentAnswers, setStudentAnswers] = useState<Record<string, number | string>>({});
+  const [markedForReview, setMarkedForReview] = useState<string[]>([]);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(0);
+  const [testTimeSpentSeconds, setTestTimeSpentSeconds] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
 
-  // User scoped "Continue where you left off" state
-  const [lastPracticed, setLastPracticed] = useState<{ id: string; title: string; category: string } | null>(null);
+  // POST-TEST RESULT & ANALYSIS MODAL
+  const [analysisResult, setAnalysisResult] = useState<StudentTestSubmission | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const allTests = await practiceService.getPracticeTests();
+      const allSubmissions = practiceService.getStudentSubmissions(user?.userId);
+      setTests(Array.isArray(allTests) ? allTests : []);
+      setSubmissions(Array.isArray(allSubmissions) ? allSubmissions : []);
+    } catch (err) {
+      console.error("Failed to load practice tests:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    practiceService.getTopics().then((data) => {
-      setTopics(data);
-      setLoading(false);
-    });
-
-    const storedLast = getScopedItem<{ id: string; title: string; category: string } | null>(
-      user?.userId,
-      "last_practiced_topic",
-      null
-    );
-    if (storedLast) {
-      setLastPracticed(storedLast);
-    }
+    loadData();
+    const handleUpdate = () => loadData();
+    window.addEventListener("content-updated", handleUpdate);
+    window.addEventListener("submissions-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("content-updated", handleUpdate);
+      window.removeEventListener("submissions-updated", handleUpdate);
+    };
   }, [user]);
 
+  // Sync URL domain
   useEffect(() => {
     const urlDomain = searchParams.get("domain");
     if (urlDomain && urlDomain !== selectedDomain) {
@@ -86,111 +291,330 @@ export const Practice: React.FC = () => {
     setSearchParams(searchParams);
   };
 
-  const openTopicModal = async (topic: PracticeTopic) => {
-    setSelectedTopic(topic);
-    setModalLoading(true);
+  // Filter tests
+  const filteredTests = useMemo(() => {
+    const safeTests = Array.isArray(tests) ? tests : [];
+    return safeTests.filter((t) => {
+      const title = t.title || "";
+      const desc = t.description || "";
+      const subj = t.subject || "";
+      const diff = t.difficulty || "Medium";
+      const tType = t.type || "QUIZ";
+      const tags = Array.isArray(t.tags) ? t.tags : [];
 
-    // Save to user scoped continue where you left off
-    const tracker = { id: topic.id, title: topic.title, category: topic.category };
-    setScopedItem(user?.userId, "last_practiced_topic", tracker);
-    setLastPracticed(tracker);
+      const matchesSearch =
+        title.toLowerCase().includes(search.toLowerCase()) ||
+        desc.toLowerCase().includes(search.toLowerCase()) ||
+        subj.toLowerCase().includes(search.toLowerCase()) ||
+        tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase()));
 
-    const questions = await practiceService.getQuestionsByTopic(topic.id);
-    setTopicQuestions(questions);
-    setModalLoading(false);
-  };
+      const matchesDiff =
+        difficultyFilter === "ALL" || diff.toUpperCase() === difficultyFilter;
 
-  // Filter topics
-  const filteredTopics = topics.filter((t) => {
-    const matchesSearch =
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.category.toLowerCase().includes(search.toLowerCase()) ||
-      t.tags.some((tag) => tag.toLowerCase().includes(search.toLowerCase()));
+      const matchesType =
+        typeFilter === "ALL" ||
+        (typeFilter === "QUIZ" && tType.toUpperCase().includes("QUIZ")) ||
+        (typeFilter === "MOCK_TEST" && (tType.toUpperCase().includes("MOCK_TEST") || tType.toUpperCase().includes("MOCK TEST"))) ||
+        (typeFilter === "MOCK_INTERVIEW" && tType.toUpperCase().includes("INTERVIEW")) ||
+        (typeFilter === "PRACTICE_TOPIC" && tType.toUpperCase().includes("PRACTICE"));
 
-    const matchesDiff =
-      selectedDifficulty === "ALL" || t.difficulty.toUpperCase() === selectedDifficulty;
+      const matchesDomain =
+        selectedDomain === "ALL" ||
+        subj.toLowerCase() === selectedDomain.toLowerCase() ||
+        tags.some((tag) => tag.toLowerCase() === selectedDomain.toLowerCase());
 
-    const topicDomainSlug = (t as any).domainSlug || normalizeDomain(t.category);
-    const matchesDomain =
-      selectedDomain === "ALL" ||
-      topicDomainSlug === selectedDomain ||
-      t.category.toLowerCase() === selectedDomain.toLowerCase() ||
-      domains.find((d) => d.slug === selectedDomain)?.name.toLowerCase() === t.category.toLowerCase();
+      return matchesSearch && matchesDiff && matchesType && matchesDomain;
+    });
+  }, [tests, search, difficultyFilter, typeFilter, selectedDomain]);
 
-    return matchesSearch && matchesDiff && matchesDomain;
-  });
-
-  // Calculate domain progress stats
+  // Compute domain stats
   const getDomainStats = (domainSlug: string) => {
-    const domainTopics = topics.filter(
+    const safeTests = Array.isArray(tests) ? tests : [];
+    const safeSubmissions = Array.isArray(submissions) ? submissions : [];
+
+    const domainTests = safeTests.filter(
       (t) =>
-        (t as any).domainSlug === domainSlug ||
-        normalizeDomain(t.category) === domainSlug ||
-        domains.find((d) => d.slug === domainSlug)?.name.toLowerCase() === t.category.toLowerCase()
+        (t.subject && t.subject.toLowerCase() === domainSlug.toLowerCase()) ||
+        (Array.isArray(t.tags) && t.tags.some((tag) => tag.toLowerCase() === domainSlug.toLowerCase()))
     );
-    const totalQ = domainTopics.reduce((acc, t) => acc + t.questionsCount, 0);
-    const completedQ = domainTopics.reduce((acc, t) => acc + (t.completedCount || 0), 0);
-    const percent = totalQ > 0 ? Math.round((completedQ / totalQ) * 100) : 0;
-    return { count: domainTopics.length, totalQ, completedQ, percent };
+    const domainSubmissions = safeSubmissions.filter((s) => s.domain === domainSlug);
+    const attemptedCount = new Set(domainSubmissions.map((s) => s.testId)).size;
+    const percent =
+      domainTests.length > 0
+        ? Math.round((attemptedCount / domainTests.length) * 100)
+        : 0;
+
+    return { total: domainTests.length, attempted: attemptedCount, percent };
   };
 
-  const renderIcon = (iconName: string) => {
-    switch (iconName) {
-      case "Layers":
-        return <Layers className="w-5 h-5 text-cyan-400" />;
-      case "Coffee":
-        return <Coffee className="w-5 h-5 text-amber-400" />;
-      case "Users":
-        return <Users className="w-5 h-5 text-purple-400" />;
-      case "Code":
-        return <Code className="w-5 h-5 text-emerald-400" />;
-      case "Database":
-        return <Database className="w-5 h-5 text-blue-400" />;
-      case "Cloud":
-        return <Cloud className="w-5 h-5 text-sky-400" />;
-      case "Layout":
-        return <Layout className="w-5 h-5 text-cyan-400" />;
-      case "Binary":
-        return <Binary className="w-5 h-5 text-indigo-400" />;
-      default:
-        return <BookOpen className="w-5 h-5 text-cyan-400" />;
+  // START TEST ACTION
+  const handleStartTest = (test: ContentItem) => {
+    const parsedQuestions = extractTestQuestions(test);
+    setActiveTest(test);
+    setArenaQuestions(parsedQuestions);
+    setStudentAnswers({});
+    setMarkedForReview([]);
+    setCurrentQuestionIdx(0);
+
+    const durationMins = test.durationMinutes || test.settings?.durationMinutes || 30;
+    setSecondsRemaining(durationMins * 60);
+    setTestTimeSpentSeconds(0);
+    setInTestArena(true);
+  };
+
+  // LIVE TIMER TICKER
+  useEffect(() => {
+    if (!inTestArena || secondsRemaining <= 0) return;
+
+    const timer = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleAutoSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+      setTestTimeSpentSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [inTestArena, secondsRemaining]);
+
+  // AUTO-SUBMIT ON TIMER ZERO
+  const handleAutoSubmit = async () => {
+    if (!activeTest || isSubmitting) return;
+    await executeSubmission();
+  };
+
+  // MANUAL SUBMIT ACTION
+  const handleSubmitTest = async () => {
+    if (!activeTest || isSubmitting) return;
+    const totalQ = arenaQuestions.length;
+    const answeredQ = Object.keys(studentAnswers).length;
+
+    if (answeredQ < totalQ) {
+      const confirmSubmit = window.confirm(
+        `You have answered ${answeredQ} out of ${totalQ} questions. Are you sure you want to submit now?`
+      );
+      if (!confirmSubmit) return;
+    }
+
+    await executeSubmission();
+  };
+
+  const executeSubmission = async () => {
+    if (!activeTest) return;
+    setIsSubmitting(true);
+    try {
+      const result = await practiceService.submitTestAttempt({
+        testId: activeTest.id,
+        userId: user?.userId || "demo-student",
+        userName: user?.name || "Student",
+        timeSpentSeconds: testTimeSpentSeconds,
+        answers: studentAnswers,
+      });
+
+      setInTestArena(false);
+      setActiveTest(null);
+      setArenaQuestions([]);
+      setAnalysisResult(result);
+      toast.success(`Assessment Completed! +${result.xpEarned || 25} XP Earned`, {
+        description: `${result.score} of ${result.totalMarks} questions solved correct (${result.percentage}%).`,
+      });
+      loadData();
+    } catch (err) {
+      console.error("Submission failed:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  const formatTimer = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-8 animate-fade-in pb-16">
+      {/* Top Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="font-serif text-2xl font-medium text-text-primary">
-            Curated Practice Tracks
-          </h2>
-          <p className="text-xs text-text-secondary">
-            Master multi-domain engineering concepts with questions, answers, and architectural insights.
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-serif text-2xl font-bold text-text-primary tracking-tight">
+                  Practice Tracks & Assessment Arena
+                </h1>
+                <Badge variant="accent" className="font-mono text-xs">
+                  {tests.length} Available Tests
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                Take timed conceptual quizzes, mock tests, and AI domain interviews. Submit anytime, receive immediate score reports, and review correct answers and relative class ranks.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
+        {/* Global summary badge */}
+        <div className="flex items-center gap-3 bg-surface-raised/60 border border-border px-4 py-2.5 rounded-2xl self-start md:self-auto">
+          <Trophy className="w-5 h-5 text-amber-400 shrink-0" />
+          <div className="text-left">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider">
+              Tests Attended
+            </div>
+            <div className="text-xs font-bold text-text-primary">
+              <span className="text-cyan-400 font-mono font-bold">
+                {submissions.length}
+              </span>{" "}
+              Completed Evaluations
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DOMAIN SELECTION GRID - High Clear Visibility (No Horizontal Strip) */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted font-mono flex items-center gap-1.5">
+              <Target className="w-4 h-4 text-cyan-400" /> Explore Tests by Domain
+            </h2>
+          </div>
+          <button
+            onClick={() => handleSelectDomain("ALL")}
+            className={`text-xs font-mono transition-colors ${
+              selectedDomain === "ALL"
+                ? "text-cyan-400 font-semibold"
+                : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            Show All Domains ({tests.length} tests)
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+          {domains.map((dom) => {
+            const isSelected = selectedDomain === dom.slug;
+            const IconComponent = getDomainIcon(dom.icon);
+            const { total, attempted, percent } = getDomainStats(dom.slug);
+
+            return (
+              <div
+                key={dom.id}
+                onClick={() => handleSelectDomain(isSelected ? "ALL" : dom.slug)}
+                className={`relative p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 group ${
+                  isSelected
+                    ? "bg-surface-raised border-cyan-400/80 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400/50"
+                    : "bg-surface border-border hover:border-cyan-500/40 hover:bg-surface-raised/50"
+                }`}
+              >
+                {isSelected && (
+                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-cyan-500 text-black font-bold text-[10px] px-2 py-0.5 rounded-full font-mono shadow-sm">
+                    <Check className="w-3 h-3 stroke-[3]" /> Active Filter
+                  </div>
+                )}
+
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
+                    style={{
+                      backgroundColor: `${dom.color}15`,
+                      color: dom.color,
+                      border: `1px solid ${dom.color}35`,
+                    }}
+                  >
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+
+                  <div className="min-w-0 flex-1 pr-6">
+                    <h3 className="font-bold text-sm text-text-primary group-hover:text-cyan-400 transition-colors truncate">
+                      {dom.name}
+                    </h3>
+                    <p className="text-[11px] text-text-muted mt-0.5 line-clamp-1">
+                      {total} Active Tests & Modules
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-[11px] text-text-muted font-mono">
+                  <span>
+                    {attempted} of {total} Attended
+                  </span>
+                  <span className={`font-semibold ${percent > 0 ? "text-cyan-400" : "text-text-muted"}`}>
+                    {percent}%
+                  </span>
+                </div>
+
+                <div className="w-full bg-border/40 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-300"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* FILTER & CONTROLS BAR */}
+      <div className="space-y-3">
+        {/* Type Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          {[
+            { id: "ALL", label: "All Tests" },
+            { id: "QUIZ", label: "MCQ Quizzes", icon: HelpCircle },
+            { id: "MOCK_TEST", label: "Mock Tests", icon: Clock },
+            { id: "MOCK_INTERVIEW", label: "AI Mock Interviews", icon: Video },
+            { id: "PRACTICE_TOPIC", label: "Practice Tracks", icon: Sparkles },
+          ].map((tab) => {
+            const isSelected = typeFilter === tab.id;
+            const Icon = tab.icon;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setTypeFilter(tab.id)}
+                className={`px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+                  isSelected
+                    ? "bg-cyan-500 text-black font-semibold shadow-sm"
+                    : "bg-surface border border-border text-text-muted hover:text-text-primary hover:bg-surface-raised"
+                }`}
+              >
+                {Icon && <Icon className="w-3.5 h-3.5" />}
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search & Difficulty */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3 rounded-2xl border border-border">
+          <div className="relative w-full sm:w-72">
+            <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
               type="text"
-              placeholder="Search tracks, tags, keywords..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 text-xs"
+              placeholder="Search tests, topics, keywords..."
+              className="w-full pl-9 pr-3 py-1.5 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400"
             />
           </div>
 
-          <div className="flex bg-surface-raised border border-border p-1 rounded-lg text-xs font-mono overflow-x-auto shrink-0">
+          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono self-start sm:self-auto">
             {["ALL", "EASY", "MEDIUM", "HARD"].map((diff) => (
               <button
                 key={diff}
-                onClick={() => setSelectedDifficulty(diff)}
-                className={`px-2.5 py-1 rounded transition-colors shrink-0 ${
-                  selectedDifficulty === diff
-                    ? "bg-gradient-to-r from-teal-500 to-cyan-400 text-[#0d1321] font-semibold"
+                onClick={() => setDifficultyFilter(diff)}
+                className={`px-3 py-1 rounded-lg transition-colors ${
+                  difficultyFilter === diff
+                    ? "bg-gradient-to-r from-teal-500 to-cyan-400 text-[#0d1321] font-semibold shadow-sm"
                     : "text-text-muted hover:text-text-primary"
                 }`}
               >
@@ -201,281 +625,548 @@ export const Practice: React.FC = () => {
         </div>
       </div>
 
-      {/* Continue Where You Left Off Banner */}
-      {lastPracticed && (
-        <div className="p-4 bg-gradient-to-r from-cyan-950/40 via-surface to-surface-raised border border-cyan-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shrink-0">
-              <Flame className="w-5 h-5 text-cyan-400" />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono text-cyan-400 font-semibold uppercase tracking-wider">
-                Continue Where You Left Off
-              </span>
-              <h4 className="text-sm font-semibold text-text-primary">
-                {lastPracticed.title}
-              </h4>
-              <p className="text-xs text-text-muted">{lastPracticed.category}</p>
-            </div>
-          </div>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              const matched = topics.find((t) => t.id === lastPracticed.id);
-              if (matched) openTopicModal(matched);
-            }}
-            className="shrink-0 text-xs flex items-center gap-1.5"
-          >
-            <span>Resume Track</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Button>
+      {/* TESTS GRID */}
+      {loading ? (
+        <div className="py-16 text-center text-xs font-mono text-text-muted">
+          Loading practice tests...
         </div>
-      )}
+      ) : filteredTests.length === 0 ? (
+        <Card className="p-12 text-center bg-surface border-border">
+          <BookOpen className="w-12 h-12 text-text-muted mx-auto mb-3 opacity-40" />
+          <h3 className="font-bold text-base text-text-primary">No Tests Found</h3>
+          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+            Try adjusting your search criteria or switch to "All Domains".
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredTests.map((test) => {
+            const typeCfg = getTypeConfig(test.type);
+            const TypeIcon = typeCfg.icon;
+            const timer = test.durationMinutes || test.settings?.durationMinutes || 30;
+            const qCount = test.questionsCount || test.contentData?.questions?.length || 5;
+            const attendees = test.studentAttempts || 0;
 
-      {/* Domain Cards with Circular Progress Rings */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono text-text-muted uppercase tracking-wider">
-            Explore by Domain
-          </span>
-          <button
-            onClick={() => handleSelectDomain("ALL")}
-            className={`text-xs font-mono ${
-              selectedDomain === "ALL" ? "text-cyan-400 font-semibold" : "text-text-muted hover:text-text-primary"
-            }`}
-          >
-            View All ({topics.length})
-          </button>
-        </div>
-
-        <div className="flex gap-3 overflow-x-auto pb-2 pt-1 custom-scrollbar">
-          {domains.map((d) => {
-            const stats = getDomainStats(d.slug);
-            const isSelected = selectedDomain === d.slug;
-            // SVG circular progress math
-            const radius = 14;
-            const circumference = 2 * Math.PI * radius;
-            const strokeDashoffset = circumference - (stats.percent / 100) * circumference;
+            // Check if current student has a recorded submission for this test
+            const userSub = submissions.find((s) => s.testId === test.id);
 
             return (
-              <button
-                key={d.id}
-                onClick={() => handleSelectDomain(isSelected ? "ALL" : d.slug)}
-                className={`p-3.5 rounded-xl border text-left min-w-[200px] shrink-0 transition-all flex items-center justify-between gap-3 ${
-                  isSelected
-                    ? "bg-surface-raised border-cyan-400 shadow-md ring-1 ring-cyan-400/20"
-                    : "bg-surface border-border hover:border-cyan-500/40 hover:bg-surface-raised/40"
-                }`}
+              <Card
+                key={test.id}
+                className="p-5 bg-surface border-border hover:border-cyan-500/40 transition-all flex flex-col justify-between space-y-4 group"
               >
-                <div className="space-y-1 truncate">
-                  <h4 className="text-xs font-semibold text-text-primary truncate">
-                    {d.name}
-                  </h4>
-                  <p className="text-[11px] font-mono text-text-muted">
-                    {stats.count} tracks · {d.topics.length} topics
-                  </p>
+                <div className="space-y-3">
+                  {/* Top Header: Type Badge & Attendee metric */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border flex items-center gap-1 font-semibold ${typeCfg.color}`}
+                    >
+                      <TypeIcon className="w-3 h-3" />
+                      {typeCfg.label}
+                    </span>
+
+                    <span className="text-[11px] font-mono text-cyan-400/90 flex items-center gap-1">
+                      <Users className="w-3 h-3" /> {attendees} Attended
+                    </span>
+                  </div>
+
+                  {/* Title & Description */}
+                  <div>
+                    <h3 className="font-bold text-sm text-text-primary group-hover:text-cyan-400 transition-colors line-clamp-1">
+                      {test.title}
+                    </h3>
+                    <p className="text-xs text-text-muted mt-1 line-clamp-2 leading-relaxed">
+                      {test.description}
+                    </p>
+                  </div>
+
+                  {/* Tags & Time Limit Badge */}
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-cyan-300 px-2 py-0.5 rounded">
+                      {test.subject.toUpperCase()}
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded">
+                      {test.difficulty}
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-cyan-400" /> {timer} Mins
+                    </span>
+                    <span className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded">
+                      {qCount} Questions
+                    </span>
+                  </div>
                 </div>
 
-                {/* Circular Progress Ring */}
-                <div className="relative w-8 h-8 shrink-0 flex items-center justify-center">
-                  <svg className="w-8 h-8 -rotate-90" viewBox="0 0 36 36">
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r={radius}
-                      fill="transparent"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      className="text-border"
-                    />
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r={radius}
-                      fill="transparent"
-                      stroke={d.color || "#06b6d4"}
-                      strokeWidth="3"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={strokeDashoffset}
-                      strokeLinecap="round"
-                      className="transition-all duration-500"
-                    />
-                  </svg>
-                  <span className="absolute text-[9px] font-mono text-text-primary font-bold">
-                    {stats.percent}%
-                  </span>
+                {/* Card Action & Results Status */}
+                <div className="pt-3 border-t border-border space-y-2.5">
+                  {userSub ? (
+                    /* Already Attempted State */
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="flex items-center gap-1 font-bold text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Score: {userSub.percentage}%
+                        </span>
+                        <span className="text-amber-400 font-semibold flex items-center gap-1">
+                          <Trophy className="w-3 h-3" /> Rank #{userSub.rank} of {userSub.totalAttendees}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setAnalysisResult(userSub)}
+                          className="flex-1 text-xs py-1.5 h-8 border-border text-cyan-400 hover:bg-cyan-500/10"
+                        >
+                          Review Answers & Analysis
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleStartTest(test)}
+                          className="text-xs py-1.5 h-8 border-border text-text-muted hover:text-text-primary px-3"
+                          title="Retake test"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Not Attempted State */
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[11px] font-mono text-text-muted">
+                        Anytime Assessment
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => handleStartTest(test)}
+                        className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs py-1.5 h-8 px-4 flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Play className="w-3 h-3 fill-black" />
+                        Start Test
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </button>
+              </Card>
             );
           })}
         </div>
-      </div>
-
-      {/* Topics Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
-      ) : filteredTopics.length === 0 ? (
-        <EmptyState
-          title="No tracks found"
-          description="Try clearing your search query or selecting a different domain or difficulty."
-          actionText="Reset Filters"
-          onAction={() => {
-            setSearch("");
-            setSelectedDifficulty("ALL");
-            handleSelectDomain("ALL");
-          }}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTopics.map((topic) => (
-            <Card
-              key={topic.id}
-              className="p-6 flex flex-col justify-between hover:border-cyan-400/40 transition-colors group space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex justify-between items-start">
-                  <div className="p-2.5 bg-surface-raised border border-border rounded-xl">
-                    {renderIcon(topic.icon)}
-                  </div>
-                  <Badge variant={topic.difficulty.toLowerCase() as any}>
-                    {topic.difficulty}
-                  </Badge>
-                </div>
-
-                <div>
-                  <span className="text-[11px] font-mono text-cyan-400 block mb-0.5">
-                    {topic.category}
-                  </span>
-                  <h3 className="font-serif text-lg font-medium text-text-primary group-hover:text-cyan-400 transition-colors">
-                    {topic.title}
-                  </h3>
-                  <p className="text-xs text-text-secondary mt-1 line-clamp-2 leading-relaxed">
-                    {topic.description}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {topic.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[10px] font-mono bg-surface-raised border border-border text-text-muted px-2 py-0.5 rounded"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-4 border-t border-border">
-                <div className="flex justify-between text-xs font-mono text-text-muted">
-                  <span>Progress</span>
-                  <span>
-                    {topic.completedCount} / {topic.questionsCount} Qs
-                  </span>
-                </div>
-                <Progress
-                  value={
-                    topic.questionsCount > 0
-                      ? (topic.completedCount / topic.questionsCount) * 100
-                      : 0
-                  }
-                  color="accent"
-                />
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-between"
-                  onClick={() => openTopicModal(topic)}
-                >
-                  <span>Practice Questions</span>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
       )}
 
-      {/* Topic Detail Modal */}
-      {selectedTopic && (
+      {/* FULL TIMED TEST ARENA MODAL */}
+      {inTestArena && activeTest && (
         <Dialog
-          isOpen={!!selectedTopic}
-          onClose={() => setSelectedTopic(null)}
-          title={selectedTopic.title}
-          description={`${selectedTopic.category} Track · ${selectedTopic.questionsCount} Core Questions`}
-          maxWidthClass="max-w-3xl"
+          isOpen={inTestArena}
+          onClose={() => setShowExitConfirm(true)}
+          title={activeTest.title}
+          description={`Domain: ${(activeTest.subject || "General").toUpperCase()} · Question ${
+            currentQuestionIdx + 1
+          } of ${arenaQuestions.length || 1}`}
+          maxWidthClass="max-w-4xl"
         >
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-            {modalLoading ? (
-              <div className="py-8 text-center text-xs font-mono text-text-muted">
-                Loading question bank...
-              </div>
-            ) : topicQuestions.length === 0 ? (
-              <p className="text-sm text-text-secondary py-4 text-center">
-                No questions uploaded for this track yet.
-              </p>
-            ) : (
-              topicQuestions.map((q, idx) => (
-                <div
-                  key={q.id || idx}
-                  className="p-4 bg-surface-raised border border-border rounded-xl space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-serif text-base font-medium text-text-primary">
-                      {idx + 1}. {q.title}
-                    </h4>
-                    <Badge variant={q.difficulty.toLowerCase() as any}>
-                      {q.difficulty}
+          {(() => {
+            const currentQ = arenaQuestions[currentQuestionIdx];
+            const isTimerWarning = secondsRemaining < 120; // under 2 mins
+
+            return (
+              <div className="space-y-5">
+                {/* Arena Top Bar: Live Timer & Progress */}
+                <div className="p-3.5 bg-surface-raised border border-border rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-text-muted">
+                      QUESTION {currentQuestionIdx + 1} OF {arenaQuestions.length}
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {currentQ?.difficulty || "Medium"}
                     </Badge>
                   </div>
-                  <p className="text-xs text-text-secondary leading-relaxed">
-                    {q.prompt}
-                  </p>
 
-                  <div className="space-y-1.5 bg-surface p-3 rounded-lg border border-border">
-                    <span className="text-[11px] font-mono text-cyan-400 font-semibold block">
-                      Key Architectural Points to Cover:
-                    </span>
-                    <ul className="text-xs text-text-muted space-y-1 list-disc list-inside font-mono">
-                      {q.keyPoints.map((kp, kIdx) => (
-                        <li key={kIdx}>{kp}</li>
-                      ))}
-                    </ul>
+                  {/* Live Timer Pill */}
+                  <div
+                    className={`px-3 py-1 rounded-xl font-mono font-bold text-xs flex items-center gap-1.5 border transition-all ${
+                      isTimerWarning
+                        ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse"
+                        : "bg-cyan-500/10 text-cyan-400 border-cyan-500/25"
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Time Remaining: {formatTimer(secondsRemaining)}</span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-border/60">
-                    {(() => {
-                      const completedIds = progressService.getCompletedQuestionsForTopic(user?.userId, selectedTopic.id);
-                      const isCompleted = completedIds.includes(q.id);
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowExitConfirm(true)}
+                    className="text-xs h-7 border-border text-rose-400 hover:bg-rose-500/10"
+                  >
+                    Cancel / Exit
+                  </Button>
+                </div>
 
-                      return (
-                        <Button
-                          type="button"
-                          variant={isCompleted ? "outline" : "teal-cyan"}
-                          size="sm"
-                          onClick={() => {
-                            progressService.togglePracticeQuestion(user?.userId, selectedTopic.id, q.id);
-                            // Refresh topics list to update completedCount on cards
-                            practiceService.getTopics(user?.userId).then((res) => setTopics(res));
-                          }}
-                          className="text-xs gap-1.5 font-mono"
-                        >
-                          <CheckCircle2 className={`w-3.5 h-3.5 ${isCompleted ? "text-live" : "text-ink"}`} />
-                          <span>{isCompleted ? "Practiced (Completed)" : "Mark as Practiced (+10 XP)"}</span>
-                        </Button>
-                      );
-                    })()}
+                {/* Question Area */}
+                {currentQ ? (
+                  <div className="space-y-4 p-5 bg-surface rounded-2xl border border-border">
+                    <h3 className="text-sm sm:text-base font-bold text-text-primary leading-relaxed">
+                      {currentQuestionIdx + 1}. {currentQ.question}
+                    </h3>
+
+                    {currentQ.codeSnippet && (
+                      <pre className="p-3.5 bg-ink rounded-xl font-mono text-xs text-cyan-300 overflow-x-auto border border-border/80">
+                        {currentQ.codeSnippet}
+                      </pre>
+                    )}
+
+                    {/* Radio Options List */}
+                    {Array.isArray(currentQ.options) && currentQ.options.length > 0 && (
+                      <div className="space-y-2 pt-1">
+                        {currentQ.options.map((opt: string, optIdx: number) => {
+                          const isSelected = studentAnswers[currentQ.id] === optIdx;
+
+                          return (
+                            <div
+                              key={optIdx}
+                              onClick={() =>
+                                setStudentAnswers((prev) => ({
+                                  ...prev,
+                                  [currentQ.id]: optIdx,
+                                }))
+                              }
+                              className={`p-3 rounded-xl border font-mono text-xs flex items-center gap-3 cursor-pointer transition-all select-none ${
+                                isSelected
+                                  ? "bg-cyan-500/15 border-cyan-400 text-cyan-200 font-semibold shadow-sm"
+                                  : "bg-surface-raised border-border text-text-muted hover:border-cyan-500/30 hover:bg-surface-raised/80"
+                              }`}
+                            >
+                              <div
+                                className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] shrink-0 font-bold ${
+                                  isSelected
+                                    ? "border-cyan-400 bg-cyan-400 text-black"
+                                    : "border-border text-text-muted"
+                                }`}
+                              >
+                                {String.fromCharCode(65 + optIdx)}
+                              </div>
+                              <span className="flex-1 leading-relaxed">{opt}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-text-muted text-xs font-mono">
+                    No active question found.
+                  </div>
+                )}
+
+                {/* Question Navigation Controls & Palette */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={currentQuestionIdx === 0}
+                        onClick={() => setCurrentQuestionIdx((p) => Math.max(0, p - 1))}
+                        className="text-xs h-8 border-border"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                        Previous
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={currentQuestionIdx >= arenaQuestions.length - 1}
+                        onClick={() => setCurrentQuestionIdx((p) => Math.min(arenaQuestions.length - 1, p + 1))}
+                        className="text-xs h-8 border-border"
+                      >
+                        Next
+                        <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleSubmitTest}
+                        disabled={isSubmitting}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs px-5 h-8 shadow-sm"
+                      >
+                        {isSubmitting ? "Evaluating Results..." : "Submit Test"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Question Palette Grid */}
+                  {Array.isArray(arenaQuestions) && arenaQuestions.length > 0 && (
+                    <div className="p-3 bg-surface-raised/60 rounded-xl border border-border flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-mono text-text-muted mr-2">
+                        Question Palette:
+                      </span>
+                      {arenaQuestions.map((q: any, idx: number) => {
+                        const isAnswered = studentAnswers[q.id] !== undefined;
+                        const isCurrent = currentQuestionIdx === idx;
+
+                        return (
+                          <button
+                            key={q.id || idx}
+                            type="button"
+                            onClick={() => setCurrentQuestionIdx(idx)}
+                            className={`w-7 h-7 rounded-lg text-xs font-mono font-bold transition-all ${
+                              isCurrent
+                                ? "ring-2 ring-cyan-400 bg-cyan-500 text-black"
+                                : isAnswered
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                : "bg-surface border border-border text-text-muted hover:border-cyan-500/30"
+                            }`}
+                          >
+                            {idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </Dialog>
+      )}
+
+      {/* CONFIRM EXIT TEST MODAL */}
+      <Dialog
+        isOpen={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        title="Exit Active Test?"
+        description="Are you sure you want to cancel? Your test responses will not be saved."
+        maxWidthClass="max-w-sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-muted">
+            The timer is currently running. Exiting now will discard this attempt without recording a score.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExitConfirm(false)}
+              className="text-xs"
+            >
+              Resume Test
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setShowExitConfirm(false);
+                setInTestArena(false);
+                setActiveTest(null);
+              }}
+              className="bg-rose-500 hover:bg-rose-400 text-white font-semibold text-xs px-4"
+            >
+              Confirm Exit
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* COMPREHENSIVE RESULT & DEEP ANALYSIS MODAL */}
+      {analysisResult && (
+        <Dialog
+          isOpen={analysisResult !== null}
+          onClose={() => setAnalysisResult(null)}
+          title={`Performance & Answer Analysis: ${analysisResult.testTitle}`}
+          description={`Domain: ${analysisResult.domain.toUpperCase()} · Completed in ${Math.floor(
+            analysisResult.timeSpentSeconds / 60
+          )}m ${analysisResult.timeSpentSeconds % 60}s`}
+          maxWidthClass="max-w-3xl"
+        >
+          <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-1">
+            {/* Score & Relative Ranking Banner */}
+            <div className="p-5 bg-surface-raised border border-border rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-4 text-center sm:text-left">
+              <div className="space-y-1">
+                <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
+                  Final Score
+                </span>
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <span className="text-2xl font-bold font-mono text-cyan-400">
+                    {analysisResult.percentage}%
+                  </span>
+                  <Badge
+                    variant={analysisResult.isPassed ? "accent" : "outline"}
+                    className={
+                      analysisResult.isPassed
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]"
+                        : "bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]"
+                    }
+                  >
+                    {analysisResult.isPassed ? "PASSED" : "NEEDS PRACTICE"}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-text-muted font-mono">
+                  {analysisResult.score} of {analysisResult.totalMarks} Questions Correct
+                </p>
+              </div>
+
+              {/* Relative Class Rank Position */}
+              <div className="space-y-1 sm:border-l sm:border-border sm:pl-4">
+                <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block flex items-center justify-center sm:justify-start gap-1">
+                  <Trophy className="w-3.5 h-3.5" /> Relative Class Position
+                </span>
+                <div className="text-xl font-bold font-mono text-text-primary">
+                  Rank #{analysisResult.rank}{" "}
+                  <span className="text-xs text-text-muted font-normal">
+                    of {analysisResult.totalAttendees} Attendees
+                  </span>
+                </div>
+                <p className="text-[11px] text-cyan-400 font-mono font-semibold">
+                  Top{" "}
+                  {Math.max(
+                    1,
+                    Math.round((analysisResult.rank / analysisResult.totalAttendees) * 100)
+                  )}
+                  % Cohort Percentile
+                </p>
+              </div>
+
+              {/* XP Award */}
+              <div className="space-y-1 sm:border-l sm:border-border sm:pl-4 flex flex-col justify-center">
+                <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
+                  Experience Earned
+                </span>
+                <div className="text-lg font-bold font-mono text-emerald-400">
+                  +{analysisResult.xpEarned ?? (analysisResult.isPassed ? 30 : 10)} XP Added
+                </div>
+                <p className="text-[11px] text-text-muted font-mono leading-tight">
+                  {analysisResult.xpBreakdown || `${analysisResult.score} correct + participation`}
+                </p>
+              </div>
+            </div>
+
+            {/* Question by Question Detailed Review */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase font-mono tracking-wider text-text-muted">
+                Question-by-Question Deep Analysis & Explanations
+              </h4>
+
+              {Array.isArray(analysisResult?.detailedReview) && analysisResult.detailedReview.map((rev, idx) => (
+                <div
+                  key={rev.questionId || idx}
+                  className={`p-4 rounded-xl border space-y-2.5 transition-all ${
+                    rev.isCorrect
+                      ? "bg-surface border-emerald-500/30"
+                      : "bg-surface border-rose-500/30"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-semibold text-xs text-text-primary leading-relaxed">
+                      {idx + 1}. {rev.question}
+                    </span>
+
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0 ${
+                        rev.isCorrect
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                      }`}
+                    >
+                      {rev.isCorrect ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3" /> Correct
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-3 h-3" /> Incorrect
+                        </>
+                      )}
+                    </span>
+                  </div>
+
+                  {rev.codeSnippet && (
+                    <pre className="p-2.5 bg-ink rounded-lg font-mono text-[11px] text-cyan-300 overflow-x-auto border border-border/80">
+                      {rev.codeSnippet}
+                    </pre>
+                  )}
+
+                  {/* Options review */}
+                  {Array.isArray(rev.options) && rev.options.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {rev.options.map((opt: string, optIdx: number) => {
+                        const isStudentChoice = rev.chosenOptionIndex === optIdx;
+                        const isActualCorrect = rev.correctOptionIndex === optIdx;
+
+                        return (
+                          <div
+                            key={optIdx}
+                            className={`p-2 rounded-lg border font-mono text-[11px] flex items-center justify-between gap-2 ${
+                              isActualCorrect
+                                ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold"
+                                : isStudentChoice && !isActualCorrect
+                                ? "bg-rose-500/10 border-rose-500/40 text-rose-300 line-through"
+                                : "bg-surface-raised/40 border-border/60 text-text-muted"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[9px] shrink-0">
+                                {String.fromCharCode(65 + optIdx)}
+                              </span>
+                              <span>{opt}</span>
+                            </div>
+
+                            {isActualCorrect && (
+                              <span className="text-[10px] text-emerald-400 font-bold shrink-0">
+                                ✓ Correct Answer
+                              </span>
+                            )}
+                            {isStudentChoice && !isActualCorrect && (
+                              <span className="text-[10px] text-rose-400 font-bold shrink-0">
+                                ✗ Your Answer
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Deep Architectural Explanation */}
+                  <div className="p-3 bg-surface-raised rounded-xl border border-border/80 space-y-1">
+                    <span className="text-[11px] font-mono text-cyan-400 font-semibold block">
+                      Architectural Explanation & Why You Were{" "}
+                      {rev.isCorrect ? "Right" : "Wrong"}:
+                    </span>
+                    <p className="text-xs text-text-muted leading-relaxed">
+                      {rev.explanation}
+                    </p>
+                    {Array.isArray(rev.keyPoints) && rev.keyPoints.length > 0 && (
+                      <div className="pt-1">
+                        <span className="text-[10px] font-mono text-text-muted">Key Concept Tags: </span>
+                        {rev.keyPoints.map((kp, kIdx) => (
+                          <span
+                            key={kIdx}
+                            className="text-[10px] font-mono text-cyan-300 bg-surface px-1.5 py-0.5 rounded border border-border mr-1"
+                          >
+                            #{kp}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAnalysisResult(null)}
+                className="text-xs px-5"
+              >
+                Close Analysis
+              </Button>
+            </div>
           </div>
         </Dialog>
       )}

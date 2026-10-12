@@ -23,14 +23,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 
 @RestController
-@RequestMapping("/api/v1/admin/verifications")
+@RequestMapping({"/api/v1/admin/verifications", "/api/admin/verifications", "/admin/verifications"})
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminVerificationController {
 
     private final VerificationService verificationService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public AdminVerificationController(VerificationService verificationService) {
+    public AdminVerificationController(VerificationService verificationService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.verificationService = verificationService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -41,12 +43,30 @@ public class AdminVerificationController {
         return ResponseEntity.ok(list);
     }
 
-    @PostMapping("/{verificationId}/review")
+    @PostMapping({"/{verificationId}/review", "/student/{userId}/review"})
     public ResponseEntity<Verification> reviewVerification(
-            @PathVariable String verificationId,
+            @PathVariable(required = false) String verificationId,
+            @PathVariable(required = false) String userId,
             @Valid @RequestBody ReviewVerificationRequest request
     ) {
-        Verification reviewed = verificationService.reviewVerification(verificationId, request);
+        String targetId = (verificationId != null && !verificationId.isBlank()) ? verificationId : userId;
+        Verification reviewed = verificationService.reviewVerification(targetId, request);
+        if (reviewed != null && reviewed.getUserId() != null) {
+            try {
+                boolean isVerified = "Verified".equalsIgnoreCase(reviewed.getStatus());
+                notificationService.notifyUser(
+                        reviewed.getUserId(),
+                        "verification",
+                        "Identity Verification " + reviewed.getStatus(),
+                        isVerified
+                                ? "Congratulations! Your college ID has been verified. All pro features and verified placement tracks are now unlocked."
+                                : "Your verification could not be approved. Reason: " + (request.getRejectionNotes() != null ? request.getRejectionNotes() : "Document details mismatch") + ". Please re-upload your ID.",
+                        "/verify-identity",
+                        isVerified ? "success" : "danger"
+                );
+            } catch (Exception ignored) {
+            }
+        }
         return ResponseEntity.ok(reviewed);
     }
 
