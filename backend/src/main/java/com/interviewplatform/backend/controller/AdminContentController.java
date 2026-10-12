@@ -2,7 +2,6 @@ package com.interviewplatform.backend.controller;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -235,6 +234,7 @@ public class AdminContentController {
     }
 
     @PostMapping("/{id}/restore/{version}")
+    @SuppressWarnings("unchecked")
     public ResponseEntity<?> restoreVersion(@PathVariable String id, @PathVariable int version, Authentication authentication) {
         ContentItem item = contentItemRepository.findById(id).orElse(null);
         if (item == null) {

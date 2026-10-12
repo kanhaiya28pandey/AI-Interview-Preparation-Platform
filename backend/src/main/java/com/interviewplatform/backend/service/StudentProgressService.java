@@ -22,7 +22,6 @@ import com.interviewplatform.backend.repository.InterviewSessionRepository;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 
 @Service
-@SuppressWarnings("null")
 public class StudentProgressService {
 
     private final UserProfileRepository userProfileRepository;
@@ -42,7 +41,7 @@ public class StudentProgressService {
                 .collect(Collectors.toList());
 
         // Sort by activity score descending and assign rank
-        list.sort(Comparator.comparingInt(StudentProgressDto::getActivityScore).reversed());
+        list.sort(Comparator.comparingInt((StudentProgressDto s) -> s.getActivityScore()).reversed());
         for (int i = 0; i < list.size(); i++) {
             list.get(i).setLeaderboardRank(i + 1);
         }
@@ -85,7 +84,7 @@ public class StudentProgressService {
             return dto;
         }
 
-        int avgScore = (int) Math.round(students.stream().mapToInt(StudentProgressDto::getActivityScore).average().orElse(0));
+        int avgScore = (int) Math.round(students.stream().mapToInt(s -> s.getActivityScore()).average().orElse(0));
         long verifiedCount = students.stream().filter(s -> "VERIFIED".equalsIgnoreCase(s.getVerificationStatus())).count();
         int verifiedPct = (int) Math.round(((double) verifiedCount / total) * 100);
         int atRiskCount = (int) students.stream().filter(s -> "At Risk".equalsIgnoreCase(s.getRiskLevel())).count();
@@ -95,7 +94,7 @@ public class StudentProgressService {
         Map<String, List<StudentProgressDto>> byCourse = students.stream()
                 .collect(Collectors.groupingBy(s -> s.getCourse() == null || s.getCourse().isBlank() ? "B.Tech" : s.getCourse()));
         List<Map<String, Object>> courseAverages = byCourse.entrySet().stream().map(e -> {
-            double avg = e.getValue().stream().mapToInt(StudentProgressDto::getActivityScore).average().orElse(0);
+            double avg = e.getValue().stream().mapToInt(s -> s.getActivityScore()).average().orElse(0);
             Map<String, Object> map = new HashMap<>();
             map.put("course", e.getKey());
             map.put("avgScore", (int) Math.round(avg));
@@ -107,7 +106,7 @@ public class StudentProgressService {
         Map<String, List<StudentProgressDto>> byBranch = students.stream()
                 .collect(Collectors.groupingBy(s -> s.getBranch() == null || s.getBranch().isBlank() ? "Computer Science" : s.getBranch()));
         List<Map<String, Object>> branchAverages = byBranch.entrySet().stream().map(e -> {
-            double avg = e.getValue().stream().mapToInt(StudentProgressDto::getActivityScore).average().orElse(0);
+            double avg = e.getValue().stream().mapToInt(s -> s.getActivityScore()).average().orElse(0);
             Map<String, Object> map = new HashMap<>();
             map.put("branch", e.getKey());
             map.put("avgScore", (int) Math.round(avg));
@@ -212,7 +211,7 @@ public class StudentProgressService {
         dto.setInterviewsCompleted(completedInterviews > 0 ? completedInterviews : 4);
         double avgInterview = sessions.stream()
                 .filter(s -> "COMPLETED".equalsIgnoreCase(s.getStatus()))
-                .mapToInt(InterviewSession::getOverallScore)
+                .mapToInt(s -> s.getOverallScore())
                 .average()
                 .orElse(84.0);
         dto.setAvgInterviewScore((int) Math.round(avgInterview));

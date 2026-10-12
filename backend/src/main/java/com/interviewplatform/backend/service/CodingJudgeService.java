@@ -28,7 +28,6 @@ import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
 
 @Service
-@SuppressWarnings("null")
 public class CodingJudgeService {
 
     private static final Logger log = LoggerFactory.getLogger(CodingJudgeService.class);
@@ -196,7 +195,7 @@ public class CodingJudgeService {
 
         boolean allPassed = passedCount == testCases.size() && !testCases.isEmpty();
         String status = allPassed ? "ACCEPTED" : "WRONG_ANSWER";
-        double totalRuntime = Math.round(results.stream().mapToDouble(TestCaseResult::getRuntimeMs).sum() * 10.0) / 10.0;
+        double totalRuntime = Math.round(results.stream().mapToDouble(r -> r.getRuntimeMs()).sum() * 10.0) / 10.0;
         int memory = 36 + random.nextInt(8);
 
         List<String> outputLogs = new ArrayList<>();

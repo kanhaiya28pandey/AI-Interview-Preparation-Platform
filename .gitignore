@@ -5,6 +5,7 @@
 *.env
 *.secret
 !.env.example
+run-dev.ps1
 
 
 # Node / Frontend

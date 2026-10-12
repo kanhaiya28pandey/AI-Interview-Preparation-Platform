@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interviewplatform.backend.dto.ExternalProblemImportRequest;
@@ -30,7 +30,6 @@ import com.interviewplatform.backend.repository.CodingProblemRepository;
 import com.interviewplatform.backend.repository.ContentItemRepository;
 
 @Service
-@SuppressWarnings("null")
 public class ExternalProblemFetchService {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalProblemFetchService.class);
@@ -789,30 +788,6 @@ public class ExternalProblemFetchService {
         return data;
     }
 
-    private String cleanHtmlContent(String html) {
-        if (html == null) return "";
-        return html
-                .replaceAll("<pre>", "\n```\n")
-                .replaceAll("</pre>", "\n```\n")
-                .replaceAll("<code>", "`")
-                .replaceAll("</code>", "`")
-                .replaceAll("<strong>", "**")
-                .replaceAll("</strong>", "**")
-                .replaceAll("<em>", "*")
-                .replaceAll("</em>", "*")
-                .replaceAll("<p>", "")
-                .replaceAll("</p>", "\n\n")
-                .replaceAll("<ul>", "\n")
-                .replaceAll("</ul>", "\n")
-                .replaceAll("<li>", "- ")
-                .replaceAll("</li>", "\n")
-                .replaceAll("&nbsp;", " ")
-                .replaceAll("&lt;", "<")
-                .replaceAll("&gt;", ">")
-                .replaceAll("&amp;", "&")
-                .replaceAll("<[^>]*>", "")
-                .trim();
-    }
 
     private String sanitizeFnName(String name) {
         if (name == null || name.isBlank()) return "solve";

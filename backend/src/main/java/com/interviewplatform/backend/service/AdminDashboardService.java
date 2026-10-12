@@ -23,7 +23,6 @@ import com.interviewplatform.backend.repository.UserRepository;
 import com.interviewplatform.backend.repository.VerificationRepository;
 
 @Service
-@SuppressWarnings("null")
 public class AdminDashboardService {
 
     private final UserRepository userRepository;
@@ -186,12 +185,12 @@ public class AdminDashboardService {
         List<InterviewSession> allSessions = interviewSessionRepository.findAll();
         Map<String, List<InterviewSession>> byRole = allSessions.stream()
                 .filter(s -> s.getRoleTitle() != null)
-                .collect(Collectors.groupingBy(InterviewSession::getRoleTitle));
+                .collect(Collectors.groupingBy(s -> s.getRoleTitle()));
 
         if (!byRole.isEmpty()) {
             byRole.forEach((role, sessions) -> {
                 double avg = sessions.stream()
-                        .mapToInt(InterviewSession::getOverallScore)
+                        .mapToInt(s -> s.getOverallScore())
                         .average()
                         .orElse(75.0);
                 Map<String, Object> stat = new HashMap<>();
