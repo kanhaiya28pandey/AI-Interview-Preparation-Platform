@@ -6,14 +6,12 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.interviewplatform.backend.model.EducationEntry;
-import com.interviewplatform.backend.model.SkillItem;
 import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
 
 @Service
-@SuppressWarnings("null")
 public class ProfileService {
 
     private final UserProfileRepository userProfileRepository;
@@ -93,7 +91,7 @@ public class ProfileService {
         if (updates.getSkillsList() != null) {
             current.setSkillsList(updates.getSkillsList());
             List<String> flatSkills = updates.getSkillsList().stream()
-                    .map(SkillItem::getName)
+                    .map(item -> item.getName())
                     .filter(s -> s != null && !s.isBlank())
                     .toList();
             current.setSkills(flatSkills);

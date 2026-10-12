@@ -13,7 +13,6 @@ import com.interviewplatform.backend.repository.PracticeQuestionRepository;
 import com.interviewplatform.backend.repository.PracticeTopicRepository;
 
 @Service
-@SuppressWarnings("null")
 public class PracticeService {
 
     private final PracticeTopicRepository practiceTopicRepository;

@@ -1,14 +1,11 @@
 package com.interviewplatform.backend.service;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -16,10 +13,7 @@ import com.interviewplatform.backend.model.Notification;
 import com.interviewplatform.backend.repository.NotificationRepository;
 
 @Service
-@SuppressWarnings("null")
 public class NotificationService {
-
-    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository notificationRepository;
 
