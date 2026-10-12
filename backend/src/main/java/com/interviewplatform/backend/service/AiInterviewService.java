@@ -27,7 +27,6 @@ import com.interviewplatform.backend.model.QuestionAnswer;
 import com.interviewplatform.backend.model.TranscriptItem;
 
 @Service
-@SuppressWarnings("null")
 public class AiInterviewService {
 
     private static final Logger log = LoggerFactory.getLogger(AiInterviewService.class);
@@ -156,7 +155,7 @@ public class AiInterviewService {
 
     public InterviewFeedback generateFeedback(InterviewRole role, List<QuestionAnswer> answers, String sessionId) {
         int totalAnswers = answers.size();
-        int avgAnswerScore = totalAnswers > 0 ? (int) Math.round(answers.stream().mapToInt(QuestionAnswer::getScore).average().orElse(85.0)) : 86;
+        int avgAnswerScore = totalAnswers > 0 ? (int) Math.round(answers.stream().mapToInt(a -> a.getScore()).average().orElse(85.0)) : 86;
 
         InterviewScores scores = new InterviewScores(
                 Math.min(97, Math.max(70, avgAnswerScore + 2)),

@@ -11,7 +11,6 @@ import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 
 @Service
-@SuppressWarnings("null")
 public class LeaderboardService {
 
     private final UserProfileRepository userProfileRepository;
@@ -67,18 +66,18 @@ public class LeaderboardService {
             final String finalCollege = targetCollege;
             list = list.stream()
                     .filter(u -> u.getCollege() != null && u.getCollege().toLowerCase().contains(finalCollege.toLowerCase()))
-                    .sorted(Comparator.comparingInt(LeaderboardUser::getScore).reversed()
-                            .thenComparing(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()))
+                    .sorted(Comparator.comparingInt((LeaderboardUser u) -> u.getScore()).reversed()
+                            .thenComparing(Comparator.comparingInt((LeaderboardUser u) -> u.getStreakDays()).reversed()))
                     .toList();
         } else if ("weekly".equalsIgnoreCase(filter)) {
             list = list.stream()
-                    .sorted(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()
-                            .thenComparing(Comparator.comparingInt(LeaderboardUser::getScore).reversed()))
+                    .sorted(Comparator.comparingInt((LeaderboardUser u) -> u.getStreakDays()).reversed()
+                            .thenComparing(Comparator.comparingInt((LeaderboardUser u) -> u.getScore()).reversed()))
                     .toList();
         } else {
             list = list.stream()
-                    .sorted(Comparator.comparingInt(LeaderboardUser::getScore).reversed()
-                            .thenComparing(Comparator.comparingInt(LeaderboardUser::getStreakDays).reversed()))
+                    .sorted(Comparator.comparingInt((LeaderboardUser u) -> u.getScore()).reversed()
+                            .thenComparing(Comparator.comparingInt((LeaderboardUser u) -> u.getStreakDays()).reversed()))
                     .toList();
         }
 

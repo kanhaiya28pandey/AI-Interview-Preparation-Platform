@@ -12,7 +12,6 @@ import com.interviewplatform.backend.repository.ArticleRepository;
 import com.interviewplatform.backend.repository.ContentItemRepository;
 
 @Service
-@SuppressWarnings("null")
 public class ArticleService {
 
     private final ArticleRepository articleRepository;
