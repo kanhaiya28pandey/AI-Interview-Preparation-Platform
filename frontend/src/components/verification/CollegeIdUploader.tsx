@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { compressImage } from "@/lib/imageCompressor";
 
 export interface CollegeIdData {
   nameOnId: string;
@@ -136,14 +137,24 @@ export const CollegeIdUploader: React.FC<CollegeIdUploaderProps> = ({
 
     if (result.valid) {
       setIdFrontFile(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const previewUrl = reader.result as string;
-        setIdFrontPreview(previewUrl);
-        notifyChange({ idFrontFile: file, idFrontPreview: previewUrl, idQuality: result });
-      };
-      reader.readAsDataURL(file);
-      toast.success("ID card photo loaded & clarity check passed!");
+      try {
+        const compressedUrl = await compressImage(file, {
+          maxDimension: 1280,
+          quality: 0.8,
+          maxSizeBytes: 500 * 1024,
+        });
+        setIdFrontPreview(compressedUrl);
+        notifyChange({ idFrontFile: file, idFrontPreview: compressedUrl, idQuality: result });
+        toast.success("ID card photo loaded & clarity check passed!");
+      } catch {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const previewUrl = reader.result as string;
+          setIdFrontPreview(previewUrl);
+          notifyChange({ idFrontFile: file, idFrontPreview: previewUrl, idQuality: result });
+        };
+        reader.readAsDataURL(file);
+      }
     } else {
       setIdFrontFile(null);
       setIdFrontPreview(null);
@@ -152,15 +163,25 @@ export const CollegeIdUploader: React.FC<CollegeIdUploaderProps> = ({
     }
   };
 
-  const handleSelfieSelect = (file: File) => {
+  const handleSelfieSelect = async (file: File) => {
     setSelfieFile(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = reader.result as string;
-      setSelfiePreview(url);
-      notifyChange({ selfieFile: file, selfiePreview: url });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressedUrl = await compressImage(file, {
+        maxDimension: 800,
+        quality: 0.8,
+        maxSizeBytes: 300 * 1024,
+      });
+      setSelfiePreview(compressedUrl);
+      notifyChange({ selfieFile: file, selfiePreview: compressedUrl });
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = reader.result as string;
+        setSelfiePreview(url);
+        notifyChange({ selfieFile: file, selfiePreview: url });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmitForm = (e: React.FormEvent) => {

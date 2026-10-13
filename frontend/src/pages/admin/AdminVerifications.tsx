@@ -40,11 +40,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { isMockMode, getDataModeLabel } from "@/lib/dataMode";
 
 export const AdminVerifications: React.FC = () => {
   const { user } = useAuth();
   const {
     students,
+    syncFromSubmissions,
     approveVerification,
     rejectVerification,
     deleteStudent,
@@ -61,11 +63,16 @@ export const AdminVerifications: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [error, setError] = useState<{ message: string; is403: boolean; isNetworkError: boolean } | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const syncVerifications = async () => {
     setError(null);
+    setIsRefreshing(true);
     try {
-      await verificationService.getAllSubmissions();
+      const subs = await verificationService.getAllSubmissions();
+      syncFromSubmissions(subs);
+      setLastUpdated(new Date());
     } catch (err: any) {
       console.error("Failed to sync verifications:", err);
       const is403 = err?.response?.status === 403;
@@ -79,11 +86,61 @@ export const AdminVerifications: React.FC = () => {
         message = err.response.data.message;
       }
       setError({ message, is403, isNetworkError });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
     syncVerifications();
+
+    // Polling interval every 30 seconds while page is open
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        syncVerifications();
+      }
+    }, 30000);
+
+    // Event listeners for window focus and tab visibility change
+    const handleFocus = () => {
+      syncVerifications();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        syncVerifications();
+      }
+    };
+
+    // Cross-tab storage updates
+    const handleStorage = (e: StorageEvent) => {
+      if (
+        !e.key ||
+        e.key === "ai_interview_prep_verifications" ||
+        e.key === "ai_interview_prep_master_students_v2" ||
+        e.key === "admin_master_students"
+      ) {
+        syncVerifications();
+      }
+    };
+
+    // Custom in-app event dispatched when student submits or admin reviews
+    const handleCustomUpdate = () => {
+      syncVerifications();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("verification-updated", handleCustomUpdate);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("verification-updated", handleCustomUpdate);
+    };
   }, []);
 
   // Verification Modal & Visual Inspection State
@@ -156,40 +213,52 @@ export const AdminVerifications: React.FC = () => {
   const verifiedCount = students.filter((s) => s.verificationStatus === "Verified").length;
   const rejectedCount = students.filter((s) => s.verificationStatus === "Rejected").length;
 
-  // Single Approve
-  const handleApprove = (student: MasterStudent) => {
-    approveVerification(student.id);
-    toast.success(`College ID for ${student.name} approved & verified!`);
-    setSelectedStudent((prev) =>
-      prev && prev.id === student.id
-        ? {
-            ...prev,
-            verificationStatus: "Verified",
-          }
-        : null
-    );
+  const handleApprove = async (student: MasterStudent) => {
+    try {
+      await approveVerification(student.id);
+      toast.success(`College ID for ${student.name} approved & verified!`);
+      setSelectedStudent((prev) =>
+        prev && prev.id === student.id
+          ? {
+              ...prev,
+              verificationStatus: "Verified",
+            }
+          : null
+      );
+      if (typeof syncVerifications === "function") {
+        await syncVerifications();
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to approve verification.");
+    }
   };
 
   // Single Reject
-  const handleConfirmReject = (student: MasterStudent) => {
+  const handleConfirmReject = async (student: MasterStudent) => {
     if (!rejectionNotes.trim()) {
       toast.error("Please enter a note explaining the rejection reason.");
       return;
     }
-    rejectVerification(student.id, rejectionCategory, rejectionNotes.trim());
-    toast.error(`Verification request for ${student.name} marked as Rejected.`);
-    // Update local state in place so the Reject button disappears immediately and Delete Account appears!
-    setSelectedStudent((prev) =>
-      prev && prev.id === student.id
-        ? {
-            ...prev,
-            verificationStatus: "Rejected",
-            rejectionCategory,
-            rejectionNotes: rejectionNotes.trim(),
-          }
-        : prev
-    );
-    setIsRejecting(false);
+    try {
+      await rejectVerification(student.id, rejectionCategory, rejectionNotes.trim());
+      toast.error(`Verification request for ${student.name} marked as Rejected.`);
+      setSelectedStudent((prev) =>
+        prev && prev.id === student.id
+          ? {
+              ...prev,
+              verificationStatus: "Rejected",
+              rejectionCategory,
+              rejectionNotes: rejectionNotes.trim(),
+            }
+          : prev
+      );
+      setIsRejecting(false);
+      if (typeof syncVerifications === "function") {
+        await syncVerifications();
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to reject verification.");
+    }
   };
 
   // Open Single Delete Modal
@@ -204,19 +273,29 @@ export const AdminVerifications: React.FC = () => {
   };
 
   // Bulk Actions
-  const handleBulkApprove = () => {
+  const handleBulkApprove = async () => {
     if (selectedIds.length === 0) return;
-    bulkApproveVerifications(selectedIds);
-    toast.success(`Bulk approved ${selectedIds.length} student verifications.`);
-    setSelectedIds([]);
+    try {
+      await bulkApproveVerifications(selectedIds);
+      toast.success(`Bulk approved ${selectedIds.length} student verifications.`);
+      setSelectedIds([]);
+      await syncVerifications();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to bulk approve verifications.");
+    }
   };
 
-  const handleConfirmBulkReject = () => {
+  const handleConfirmBulkReject = async () => {
     if (selectedIds.length === 0) return;
-    bulkRejectVerifications(selectedIds, bulkRejectCategory, bulkRejectNotes);
-    toast.error(`Bulk rejected ${selectedIds.length} verifications.`);
-    setSelectedIds([]);
-    setBulkRejectModalOpen(false);
+    try {
+      await bulkRejectVerifications(selectedIds, bulkRejectCategory, bulkRejectNotes);
+      toast.error(`Bulk rejected ${selectedIds.length} verifications.`);
+      setSelectedIds([]);
+      setBulkRejectModalOpen(false);
+      await syncVerifications();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to bulk reject verifications.");
+    }
   };
 
   const handleBulkDelete = () => {
@@ -251,12 +330,18 @@ export const AdminVerifications: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs uppercase tracking-widest text-purple-400 font-semibold">
               Governance & Verification Queue
             </span>
             <Badge variant="accent" className="text-[10px] font-mono">
               Live Sync
+            </Badge>
+            <Badge
+              variant={isMockMode() ? "outline" : "active"}
+              className="text-[10px] font-mono"
+            >
+              {getDataModeLabel()}
             </Badge>
           </div>
           <h1 className="font-serif text-3xl font-medium text-text-primary">
@@ -265,6 +350,26 @@ export const AdminVerifications: React.FC = () => {
           <p className="text-xs text-text-secondary">
             Review submitted college identity cards, compare OCR data, approve verification access, or delete rejected records.
           </p>
+        </div>
+
+        {/* Refresh button & Last Updated label */}
+        <div className="flex items-center gap-3 shrink-0">
+          {lastUpdated && (
+            <span className="text-[11px] font-mono text-text-muted">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={syncVerifications}
+            disabled={isRefreshing}
+            className="text-xs flex items-center gap-1.5 h-8 px-3"
+            title="Refresh verification queue"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-cyan-400" : ""}`} />
+            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+          </Button>
         </div>
       </div>
 

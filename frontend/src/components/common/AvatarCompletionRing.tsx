@@ -70,7 +70,7 @@ export interface AvatarCompletionRingProps {
 export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
   profile,
   percentage,
-  name = "Student User",
+  name,
   avatarUrl,
   size = "md",
   showLabel = false,
@@ -79,6 +79,8 @@ export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
   className = "",
 }) => {
   const navigate = useNavigate();
+
+  const resolvedName = (name || profile?.name || "").trim();
 
   // Determine target completion percentage
   const targetCompletion =
@@ -167,10 +169,11 @@ export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
     }
   };
 
-  const initials = name
-    ? name
-        .split(" ")
+  const initials = resolvedName
+    ? resolvedName
+        .split(/\s+/)
         .map((n) => n[0])
+        .filter(Boolean)
         .join("")
         .toUpperCase()
         .slice(0, 2)
@@ -270,7 +273,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({
   compact = false,
 }) => {
   const navigate = useNavigate();
-  const completion = profile ? calculateProfileCompletion(profile) : 60;
+  const completion = profile ? calculateProfileCompletion(profile) : 0;
   const updatedAgo = formatRelativeTime(profile?.updatedAt);
   const nudge = getProfileNudge(profile || {});
 

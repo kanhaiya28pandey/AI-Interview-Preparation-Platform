@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Shield, Settings as SettingsIcon, Server, Database } from "lucide-react";
 import { toast } from "sonner";
 import { AppearanceSettingsCard } from "@/components/common/AppearanceSettingsCard";
+import { isMockMode } from "@/lib/dataMode";
 
 export const AdminSettings: React.FC = () => {
   const [apiBaseUrl, setApiBaseUrl] = useState(

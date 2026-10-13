@@ -1,5 +1,6 @@
 package com.interviewplatform.backend.model;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -141,12 +142,20 @@ public class ContentItem {
         this.createdAt = createdAt;
     }
 
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt != null ? createdAt.toString() : null;
+    }
+
     public String getUpdatedAt() {
         return updatedAt;
     }
 
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt != null ? updatedAt.toString() : null;
     }
 
     public int getStudentAttemptsCount() {

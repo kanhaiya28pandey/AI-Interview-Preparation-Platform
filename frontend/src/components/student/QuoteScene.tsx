@@ -4,7 +4,8 @@ import type { QuoteCategoryTheme } from "@/data/quoteThemes";
 // Lazy-load lottie-react safely
 const LazyLottie = lazy(async () => {
   try {
-    const mod = await import("lottie-react");
+    // @ts-ignore
+    const mod = await import(/* @vite-ignore */ "lottie-react");
     const Component = (mod.Lottie || (mod as any).default) as React.ComponentType<any>;
     return { default: Component };
   } catch {

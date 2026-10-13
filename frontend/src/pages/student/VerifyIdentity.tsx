@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ import {
 import { verificationService } from "@/services/verificationService";
 import { useVerificationStatus } from "@/hooks/useVerificationStatus";
 import { CollegeIdUploader, CollegeIdData } from "@/components/verification/CollegeIdUploader";
+import { isMockMode, getDataModeLabel } from "@/lib/dataMode";
 import {
   ShieldCheck,
   AlertCircle,
@@ -24,6 +25,7 @@ import { toast } from "sonner";
 export const VerifyIdentity: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { status, submission: currentSubmission, isLoading: isLoadingStatus, refresh } = useVerificationStatus();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -37,7 +39,14 @@ export const VerifyIdentity: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    if (currentSubmission) {
+    const failedSubmission = (location.state as any)?.failedSubmission;
+
+    if (failedSubmission) {
+      if (failedSubmission.collegeNameOnId) setCollegeName(failedSubmission.collegeNameOnId);
+      if (failedSubmission.rollNumberOnId) setRollNumber(failedSubmission.rollNumberOnId);
+      if (failedSubmission.courseBranch) setCourseBranch(failedSubmission.courseBranch);
+      if (failedSubmission.yearSemester) setYearSemester(failedSubmission.yearSemester);
+    } else if (currentSubmission) {
       setCollegeName(currentSubmission.collegeName);
       setRollNumber(currentSubmission.rollNumber);
       setCourseBranch(currentSubmission.courseBranch);
@@ -48,7 +57,7 @@ export const VerifyIdentity: React.FC = () => {
         setCollegeName(suggested);
       }
     }
-  }, [user, currentSubmission]);
+  }, [user, currentSubmission, location.state]);
 
   const handleVerificationSubmit = async (data: CollegeIdData) => {
     if (!user) return;
@@ -57,7 +66,7 @@ export const VerifyIdentity: React.FC = () => {
     try {
       await verificationService.submitVerification({
         userId: user.userId,
-        studentName: data.nameOnId || user.name || "Student User",
+        studentName: data.nameOnId || user.name || "",
         email: user.email,
         collegeName: data.collegeNameOnId || collegeName.trim(),
         rollNumber: data.rollNumberOnId || rollNumber.trim(),
@@ -72,7 +81,19 @@ export const VerifyIdentity: React.FC = () => {
       await refresh();
       toast.success("College ID submitted successfully for review!");
     } catch (err: any) {
-      toast.error(err.message || "Failed to submit verification request.");
+      const status = err?.response?.status;
+      const raw = err?.response?.data?.message || err?.message || "";
+      let msg = "Failed to submit verification request.";
+      if (status === 400 || status === 422) {
+        msg = raw || "Validation Error: Please fill in all required ID details.";
+      } else if (status === 413) {
+        msg = "Uploaded file is too large. Maximum allowed file size is 15MB.";
+      } else if (status === 500) {
+        msg = "Server error, please try again.";
+      } else if (raw) {
+        msg = raw;
+      }
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -91,7 +112,7 @@ export const VerifyIdentity: React.FC = () => {
       {/* Header Banner */}
       <div className="bg-surface border border-border p-6 rounded-2xl shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs text-cyan-400 uppercase tracking-widest font-semibold">
               Student Eligibility Check
             </span>
@@ -108,6 +129,12 @@ export const VerifyIdentity: React.FC = () => {
               className="text-[10px] font-mono"
             >
               {status}
+            </Badge>
+            <Badge
+              variant={isMockMode() ? "outline" : "active"}
+              className="text-[10px] font-mono"
+            >
+              {getDataModeLabel()}
             </Badge>
           </div>
           <h1 className="font-serif text-3xl font-medium text-text-primary">
