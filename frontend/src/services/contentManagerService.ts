@@ -1,4 +1,4 @@
-import api, { isDemoSession } from "@/lib/api";
+import api from "@/lib/api";
 import { notificationService } from "./notificationService";
 import { progressService } from "./progressService";
 
@@ -973,9 +973,10 @@ export const contentManagerService = {
 
     let synthesizedQuestions: QuizQuestionItem[] = [];
 
-    // Attempt calling Python AI Microservice on port 8000
+    // Attempt calling AI Microservice / backend proxy
     try {
-      const response = await fetch("http://localhost:8000/api/ai/quiz/generate", {
+      const aiBase = import.meta.env.VITE_AI_SERVICE_URL || "/api/ai";
+      const response = await fetch(`${aiBase}/quiz/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

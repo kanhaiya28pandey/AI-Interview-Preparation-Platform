@@ -35,13 +35,6 @@ export const authService = {
   async register(credentials: RegisterCredentials | FormData): Promise<AuthResponse> {
     const isFormData = typeof FormData !== "undefined" && credentials instanceof FormData;
     try {
-      if (import.meta.env.DEV) {
-        console.log("[DEV LOG] Initiating register API request to:", `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/api/auth/register`);
-        if (!isFormData) {
-          console.log("[DEV LOG] Payload:", { ...(credentials as RegisterCredentials), password: "[REDACTED]" });
-        }
-      }
-
       const response = await api.post<AuthResponse>("/api/auth/register", credentials, {
         headers: isFormData
           ? { "Content-Type": "multipart/form-data" }

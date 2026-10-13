@@ -5,7 +5,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className
   return (
     <div
       className={cn(
-        "bg-surface border border-border rounded-xl p-5 shadow-sm transition-all duration-200 hover:border-border-strong hover:shadow-card",
+        "bg-surface border border-border rounded-xl p-5 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border-strong hover:shadow-card",
         className
       )}
       {...props}

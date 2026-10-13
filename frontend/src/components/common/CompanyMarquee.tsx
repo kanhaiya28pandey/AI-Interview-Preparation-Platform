@@ -101,10 +101,6 @@ export const CompanyMarquee: React.FC = () => {
             ))}
           </div>
         </div>
-
-        <p className="font-mono text-[10px] text-text-muted/70 tracking-wide">
-          Logos are trademarks of their respective owners.
-        </p>
       </div>
     </section>
   );

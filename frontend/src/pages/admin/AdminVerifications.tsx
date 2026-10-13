@@ -388,7 +388,7 @@ export const AdminVerifications: React.FC = () => {
               </p>
               <p className="text-xs text-red-400/80">
                 {error.isNetworkError
-                  ? "Backend service at http://localhost:8080 is unreachable. Verify that backend is running with ./mvnw.cmd spring-boot:run"
+                  ? "Unable to connect to the backend server. Please verify network connectivity and retry."
                   : error.is403
                   ? "Administrator privileges required to access verification queue."
                   : "Please check your network connection and retry."}

@@ -80,7 +80,9 @@ public class SecurityConfig {
                                 "/api/v1/support/tickets/**",
                                 "/api/support/tickets/**",
                                 "/api/v1/help/articles/*/vote",
-                                "/api/help/articles/*/vote"
+                                "/api/help/articles/*/vote",
+                                "/api/ai/**",
+                                "/api/v1/ai/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/content/**",

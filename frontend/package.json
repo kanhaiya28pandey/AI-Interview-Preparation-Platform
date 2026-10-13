@@ -16,6 +16,7 @@
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "framer-motion": "^13.4.3",
+    "lottie-react": "^3.1.2",
     "lucide-react": "^1.48.0",
     "monaco-editor": "^0.57.0",
     "react": "^19.3.0",

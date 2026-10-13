@@ -143,7 +143,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24">
       <Reveal direction="up" duration={0.5}>
         <div>
           <h2 className="font-serif text-2xl font-medium text-text-primary">Platform Admin Dashboard</h2>
@@ -349,7 +349,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </Card>
 
-            <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border">
+            <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border flex flex-col justify-between">
               <div>
                 <h4 className="font-serif text-base font-semibold text-text-primary">
                   Target Role Distribution
@@ -359,46 +359,125 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
 
-              <div className="h-64 w-full flex items-center justify-center pt-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={resumeAnalytics.roleDistribution}
-                      dataKey="count"
-                      nameKey="role"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      paddingAngle={3}
-                    >
-                      {resumeAnalytics.roleDistribution.map((entry, index) => (
-                        <Cell key={`role-cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--tooltip-bg)",
-                        borderColor: "var(--tooltip-border)",
-                        color: "#ffffff",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                      }}
-                      formatter={(val: any, name: any) => [`${val} Resumes`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              {/* Donut Chart or Clean Empty State */}
+              {(() => {
+                const totalResumes = resumeAnalytics.totalResumesAnalyzed || 0;
+                const roleList = resumeAnalytics.roleDistribution || [];
+                const hasValidData = totalResumes > 0 && roleList.some((r) => r.count > 0 || r.percentage > 0);
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t border-border/60 text-[11px] font-mono">
-                {resumeAnalytics.roleDistribution.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    <span className="text-text-secondary truncate">{item.role}</span>
-                    <span className="text-text-muted font-bold">({item.percentage}%)</span>
+                if (!hasValidData) {
+                  return (
+                    <div className="h-64 w-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-surface-raised/30 rounded-2xl border border-dashed border-border/80">
+                      <div className="w-14 h-14 rounded-2xl bg-cyan-400/10 text-cyan-400 flex items-center justify-center shadow-inner">
+                        <FileText className="w-7 h-7 opacity-80" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-serif text-sm font-semibold text-text-primary">
+                          No resumes analyzed yet
+                        </p>
+                        <p className="text-xs text-text-muted max-w-xs font-sans">
+                          Candidate role distribution and ATS statistics will appear once students upload resumes to the scanner.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Distinct colors per role: teal, indigo, amber, violet, rose, emerald
+                const palette = ["#14b8a6", "#6366f1", "#f59e0b", "#8b5cf6", "#f43f5e", "#10b981"];
+                const totalSlice = roleList.reduce((acc, curr) => acc + (curr.count || curr.percentage || 1), 0);
+
+                const radius = 68;
+                const strokeWidth = 24;
+                const circumference = 2 * Math.PI * radius;
+                let accumulatedPercent = 0;
+
+                return (
+                  <div className="space-y-4">
+                    <div className="h-64 w-full relative flex items-center justify-center">
+                      <svg width="220" height="220" viewBox="0 0 220 220" className="transform -rotate-90">
+                        {/* Background track circle */}
+                        <circle
+                          cx="110"
+                          cy="110"
+                          r={radius}
+                          fill="transparent"
+                          stroke="rgba(255,255,255,0.06)"
+                          strokeWidth={strokeWidth}
+                        />
+
+                        {roleList.map((entry, idx) => {
+                          const val = entry.count || entry.percentage || 0;
+                          const ratio = totalSlice > 0 ? val / totalSlice : 0;
+                          const strokeDasharray = `${ratio * circumference} ${circumference}`;
+                          const strokeDashoffset = -(accumulatedPercent * circumference);
+                          accumulatedPercent += ratio;
+                          const color = palette[idx % palette.length];
+
+                          return (
+                            <circle
+                              key={`donut-slice-${idx}`}
+                              cx="110"
+                              cy="110"
+                              r={radius}
+                              fill="transparent"
+                              stroke={color}
+                              strokeWidth={strokeWidth}
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                              strokeLinecap="butt"
+                              className="transition-[stroke-dashoffset,opacity] duration-700 ease-out hover:opacity-80 cursor-pointer"
+                            >
+                              <title>{`${entry.role}: ${entry.count || 0} resumes (${entry.percentage}%)`}</title>
+                            </circle>
+                          );
+                        })}
+                      </svg>
+
+                      {/* Center Content: Total Number of Resumes */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center">
+                        <span className="font-serif text-2xl font-bold text-text-primary tracking-tight">
+                          {totalResumes}
+                        </span>
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted">
+                          Resumes
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Full Role Names in 2-Column Grid with Count & Percentage */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-3 border-t border-border/70 text-xs font-mono">
+                      {roleList.map((item, idx) => {
+                        const color = palette[idx % palette.length];
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-1.5 rounded-lg bg-surface-raised/40 border border-border/50 gap-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="text-text-primary font-sans font-medium text-xs break-words">
+                                {item.role}
+                              </span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="text-text-secondary font-bold">
+                                {item.count}
+                              </span>
+                              <span className="text-text-muted ml-1">
+                                ({item.percentage}%)
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </Card>
           </div>
         </div>

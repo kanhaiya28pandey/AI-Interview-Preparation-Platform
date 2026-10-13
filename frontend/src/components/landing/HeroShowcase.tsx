@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 interface HeroShowcaseProps {
   roleIndex: number;
   sessionSeconds: number;
-  onDemoAdmin: () => void;
+  onDemoAdmin?: () => void;
 }
 
 const TECH_BADGES = [
@@ -58,7 +58,7 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
         <div className="relative w-full max-w-lg lg:max-w-none mx-auto min-h-[440px] sm:min-h-[480px] flex items-center justify-center pt-6">
           {/* Soft dynamic ambient radial background glow */}
           <div
-            className="absolute inset-0 pointer-events-none transition-colors duration-700 blur-3xl opacity-30"
+            className="absolute inset-0 pointer-events-none transition-colors blur-3xl opacity-30"
             style={{
               background: `radial-gradient(circle at 55% 45%, ${currentRole.glowColor} 0%, transparent 68%)`,
             }}
@@ -69,7 +69,7 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
           <div className="w-full relative z-10">
             <TiltCard intensity={reducedMotion ? 0 : 6} className="shadow-2xl">
               <Card
-                className="p-0 overflow-hidden bg-surface/95 backdrop-blur-md border shadow-soft relative group transition-colors duration-500"
+                className="p-0 overflow-hidden bg-surface/95 backdrop-blur-md border shadow-soft relative group transition-colors"
                 style={{
                   borderColor: `${currentRole.accentColor}50`,
                   boxShadow: `0 12px 36px -8px ${currentRole.glowColor}`,
@@ -140,16 +140,12 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
                 {/* Terminal Footer (Full visible status line with clean breathing room) */}
                 <div className="px-4 py-3 bg-surface-raised border-t border-border flex justify-between items-center text-xs font-mono text-text-muted">
                   <span className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-live" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-live animate-pulse" />
                     Status: <strong className="text-live font-medium">Evaluator Active</strong>
                   </span>
-                  <button
-                    type="button"
-                    onClick={onDemoAdmin}
-                    className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors cursor-pointer"
-                  >
-                    Try Admin View →
-                  </button>
+                  <span className="text-text-muted/70 text-[11px] font-mono">
+                    AI Real-Time Evaluation
+                  </span>
                 </div>
               </Card>
             </TiltCard>
@@ -240,7 +236,7 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
           <motion.div
             animate={reducedMotion ? undefined : { y: [0, -4, 0] }}
             transition={reducedMotion ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            className="flex flex-col gap-2 p-4 rounded-xl bg-surface-raised/95 border backdrop-blur-md shadow-xl text-text-primary w-full md:w-[calc(50%-16px)] max-w-[260px] transition-colors duration-500"
+            className="flex flex-col gap-2 p-4 rounded-xl bg-surface-raised/95 border backdrop-blur-md shadow-xl text-text-primary w-full md:w-[calc(50%-16px)] max-w-[260px] transition-colors"
             style={{
               borderColor: `${currentRole.accentColor}50`,
               boxShadow: `0 8px 24px -6px ${currentRole.glowColor}`,

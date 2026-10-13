@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-ink: var(--ink);
   --color-surface: var(--surface);
@@ -116,6 +118,7 @@
 
 @layer base {
   :root, html.dark {
+    color-scheme: dark;
     --ink: #0d1321;
     --surface: #141b2c;
     --surface-raised: #1b2438;
@@ -206,6 +209,7 @@
   }
 
   html.light {
+    color-scheme: light;
     --ink: #f8fafc;
     --surface: #ffffff;
     --surface-raised: #f1f5f9;
@@ -316,9 +320,71 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Smooth surface theme transitions */
-  body, .bg-surface, .bg-surface-raised, .bg-ink, header, aside {
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  /* Unified View Transitions API & Smooth Switch Styling */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 350ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(root) {
+    animation-name: vt-fade-out;
+    mix-blend-mode: normal;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: vt-fade-in;
+    mix-blend-mode: normal;
+  }
+
+  @keyframes vt-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes vt-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Temporary fallback class for browsers without View Transitions API */
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition: background-color 350ms ease,
+                border-color 350ms ease,
+                color 350ms ease,
+                fill 350ms ease,
+                stroke 350ms ease,
+                box-shadow 350ms ease !important;
+    transition-delay: 0ms !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none !important;
+      animation-duration: 0s !important;
+    }
+
+    html.theme-transition,
+    html.theme-transition *,
+    html.theme-transition *::before,
+    html.theme-transition *::after {
+      transition: none !important;
+    }
+  }
+
+  html[data-reduced-effects="true"] ::view-transition-old(root),
+  html[data-reduced-effects="true"] ::view-transition-new(root) {
+    animation: none !important;
+    animation-duration: 0s !important;
+  }
+
+  html[data-reduced-effects="true"].theme-transition,
+  html[data-reduced-effects="true"].theme-transition * {
+    transition: none !important;
   }
 
   html.light body {
@@ -518,6 +584,32 @@ html.light .glass {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(15, 23, 42, 0.08) !important;
   box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Dynamic Live Appearance Effects */
+:root {
+  --radius: 12px;
+}
+
+html[data-density="compact"] .app-scroll {
+  padding-top: 0.75rem !important;
+  padding-bottom: 2rem !important;
+}
+
+html[data-density="compact"] .p-6 {
+  padding: 1.1rem !important;
+}
+
+html[data-glass="true"] .bg-surface {
+  background: rgba(20, 27, 44, 0.75) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+html.light[data-glass="true"] .bg-surface {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
 }
 
 /* Gradient Animated Headline Text */

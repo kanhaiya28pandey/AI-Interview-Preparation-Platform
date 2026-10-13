@@ -1,6 +1,5 @@
 /**
  * Data Mode Helper
- *
  * Single source of truth for mock vs backend mode across the entire application.
  *
  * Rules:

@@ -63,7 +63,7 @@ const connectSseStream = (userId: string, isAdminUser: boolean) => {
   }
 
   currentStreamUser = streamKey;
-  const baseUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8080";
+  const baseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "";
   const url = `${baseUrl}/api/v1/notifications/stream?userId=${encodeURIComponent(userId)}&role=${isAdminUser ? "ADMIN" : "STUDENT"}`;
 
   try {

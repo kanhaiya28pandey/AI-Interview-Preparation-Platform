@@ -47,7 +47,7 @@ import { isMockMode } from "@/lib/dataMode";
 const DRAFT_STORAGE_KEY = "ai_interview_prep_register_draft";
 
 export const Register: React.FC = () => {
-  const { register: registerAuth, loginDemoStudent, isAuthenticated, user, logout } = useAuth();
+  const { register: registerAuth, isAuthenticated, user, logout } = useAuth();
   const { addStudent } = useAdminStore();
   const navigate = useNavigate();
 
@@ -528,11 +528,6 @@ export const Register: React.FC = () => {
     executeRegistration();
   };
 
-  const handleDemoStudent = () => {
-    loginDemoStudent();
-    navigate("/dashboard", { replace: true });
-  };
-
   // Stepper Header Click Navigation
   const handleStepHeaderClick = (targetStep: number) => {
     if (targetStep < currentStep) {
@@ -656,22 +651,6 @@ export const Register: React.FC = () => {
           </div>
         </div>
 
-        {/* Demo Try Banner */}
-        <div className="p-3 bg-surface-raised border border-cyan-400/30 rounded-xl flex items-center justify-between gap-3">
-          <div className="text-xs font-mono text-text-secondary">
-            <span className="text-accent font-semibold block">Want instant access without registering?</span>
-            <span>Test drive full feature set using student demo mode.</span>
-          </div>
-          <Button
-            variant="teal-cyan"
-            size="sm"
-            onClick={handleDemoStudent}
-            type="button"
-            className="text-xs shrink-0"
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Try Demo
-          </Button>
-        </div>
 
         {/* Restored Draft Notice */}
         {hasRestoredDraft && (
@@ -756,11 +735,6 @@ export const Register: React.FC = () => {
                 <span>Retry</span>
               </Button>
             </div>
-            {serverError.toLowerCase().includes("cannot reach the server") && (
-              <p className="text-[11px] font-mono text-amber-300 bg-amber-500/10 p-2 rounded border border-amber-500/30">
-                💡 Tip: Ensure backend service is running on <code>http://localhost:8080</code> or set <code>VITE_USE_MOCKS=true</code> in your <code>.env</code> file.
-              </p>
-            )}
             {serverError.toLowerCase().includes("already exists") && (
               <div className="flex items-center gap-3 pt-2 border-t border-danger/20 font-mono text-[11px]">
                 <Link to="/login" className="text-cyan-400 hover:underline font-semibold">

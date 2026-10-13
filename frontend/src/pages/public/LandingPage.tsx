@@ -20,6 +20,11 @@ import {
   ShieldCheck,
   Flame,
   BookOpen,
+  FileText,
+  Cpu,
+  Trophy,
+  Brain,
+  Zap,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { CompanyMarquee } from "@/components/common/CompanyMarquee";
@@ -52,15 +57,8 @@ const DELETE_MS = 35;
 const HOLD_MS = 1600;
 
 export const LandingPage: React.FC = () => {
-  const { isAuthenticated, user, logout, loginDemoStudent, loginDemoAdmin } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-
-  // Automatically log out when landing on the landing page so session starts fresh
-  useEffect(() => {
-    if (isAuthenticated || localStorage.getItem("ai_interview_prep_token")) {
-      logout();
-    }
-  }, [isAuthenticated, logout]);
 
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -73,29 +71,10 @@ export const LandingPage: React.FC = () => {
 
   const reducedMotion = useReducedEffects();
   const currentRole = HERO_ROLES[roleIndex] || HERO_ROLES[0];
-  const currentRoleName = ROLES[roleIndex] || ROLES[0];
-
-  // Animated counters state
-  const [studentsCount, setStudentsCount] = useState(0);
-  const [questionsCount, setQuestionsCount] = useState(0);
-  const [mockCount, setMockCount] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => setSessionSeconds((prev) => prev + 1), 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  // Count up animation effect
-  useEffect(() => {
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      setStudentsCount(Math.min(1250, step * 50));
-      setQuestionsCount(Math.min(4500, step * 180));
-      setMockCount(Math.min(2150, step * 90));
-      if (step >= 25) clearInterval(interval);
-    }, 40);
-    return () => clearInterval(interval);
   }, []);
 
   // Typewriter effect: types, holds, deletes, and advances to the next role in an infinite loop
@@ -146,78 +125,72 @@ export const LandingPage: React.FC = () => {
     setRoleIndex(index);
   };
 
-  const formatClock = (sec: number) => {
-    const m = String(Math.floor(sec / 60)).padStart(2, "0");
-    const s = String(sec % 60).padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
-  const handleDemoStudent = () => {
-    loginDemoStudent();
-    navigate(`/dashboard?role=${currentRole.slug}`);
-  };
-
-  const handleDemoAdmin = () => {
-    loginDemoAdmin();
-    navigate(`/admin?role=${currentRole.slug}`);
-  };
-
   const faqs = [
     {
-      q: "How does the AI Mock Interview work?",
-      a: "The platform presents realistic engineering interview scenarios (React, Java Spring, System Design, STAR behavioral). You answer via text or voice, and our evaluator analyzes clarity, trade-off reasoning, and code efficiency to output a detailed scorecard.",
+      q: "How does the AI Mock Interview evaluation work?",
+      a: "The platform presents realistic engineering interview scenarios (React, Java Spring Boot, System Design, STAR behavioral). You answer via speech or text, and our real-time AI evaluator scores technical depth, architectural trade-offs, and communication clarity with an instant scorecard.",
     },
     {
       q: "Is the platform free for college students?",
       a: "Yes! Verified college students get full access to all practice tracks, coding arena challenges, and mock interview rooms during campus placement season.",
     },
     {
-      q: "Does the backend need to be running for demo mode?",
-      a: "No! You can click 'Instant Demo Student' or 'Instant Demo Admin' to explore the full platform even when offline or during presentations.",
+      q: "What domains and engineering roles does the platform support?",
+      a: "We support over 10 distinct engineering tracks including Frontend (React), Backend (Spring Boot, Node.js), Full Stack, System Design, DSA & Algorithms, DBMS/SQL, DevOps, and STAR Behavioral rounds.",
     },
     {
-      q: "Can administrators add custom coding tests and interview tracks?",
-      a: "Absolutely. The Admin Panel allows full management of users, creation of custom algorithm problems, and configuration of interview tracks.",
+      q: "How does the ATS Resume Analyzer help in placements?",
+      a: "Upload your resume in PDF format. The scanner extracts key technical competencies, calculates role match percentage, highlights missing keywords from target job descriptions, and provides actionable bullet point improvements.",
+    },
+    {
+      q: "Can administrators and placement cells add custom coding tests?",
+      a: "Absolutely. The Admin Panel allows full management of student verification, creation of custom algorithm problems, and scheduling of live campus placement tests.",
     },
   ];
 
-  const testimonials = [
+  const features = [
     {
-      name: "Aarav Sharma",
-      role: "Placed at Amazon SDE-1",
-      college: "SRM Institute of Science and Technology",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-      quote: "The AI mock feedback showed me exactly where my system design answers were lacking. Walked into my Amazon interview feeling like it was just another practice session.",
+      icon: Video,
+      title: "AI Mock Interviews",
+      desc: "Simulate live technical and behavioral placement rounds with AI feedback on communication, depth, and structure.",
+      color: "from-cyan-500/20 to-cyan-500/5",
+      border: "border-cyan-500/30",
+      accent: "text-cyan-400",
     },
     {
-      name: "Priya Nair",
-      role: "Placed at Microsoft SDE",
-      college: "IIT Madras",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-      quote: "The coding arena and STAR behavioral questions prepared me for tough pressure questions. Best placement prep tool our college recommended!",
+      icon: Code2,
+      title: "Interactive Coding Arena",
+      desc: "Solve benchmark DSA problems in our browser IDE with multi-language execution, instant test runner, and complexity analysis.",
+      color: "from-indigo-500/20 to-indigo-500/5",
+      border: "border-indigo-500/30",
+      accent: "text-indigo-400",
     },
     {
-      name: "Vikramaditya Roy",
-      role: "Placed at Atlassian",
-      college: "BITS Pilani",
-      avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
-      quote: "Tracking my streak and seeing my interview score jump from 65% to 92% gave me tremendous confidence before campus placement drives.",
+      icon: FileText,
+      title: "ATS Resume Analyzer",
+      desc: "Get an instant ATS compatibility score, role alignment breakdown, and concrete recommendations to pass resume shortlists.",
+      color: "from-emerald-500/20 to-emerald-500/5",
+      border: "border-emerald-500/30",
+      accent: "text-emerald-400",
+    },
+    {
+      icon: Trophy,
+      title: "Live Contests & Rankings",
+      desc: "Compete in timed campus placement contests, solve live benchmarks, and climb your college's official percentile leaderboard.",
+      color: "from-amber-500/20 to-amber-500/5",
+      border: "border-amber-500/30",
+      accent: "text-amber-400",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-ink text-text-primary flex flex-col selection:bg-[#22d3ee] selection:text-[#0d1321]">
+    <div className="min-h-screen bg-transparent text-text-primary flex flex-col selection:bg-[#22d3ee] selection:text-[#0d1321] w-full overflow-x-hidden relative z-10">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative max-w-7xl mx-auto px-6 py-12 lg:py-24 w-full">
-        {/* Ambient Gradient Mesh and Floating Orbs (Contained outside grid flow) */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          <GradientMesh variant="aurora" />
-          <FloatingOrbs count={3} />
-        </div>
+      {/* Hero Section: Fills first viewport (min-h-[100svh]) */}
+      <section className="relative w-full min-h-[100svh] flex flex-col justify-center max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 py-8 lg:py-16">
 
-        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center w-full z-10">
+        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center w-full z-10 flex-1 my-auto">
           {/* Left Content Column */}
           <div className="lg:col-span-7 space-y-6 text-left relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 text-xs font-mono uppercase tracking-wider shadow-[0_0_12px_rgba(34,211,238,0.2)]">
@@ -225,7 +198,7 @@ export const LandingPage: React.FC = () => {
               AI Placement Preparation Platform
             </div>
 
-            <h1 className="font-serif text-4xl sm:text-6xl font-medium tracking-tight leading-[1.08]">
+            <h1 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-medium tracking-tight leading-[1.06]">
               Master every placement round for <br />
               <span
                 className="inline-grid grid-cols-1 grid-rows-1 text-cyan-400 font-serif italic font-normal align-bottom select-none cursor-default"
@@ -237,7 +210,7 @@ export const LandingPage: React.FC = () => {
                 aria-live="off"
                 title="Hover to pause rotation"
               >
-                {/* Invisible placeholder for max width/height reservation to eliminate layout shifts */}
+                {/* Invisible placeholder for max width reservation */}
                 <span
                   className="invisible col-start-1 row-start-1 select-none pointer-events-none whitespace-normal sm:whitespace-nowrap"
                   aria-hidden="true"
@@ -255,7 +228,7 @@ export const LandingPage: React.FC = () => {
               </span>
             </h1>
 
-            {/* Accessible screen reader announcement for the roles */}
+            {/* Screen reader announcement */}
             <span className="sr-only">
               Master every placement round for {ROLES.join(", ")}.
             </span>
@@ -328,15 +301,22 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-2xl font-sans">
-              AI Interview Preparation is the modern practice platform for top engineering students. Practice adapted mock interviews, solve algorithm benchmarks, and walk into placement drives with complete confidence.
+              AI Interview Preparation is the all-in-one placement preparation suite for engineering students. Practice simulated AI mock interviews, benchmark algorithmic coding, and enter placement season with total confidence.
             </p>
 
+            {/* CTAs (Part 2: Get Started as primary, Sign in as secondary) */}
             <div className="flex flex-wrap items-center gap-4 pt-2">
               {isAuthenticated ? (
                 <Button
                   variant="teal-cyan"
                   size="lg"
-                  onClick={() => navigate(user?.role === "ADMIN" ? `/admin?role=${currentRole.slug}` : `/dashboard?role=${currentRole.slug}`)}
+                  onClick={() =>
+                    navigate(
+                      user?.role === "ADMIN"
+                        ? `/admin?role=${currentRole.slug}`
+                        : `/dashboard?role=${currentRole.slug}`
+                    )
+                  }
                   className="shadow-[0_0_20px_var(--accent-glow)]"
                 >
                   <span>Go to Dashboard</span>
@@ -344,12 +324,22 @@ export const LandingPage: React.FC = () => {
                 </Button>
               ) : (
                 <>
-                  <Button variant="primary" size="lg" onClick={handleDemoStudent} className="shadow-[0_0_20px_var(--accent-glow)]">
-                    <Sparkles className="w-5 h-5" /> Try Instant Demo
-                  </Button>
                   <Link to={`/register?role=${currentRole.slug}`}>
-                    <Button variant="outline" size="lg" className="hover:border-cyan-400/60">
-                      Create Account
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="shadow-[0_0_25px_rgba(34,211,238,0.35)] font-semibold text-sm sm:text-base px-6 py-3.5"
+                    >
+                      <Sparkles className="w-5 h-5" /> Get Started
+                    </Button>
+                  </Link>
+                  <Link to="/login">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="hover:border-cyan-400/60 font-medium text-sm sm:text-base px-6 py-3.5"
+                    >
+                      Sign in
                     </Button>
                   </Link>
                 </>
@@ -384,7 +374,6 @@ export const LandingPage: React.FC = () => {
             <HeroShowcase
               roleIndex={roleIndex}
               sessionSeconds={sessionSeconds}
-              onDemoAdmin={handleDemoAdmin}
             />
           </div>
         </div>
@@ -396,10 +385,14 @@ export const LandingPage: React.FC = () => {
       </Reveal>
 
       {/* 3 Step Workflow */}
-      <section className="max-w-7xl mx-auto px-6 py-20 w-full">
+      <section className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 py-20">
         <Reveal direction="up" className="text-center max-w-xl mx-auto mb-16 space-y-2">
-          <p className="font-mono text-xs uppercase tracking-widest text-accent">The Preparation Method</p>
-          <h2 className="font-serif text-3xl sm:text-4xl font-medium text-text-primary">Three steps to placement mastery</h2>
+          <p className="font-mono text-xs uppercase tracking-widest text-accent font-semibold">
+            The Preparation Method
+          </p>
+          <h2 className="font-serif text-3xl sm:text-4xl font-medium text-text-primary">
+            Three steps to placement mastery
+          </h2>
         </Reveal>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -409,9 +402,11 @@ export const LandingPage: React.FC = () => {
                 <div className="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-mono font-bold">
                   01
                 </div>
-                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-cyan-400 transition-colors">Practice a Round</h3>
+                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-cyan-400 transition-colors">
+                  Practice a Round
+                </h3>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Pick a domain track — MERN, Java Spring Boot, System Design, or STAR Behavioral — and enter the simulated interview room.
+                  Pick a domain track — React, Java Spring Boot, System Design, or STAR Behavioral — and enter the simulated interview room.
                 </p>
               </Card>
             </TiltCard>
@@ -423,9 +418,11 @@ export const LandingPage: React.FC = () => {
                 <div className="w-10 h-10 rounded-xl bg-live/15 text-live border border-live/30 flex items-center justify-center font-mono font-bold">
                   02
                 </div>
-                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-live transition-colors">Get Detailed Feedback</h3>
+                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-live transition-colors">
+                  Get Detailed Feedback
+                </h3>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  No generic fluff. Feedback pinpoints technical depth, architectural trade-offs, and communication clarity with exact scores.
+                  No generic fluff. Feedback pinpoints technical depth, architectural trade-offs, and communication clarity with exact rubric scores.
                 </p>
               </Card>
             </TiltCard>
@@ -437,9 +434,11 @@ export const LandingPage: React.FC = () => {
                 <div className="w-10 h-10 rounded-xl bg-violet-500/15 text-violet-400 border border-violet-500/30 flex items-center justify-center font-mono font-bold">
                   03
                 </div>
-                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-violet-400 transition-colors">Interview Summary & Progress</h3>
+                <h3 className="font-serif text-xl font-medium text-text-primary group-hover:text-violet-400 transition-colors">
+                  Summary & Progress
+                </h3>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Track your daily practice streaks, solve coding benchmarks, and watch your campus rank rise.
+                  Track your daily practice streaks, benchmark algorithmic logic, and watch your campus percentile rank rise.
                 </p>
               </Card>
             </TiltCard>
@@ -447,12 +446,53 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Testimonials Carousel */}
-      <section className="bg-surface-raised/40 border-y border-border/60 py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-12">
+      {/* Platform Features Grid (Part 7) */}
+      <section className="w-full bg-surface-raised/30 border-y border-border/60 py-20">
+        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 space-y-12">
           <Reveal direction="up" className="text-center max-w-xl mx-auto space-y-2">
-            <p className="font-mono text-xs uppercase tracking-widest text-accent">Student Testimonials</p>
-            <h2 className="font-serif text-3xl font-medium text-text-primary">Hear from students who nailed placement day</h2>
+            <p className="font-mono text-xs uppercase tracking-widest text-accent font-semibold">
+              Comprehensive Platform Capabilities
+            </p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-medium text-text-primary">
+              Everything required to ace campus drives
+            </h2>
+          </Reveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {features.map((feat, idx) => {
+              const Icon = feat.icon;
+              return (
+                <Reveal key={idx} direction="up" delay={0.1 * idx}>
+                  <Card className={`p-6 bg-gradient-to-b ${feat.color} border ${feat.border} hover:border-cyan-400/60 transition-all duration-300 h-full flex flex-col justify-between group`}>
+                    <div className="space-y-4">
+                      <div className={`w-12 h-12 rounded-xl bg-surface border border-border flex items-center justify-center ${feat.accent}`}>
+                        <Icon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                      </div>
+                      <h3 className="font-serif text-lg font-medium text-text-primary group-hover:text-cyan-300 transition-colors">
+                        {feat.title}
+                      </h3>
+                      <p className="text-xs text-text-secondary leading-relaxed font-sans">
+                        {feat.desc}
+                      </p>
+                    </div>
+                  </Card>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Carousel */}
+      <section className="py-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12">
+        <div className="space-y-12">
+          <Reveal direction="up" className="text-center max-w-xl mx-auto space-y-2">
+            <p className="font-mono text-xs uppercase tracking-widest text-accent font-semibold">
+              Student Testimonials
+            </p>
+            <h2 className="font-serif text-3xl font-medium text-text-primary">
+              Hear from students who nailed placement day
+            </h2>
           </Reveal>
 
           <Reveal direction="up" delay={0.2}>
@@ -462,10 +502,14 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* FAQ Accordion */}
-      <section className="max-w-4xl mx-auto px-6 py-20 w-full space-y-8">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20 w-full space-y-8">
         <Reveal direction="up" className="text-center space-y-2">
-          <p className="font-mono text-xs uppercase tracking-widest text-accent">Frequently Asked Questions</p>
-          <h2 className="font-serif text-3xl font-medium text-text-primary">Everything you need to know</h2>
+          <p className="font-mono text-xs uppercase tracking-widest text-accent font-semibold">
+            Frequently Asked Questions
+          </p>
+          <h2 className="font-serif text-3xl font-medium text-text-primary">
+            Everything you need to know
+          </h2>
         </Reveal>
 
         <Reveal direction="up" delay={0.15}>
@@ -478,7 +522,11 @@ export const LandingPage: React.FC = () => {
               >
                 <div className="flex justify-between items-center">
                   <h3 className="font-serif text-base font-medium text-text-primary">{faq.q}</h3>
-                  <ChevronDown className={`w-4 h-4 text-accent transition-transform duration-200 ${activeFaq === index ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 text-accent transition-transform duration-200 ${
+                      activeFaq === index ? "rotate-180" : ""
+                    }`}
+                  />
                 </div>
                 {activeFaq === index && (
                   <p className="text-xs text-text-secondary mt-3 pt-3 border-t border-border leading-relaxed font-sans">
@@ -491,19 +539,38 @@ export const LandingPage: React.FC = () => {
         </Reveal>
       </section>
 
-      {/* Final CTA Banner */}
-      <section className="max-w-5xl mx-auto px-6 mb-20 w-full">
+      {/* Final Call to Action Banner */}
+      <section className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 mb-20">
         <Reveal direction="up">
-          <div className="border-beam-card bg-gradient-to-r from-surface via-surface-raised to-surface border border-accent/40 p-10 rounded-2xl text-center space-y-6 shadow-soft relative overflow-hidden">
+          <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-10 sm:p-14 rounded-3xl text-center space-y-6 shadow-2xl relative overflow-hidden">
             <GradientMesh variant="sunset" />
-            <div className="space-y-2 max-w-xl mx-auto z-10 relative">
-              <h2 className="font-serif text-3xl sm:text-4xl font-medium text-text-primary">Ready for your mock interview?</h2>
-              <p className="text-sm text-text-secondary">Start practicing on AI Interview Preparation today and master your placement rounds.</p>
+            <div className="space-y-3 max-w-2xl mx-auto z-10 relative">
+              <h2 className="font-serif text-3xl sm:text-5xl font-medium text-text-primary tracking-tight">
+                Ready to crack your campus placement?
+              </h2>
+              <p className="text-sm sm:text-base text-text-secondary leading-relaxed">
+                Join thousands of verified students practicing mock interviews, algorithm benchmarks, and curriculum tracks today.
+              </p>
             </div>
-            <div className="flex justify-center gap-4 z-10 relative">
-              <Button variant="primary" size="lg" onClick={handleDemoStudent} className="shadow-[0_0_20px_var(--accent-glow)]">
-                <Sparkles className="w-5 h-5" /> Launch Instant Demo
-              </Button>
+            <div className="flex flex-wrap justify-center gap-4 z-10 relative pt-2">
+              <Link to="/register">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="shadow-[0_0_25px_rgba(34,211,238,0.4)] px-8 py-3.5 text-base font-semibold"
+                >
+                  <Sparkles className="w-5 h-5" /> Get Started Free
+                </Button>
+              </Link>
+              <Link to="/login">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="px-8 py-3.5 text-base hover:border-cyan-400/60"
+                >
+                  Sign in to Practice
+                </Button>
+              </Link>
             </div>
           </div>
         </Reveal>
@@ -513,3 +580,5 @@ export const LandingPage: React.FC = () => {
     </div>
   );
 };
+
+export default LandingPage;

@@ -1,122 +1,336 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { StatCard } from "@/components/common/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { CardSkeleton } from "@/components/common/Skeletons";
-import { Video, Code2, Flame, Award, TrendingUp, AlertOctagon, Compass, X, Lock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import {
+  Video,
+  Code2,
+  Flame,
+  Award,
+  TrendingUp,
+  AlertOctagon,
+  Compass,
+  X,
+  Lock,
+  Clock,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  Trophy,
+  CheckCircle2,
+  Calendar,
+  ChevronRight,
+  Sparkles,
+  ArrowRight,
+  Target,
+  Zap,
+  BarChart3,
+  BookOpen,
+  FileText,
+  Activity,
+  Layers,
+} from "lucide-react";
 import { toast } from "sonner";
 import { profileService } from "@/services/profileService";
 import { progressService } from "@/services/progressService";
-import { isDemoUser } from "@/lib/userScope";
+import { liveTestService, LiveTestContest } from "@/services/liveTestService";
+import { mockLeaderboardData, LeaderboardUser } from "@/mocks/leaderboardData";
 import { UserProfile, calculateProfileCompletion } from "@/mocks/profileData";
-import { AvatarCompletionRing, ProfileSummaryCard } from "@/components/common/AvatarCompletionRing";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+} from "recharts";
 import { useVerificationStatus } from "@/hooks/useVerificationStatus";
-import { ShieldAlert, Clock, AlertTriangle } from "lucide-react";
-import { Reveal, PointerArrow } from "@/components/fx";
+import { Reveal, PointerArrow, AnimatedCounter } from "@/components/fx";
 import { QuoteCard } from "@/components/student/QuoteCard";
+import { useReducedEffects } from "@/hooks/useReducedEffects";
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const reducedMotion = useReducedEffects();
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dismissReminder, setDismissReminder] = useState(false);
+  const [dismissChecklist, setDismissChecklist] = useState(false);
+  const [now, setNow] = useState<Date>(new Date());
   const { status: verifStatus, submission: verifSub } = useVerificationStatus();
 
+  // Ticking timer for countdowns
   useEffect(() => {
-    profileService.getProfile()
-      .then((data) => {
-        setProfile(data);
-      })
-      .catch((err) => {
-        console.warn("Failed to load profile:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    profileService
+      .getProfile()
+      .then((data) => setProfile(data))
+      .catch((err) => console.warn("Failed to load profile:", err))
+      .finally(() => setLoading(false));
   }, [user]);
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 6)  return { text: "Burning the midnight oil", emoji: "🌙" };
+  // Greeting based on current hour
+  const greeting = useMemo(() => {
+    const hour = now.getHours();
+    if (hour < 6) return { text: "Burning the midnight oil", emoji: "🌙" };
     if (hour < 12) return { text: "Good morning", emoji: "☀️" };
     if (hour < 18) return { text: "Good afternoon", emoji: "👋" };
     return { text: "Good evening", emoji: "🌙" };
-  };
+  }, [now]);
 
-  const greeting = getGreeting();
+  // Real stats calculation
+  const totalCompletedQuestions = useMemo(
+    () => progressService.getCompletedQuestionsCount(user?.userId),
+    [user?.userId]
+  );
+  const totalCodingSolved = useMemo(
+    () => progressService.getCodingProblemsSolvedCount(user?.userId) || profile?.stats.codingProblemsSolved || 0,
+    [user?.userId, profile]
+  );
+  const interviewSessions = useMemo(
+    () => progressService.getInterviewSessions(user?.userId),
+    [user?.userId]
+  );
+  const totalMockInterviews = useMemo(
+    () => interviewSessions.length || profile?.stats.mockInterviewsCompleted || 0,
+    [interviewSessions, profile]
+  );
+  const resumeRecords = useMemo(
+    () => progressService.getResumeAnalyses(user?.userId),
+    [user?.userId]
+  );
+  const resumeCount = resumeRecords.length;
 
-  const performanceTrend = [
-    { day: "Mon", score: 68 },
-    { day: "Tue", score: 74 },
-    { day: "Wed", score: 79 },
-    { day: "Thu", score: 85 },
-    { day: "Fri", score: 82 },
-    { day: "Sat", score: 89 },
-    { day: "Sun", score: 94 },
+  const currentStreak = profile?.stats.currentStreak || 0;
+  const currentXP = profile?.stats.totalXP || totalCodingSolved * 50 + totalMockInterviews * 100 + 240;
+  const currentLevel = Math.max(1, Math.floor(currentXP / 800) + 1);
+  const xpInCurrentLevel = currentXP % 800;
+  const levelProgress = Math.min(100, Math.round((xpInCurrentLevel / 800) * 100));
+
+  const averageScore = useMemo(() => {
+    if (profile?.stats.overallRating) return profile.stats.overallRating;
+    if (interviewSessions.length > 0) {
+      const sum = interviewSessions.reduce((acc, s) => acc + (s.overallScore || 0), 0);
+      return Math.round(sum / interviewSessions.length);
+    }
+    return totalCodingSolved > 0 ? 82 : 0;
+  }, [profile, interviewSessions, totalCodingSolved]);
+
+  const completion = profile ? calculateProfileCompletion(profile) : 0;
+
+  // Live contests
+  const liveTests = useMemo<LiveTestContest[]>(() => {
+    try {
+      const tests = liveTestService.getActiveOrScheduledTests();
+      return tests.slice(0, 3);
+    } catch {
+      return [];
+    }
+  }, []);
+
+  // Leaderboard preview (top 5 + current student)
+  const topStudents = useMemo<LeaderboardUser[]>(() => {
+    return mockLeaderboardData.slice(0, 5);
+  }, []);
+
+  // Daily goal calculation: 3 goals (Solve 1 coding problem, Practice 1 topic, 1 mock or resume)
+  const dailyGoals = useMemo(() => {
+    const goals = [
+      {
+        id: "goal-1",
+        label: "Solve 1 Coding Challenge",
+        completed: totalCodingSolved > 0,
+        link: "/coding",
+      },
+      {
+        id: "goal-2",
+        label: "Practice 1 Placement Track",
+        completed: totalCompletedQuestions > 0,
+        link: "/practice",
+      },
+      {
+        id: "goal-3",
+        label: "Complete AI Mock / Resume ATS",
+        completed: totalMockInterviews > 0 || resumeCount > 0,
+        link: "/mock-interview",
+      },
+    ];
+    const completedCount = goals.filter((g) => g.completed).length;
+    const percentage = Math.round((completedCount / goals.length) * 100);
+    return { goals, completedCount, total: goals.length, percentage };
+  }, [totalCodingSolved, totalCompletedQuestions, totalMockInterviews, resumeCount]);
+
+  // Skill Radar dataset (6 skills: DSA, System Design, DBMS, OS, HR, Communication)
+  const skillRadarData = useMemo(() => {
+    return [
+      { topic: "DSA", score: Math.min(95, 60 + totalCodingSolved * 5) },
+      { topic: "System Design", score: 72 },
+      { topic: "DBMS & SQL", score: 80 },
+      { topic: "OS & Networks", score: 68 },
+      { topic: "HR Behavioral", score: Math.min(92, 65 + totalMockInterviews * 8) },
+      { topic: "Communication", score: Math.min(90, 70 + totalMockInterviews * 6) },
+    ];
+  }, [totalCodingSolved, totalMockInterviews]);
+
+  // Weekly activity trend
+  const weeklyTrendData = [
+    { day: "Mon", score: 68, questions: 4 },
+    { day: "Tue", score: 74, questions: 7 },
+    { day: "Wed", score: 79, questions: 5 },
+    { day: "Thu", score: 85, questions: 9 },
+    { day: "Fri", score: 82, questions: 6 },
+    { day: "Sat", score: 89, questions: 12 },
+    { day: "Sun", score: averageScore > 0 ? averageScore : 92, questions: 8 },
   ];
 
-  const radarData = [
-    { subject: "React/FE", A: 90 },
-    { subject: "Java/Spring", A: 82 },
-    { subject: "DSA/DP", A: 88 },
-    { subject: "System Design", A: 75 },
-    { subject: "SQL/DB", A: 85 },
+  // Checklist items
+  const checklistItems = useMemo(() => {
+    return [
+      {
+        id: "c1",
+        title: "1. Verify Student Identity",
+        desc: "Upload College ID to unlock all platform tools.",
+        done: verifStatus === "Verified",
+        link: "/verify-identity",
+        actionText: "Verify ID",
+      },
+      {
+        id: "c2",
+        title: "2. Complete Profile",
+        desc: "Add headline, course, and skills to reach 100%.",
+        done: completion >= 80,
+        link: "/profile",
+        actionText: "Edit Profile",
+      },
+      {
+        id: "c3",
+        title: "3. Practice Engineering Topics",
+        desc: "Review core architecture and questions.",
+        done: totalCompletedQuestions > 0,
+        link: "/practice",
+        actionText: "Practice",
+      },
+      {
+        id: "c4",
+        title: "4. Solve First Coding Problem",
+        desc: "Test your DSA logic in the interactive browser IDE.",
+        done: totalCodingSolved > 0,
+        link: "/coding",
+        actionText: "Solve DSA",
+      },
+      {
+        id: "c5",
+        title: "5. Take First AI Mock Interview",
+        desc: "Simulate live technical & behavioral rounds.",
+        done: totalMockInterviews > 0,
+        link: "/mock-interview",
+        actionText: "Mock Interview",
+      },
+      {
+        id: "c6",
+        title: "6. Scan Placement Resume",
+        desc: "Check ATS match against target job roles.",
+        done: resumeCount > 0,
+        link: "/resume-analyzer",
+        actionText: "Scan Resume",
+      },
+    ];
+  }, [verifStatus, completion, totalCompletedQuestions, totalCodingSolved, totalMockInterviews, resumeCount]);
+
+  const allChecklistDone = checklistItems.every((i) => i.done);
+
+  // Badges & Achievements
+  const badgesList = [
+    {
+      id: "b-streak",
+      name: "7-Day Streak Master",
+      desc: "Practice 7 consecutive days",
+      icon: Flame,
+      color: "text-amber-400 border-amber-400/40 bg-amber-500/10",
+      unlocked: currentStreak >= 7,
+    },
+    {
+      id: "b-coding",
+      name: "Algorithmic Sprinter",
+      desc: "Solve 5+ coding benchmarks",
+      icon: Code2,
+      color: "text-indigo-400 border-indigo-400/40 bg-indigo-500/10",
+      unlocked: totalCodingSolved >= 5,
+    },
+    {
+      id: "b-interview",
+      name: "Interview Ready",
+      desc: "Complete your first AI mock round",
+      icon: Video,
+      color: "text-teal-400 border-teal-400/40 bg-teal-500/10",
+      unlocked: totalMockInterviews >= 1,
+    },
+    {
+      id: "b-ats",
+      name: "ATS Optimized",
+      desc: "Scan resume with 70%+ score",
+      icon: FileText,
+      color: "text-emerald-400 border-emerald-400/40 bg-emerald-500/10",
+      unlocked: resumeCount >= 1,
+    },
+    {
+      id: "b-system",
+      name: "System Architect",
+      desc: "Master high-concurrency design",
+      icon: Layers,
+      color: "text-purple-400 border-purple-400/40 bg-purple-500/10",
+      unlocked: false,
+    },
+    {
+      id: "b-contender",
+      name: "Campus Contender",
+      desc: "Reach top 10% on leaderboard",
+      icon: Trophy,
+      color: "text-rose-400 border-rose-400/40 bg-rose-500/10",
+      unlocked: averageScore >= 85,
+    },
   ];
 
-  if (loading || !profile) return <CardSkeleton />;
-
-  const completion = calculateProfileCompletion(profile);
-
-  // Stagger container variants
-  const stagger = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.08 } },
-  };
-
-  const isDemo = isDemoUser(user?.userId);
-  const totalCompletedQuestions = progressService.getCompletedQuestionsCount(user?.userId);
-  const totalCodingSolved = progressService.getCodingProblemsSolvedCount(user?.userId) || profile.stats.codingProblemsSolved || 0;
-  const totalMockInterviews = progressService.getInterviewSessions(user?.userId).length || profile.stats.mockInterviewsCompleted || 0;
-  const resumeCount = progressService.getResumeAnalyses(user?.userId).length;
-
-  const hasActivity = totalCompletedQuestions > 0 || totalCodingSolved > 0 || totalMockInterviews > 0 || resumeCount > 0;
-  const readinessScore = isDemo
-    ? (profile.stats.overallRating || 85)
-    : hasActivity
-    ? (profile.stats.overallRating || Math.min(100, Math.round(completion * 0.2 + totalCodingSolved * 10 + totalMockInterviews * 20)))
-    : 0;
-
-  const totalDataPoints = (profile.stats.mockInterviewsCompleted || 0) + (profile.stats.codingProblemsSolved || 0) + totalCompletedQuestions;
-  const readinessTrend = isDemo
-    ? { value: "+4.5%", isPositive: true }
-    : totalDataPoints >= 2
-    ? { value: `+${Math.min(15, totalDataPoints * 2)}%`, isPositive: true }
-    : undefined;
-
-  const welcomeSubtitle = isDemo
-    ? "Your overall performance is in the top 5% of your campus. Ready for today's mock interview or coding challenge?"
-    : readinessScore > 0
-    ? "Welcome back! You are making steady progress towards campus placement."
-    : `Welcome, ${user?.name || "Student"}. Let's start your first practice.`;
+  if (loading || !profile) {
+    return (
+      <div className="space-y-6 w-full max-w-[1600px] mx-auto">
+        <CardSkeleton />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-28 bg-surface-raised animate-pulse rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Verification Status Banner (If not Verified) */}
+    <div className="space-y-8 w-full max-w-[1600px] mx-auto select-none pb-24">
+      {/* 0. Identity Verification Notice Banner (If not Verified) */}
       {verifStatus !== "Verified" && (
         <div
-          className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-soft ${
+          className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-md transition-all ${
             verifStatus === "Pending Verification"
-              ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+              ? "bg-amber-500/10 border-amber-500/40 text-amber-200"
               : verifStatus === "Rejected"
               ? "bg-danger-bg border-danger/40 text-danger"
-              : "bg-cyan-500/10 border-cyan-500/30 text-cyan-300"
+              : "bg-cyan-500/10 border-cyan-500/40 text-cyan-200"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -130,17 +344,17 @@ export const StudentDashboard: React.FC = () => {
             <div>
               <span className="font-semibold text-sm block">
                 {verifStatus === "Pending Verification"
-                  ? "Identity Verification Under Review"
+                  ? "Identity Verification Under Campus Review"
                   : verifStatus === "Rejected"
                   ? "Identity Verification Action Required"
                   : "College ID Verification Required"}
               </span>
-              <p className="text-[11px] opacity-90 leading-relaxed">
+              <p className="text-[11px] opacity-90 leading-relaxed font-sans">
                 {verifStatus === "Pending Verification"
-                  ? `Your College ID (Ref: ${verifSub?.verificationId || "VER-2026"}) is under review. Full features will unlock automatically.`
+                  ? `Your College ID (Ref: ${verifSub?.verificationId || "VER-2026"}) is being reviewed. Platform modules will unlock automatically once verified.`
                   : verifStatus === "Rejected"
-                  ? `Rejection Reason: ${verifSub?.rejectionNotes || "Image was unreadable"}. Please resubmit.`
-                  : "Verify your student status with your College ID to unlock Coding Arena, Mock Interviews, & Leaderboard."}
+                  ? `Submission notes: ${verifSub?.rejectionNotes || "Document unreadable"}. Please upload a clearer copy.`
+                  : "Upload your valid College ID to unlock the Coding Arena, AI Mock Interviews, and Contests."}
               </p>
             </div>
           </div>
@@ -151,386 +365,748 @@ export const StudentDashboard: React.FC = () => {
             onClick={() => navigate("/verify-identity")}
             className="text-xs shrink-0 font-semibold"
           >
-            {verifStatus === "Rejected" ? "Resubmit ID Card" : verifStatus === "Pending Verification" ? "Check Status" : "Verify College ID"}
+            {verifStatus === "Rejected"
+              ? "Resubmit ID Card"
+              : verifStatus === "Pending Verification"
+              ? "Check Status"
+              : "Verify College ID"}
           </Button>
         </div>
       )}
-      {/* Welcome Banner with Avatar Completion Ring */}
-      <Reveal direction="up" duration={0.6}>
-        <div className="bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-6 sm:p-8 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden shadow-2xl">
-          {/* Animated background glow pulse */}
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute -top-12 -left-12 w-56 h-56 rounded-full bg-cyan-400/8 blur-3xl"
-            animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+
+      {/* SECTION 1: WELCOME BANNER (Personalized greeting by time of day + primary action) */}
+      <Reveal direction="up" duration={0.5}>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/40 p-6 sm:p-8 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          {/* Ambient colorful background glows */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-12 -left-12 w-64 h-64 rounded-full bg-cyan-400/10 blur-3xl"
           />
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-10 -right-10 w-48 h-48 rounded-full bg-purple-500/6 blur-3xl"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-12 -right-12 w-64 h-64 rounded-full bg-purple-500/10 blur-3xl"
           />
 
           <div className="flex items-center gap-5 z-10">
             <AvatarCompletionRing profile={profile} size="xl" />
             <div className="space-y-1.5">
-              {/* Streak badge with animated flame */}
-              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-400 text-xs font-mono">
-                <motion.span
-                  animate={{ scale: [1, 1.25, 1], rotate: [-5, 5, -5] }}
-                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                  className="inline-flex"
-                >
-                  <Flame className="w-3.5 h-3.5 fill-orange-400 text-orange-400" />
-                </motion.span>
-                <span className="font-semibold">{profile.stats.currentStreak || 0}</span>
-                <span className="opacity-80">Day Streak · Daily Practice</span>
+              <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-400 text-xs font-mono">
+                <Flame className="w-3.5 h-3.5 fill-orange-400" />
+                <span className="font-semibold">{currentStreak}</span>
+                <span>Day Streak · Placement Momentum</span>
               </div>
-              <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
-                {greeting.emoji} {greeting.text}, <span className="text-cyan-400">{user?.name || "Student"}</span>!
-              </h2>
-              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans">
-                {welcomeSubtitle}
+              <h1 className="font-serif text-2xl sm:text-4xl font-medium text-text-primary tracking-tight">
+                {greeting.emoji} {greeting.text},{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-300">
+                  {user?.name || "Student"}
+                </span>
+                !
+              </h1>
+              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans max-w-xl">
+                {averageScore > 0
+                  ? `Your placement readiness index is standing at ${averageScore}%. Ready for today's simulated mock round?`
+                  : "Welcome to your placement preparation cockpit. Complete today's targets to climb the campus leaderboard."}
               </p>
             </div>
           </div>
 
-          <div className="flex gap-3 z-10 shrink-0 flex-wrap">
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Button
-                variant={verifStatus === "Verified" ? "primary" : "outline"}
-                size="md"
-                onClick={() => {
-                  if (verifStatus !== "Verified") {
-                    toast.warning("Mock Interview is locked. Your identity is pending verification by admin.", {
-                      action: {
-                        label: "Check Status",
-                        onClick: () => navigate("/verify-identity"),
-                      },
-                    });
-                    return;
-                  }
-                  navigate("/mock-interview");
-                }}
-                className={verifStatus !== "Verified" ? "border-amber-400/40 text-amber-300" : ""}
-                title={verifStatus !== "Verified" ? "Locked until Admin Verification" : undefined}
-              >
-                {verifStatus !== "Verified" ? <Lock className="w-4 h-4 text-amber-400" /> : <Video className="w-4 h-4" />}
-                <span>Start Mock Interview</span>
-                {verifStatus !== "Verified" && (
-                  <Badge variant="accent" className="text-[10px] py-0 px-1.5 ml-1">Locked</Badge>
-                )}
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Button
-                variant="outline"
-                size="md"
-                onClick={() => {
-                  if (verifStatus !== "Verified") {
-                    toast.warning("Coding Arena is locked. Your identity is pending verification by admin.", {
-                      action: {
-                        label: "Check Status",
-                        onClick: () => navigate("/verify-identity"),
-                      },
-                    });
-                    return;
-                  }
-                  navigate("/coding");
-                }}
-                className={verifStatus !== "Verified" ? "border-amber-400/40 text-amber-300" : ""}
-                title={verifStatus !== "Verified" ? "Locked until Admin Verification" : undefined}
-              >
-                {verifStatus !== "Verified" ? <Lock className="w-4 h-4 text-amber-400" /> : <Code2 className="w-4 h-4" />}
-                <span>Coding Arena</span>
-                {verifStatus !== "Verified" && (
-                  <Badge variant="accent" className="text-[10px] py-0 px-1.5 ml-1">Locked</Badge>
-                )}
-              </Button>
-            </motion.div>
+          {/* Primary Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3 z-10 shrink-0">
+            <Button
+              variant="teal-cyan"
+              size="md"
+              onClick={() => {
+                if (verifStatus !== "Verified") {
+                  toast.warning("Mock Interview is locked until College ID verification.", {
+                    action: { label: "Verify", onClick: () => navigate("/verify-identity") },
+                  });
+                  return;
+                }
+                navigate("/mock-interview");
+              }}
+              className="shadow-[0_0_20px_rgba(34,211,238,0.35)] font-semibold"
+            >
+              {verifStatus !== "Verified" ? (
+                <Lock className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Video className="w-4 h-4" />
+              )}
+              <span>Start Mock Interview</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => {
+                if (verifStatus !== "Verified") {
+                  toast.warning("Coding Arena is locked until College ID verification.", {
+                    action: { label: "Verify", onClick: () => navigate("/verify-identity") },
+                  });
+                  return;
+                }
+                navigate("/coding");
+              }}
+              className="hover:border-cyan-400/60 font-medium"
+            >
+              <Code2 className="w-4 h-4 text-indigo-400" />
+              <span>Coding Arena</span>
+            </Button>
           </div>
         </div>
       </Reveal>
 
-      {/* Profile Completion Verdict Card */}
-      {completion < 100 && !dismissReminder && (
-        <Reveal direction="up" delay={0.1}>
-          <div className="relative">
-            <ProfileSummaryCard profile={profile} compact />
-            <button
-              type="button"
-              onClick={() => setDismissReminder(true)}
-              className="absolute top-3 right-3 text-text-muted hover:text-text-primary text-xs p-1"
-              title="Dismiss reminder"
-            >
-              <X className="w-4 h-4" />
-            </button>
+      {/* SECTION 2: STATS ROW (5 animated cards with distinct colors) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Card 1: Day Streak (Amber / Flame) */}
+        <Card className="p-5 bg-surface border border-amber-500/30 hover:border-amber-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider font-semibold">
+              Day Streak
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
+              <Flame className="w-4 h-4 fill-amber-400" />
+            </div>
           </div>
+          <div className="mt-3">
+            <b className="font-serif text-3xl font-semibold text-text-primary block">
+              <AnimatedCounter value={currentStreak} suffix=" Days" />
+            </b>
+            <p className="text-[11px] text-text-muted mt-0.5">Daily practice momentum</p>
+          </div>
+        </Card>
+
+        {/* Card 2: XP / Level with progress bar (Violet / Purple) */}
+        <Card className="p-5 bg-surface border border-purple-500/30 hover:border-purple-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-purple-300 uppercase tracking-wider font-semibold">
+              Level {currentLevel}
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-300 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 space-y-1.5">
+            <div className="flex justify-between items-baseline">
+              <b className="font-serif text-2xl font-semibold text-text-primary">
+                <AnimatedCounter value={currentXP} suffix=" XP" />
+              </b>
+              <span className="text-[10px] font-mono text-purple-300">{levelProgress}%</span>
+            </div>
+            <Progress value={levelProgress} color="accent" className="h-1.5" />
+          </div>
+        </Card>
+
+        {/* Card 3: Interviews Completed (Teal / Cyan) */}
+        <Card className="p-5 bg-surface border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
+              Interviews
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center">
+              <Video className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <b className="font-serif text-3xl font-semibold text-text-primary block">
+              <AnimatedCounter value={totalMockInterviews} />
+            </b>
+            <p className="text-[11px] text-text-muted mt-0.5">AI mock rounds completed</p>
+          </div>
+        </Card>
+
+        {/* Card 4: Problems Solved (Indigo) */}
+        <Card className="p-5 bg-surface border border-indigo-500/30 hover:border-indigo-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-indigo-400 uppercase tracking-wider font-semibold">
+              Problems
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+              <Code2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <b className="font-serif text-3xl font-semibold text-text-primary block">
+              <AnimatedCounter value={totalCodingSolved} />
+            </b>
+            <p className="text-[11px] text-text-muted mt-0.5">Algorithmic benchmarks</p>
+          </div>
+        </Card>
+
+        {/* Card 5: Average Score (Emerald / Green) */}
+        <Card className="p-5 bg-surface border border-emerald-500/30 hover:border-emerald-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
+              Average Score
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+              <Award className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <b className="font-serif text-3xl font-semibold text-text-primary block">
+              {averageScore > 0 ? (
+                <AnimatedCounter value={averageScore} suffix="%" />
+              ) : (
+                <span className="text-xl text-text-muted">No data</span>
+              )}
+            </b>
+            <p className="text-[11px] text-text-muted mt-0.5">
+              {averageScore > 0 ? "Placement percentile" : "Take mock to score"}
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* SECTION 3 & 4: DAILY GOAL RING + ANALYTICS (Weekly chart + Skill Radar) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Daily Goal Ring (col-span-4) */}
+        <Card className="lg:col-span-4 p-6 bg-surface border border-border flex flex-col justify-between space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-mono text-cyan-400 font-semibold uppercase tracking-wider">
+                Daily Discipline
+              </span>
+              <h3 className="font-serif text-lg font-medium text-text-primary">Today's Target Ring</h3>
+            </div>
+            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-cyan-400/10 text-cyan-400 border border-cyan-400/30">
+              {dailyGoals.completedCount} / {dailyGoals.total} Done
+            </span>
+          </div>
+
+          {/* Circular Progress Ring */}
+          <div className="flex flex-col items-center justify-center py-2">
+            <div className="relative w-36 h-36 flex items-center justify-center">
+              <svg className="w-36 h-36 -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="42"
+                  className="stroke-border/70"
+                  strokeWidth="8"
+                  fill="transparent"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="42"
+                  className="stroke-cyan-400 transition-[stroke-dashoffset] duration-700 ease-out"
+                  strokeWidth="8"
+                  strokeDasharray={264}
+                  strokeDashoffset={264 - (264 * dailyGoals.percentage) / 100}
+                  strokeLinecap="round"
+                  fill="transparent"
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center justify-center text-center">
+                <span className="font-serif text-3xl font-semibold text-text-primary">
+                  {dailyGoals.percentage}%
+                </span>
+                <span className="text-[10px] font-mono text-text-muted uppercase">Target</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Goal Targets List */}
+          <div className="space-y-2 pt-2 border-t border-border/80">
+            {dailyGoals.goals.map((g) => (
+              <div
+                key={g.id}
+                onClick={() => navigate(g.link)}
+                className={`p-2.5 rounded-xl border flex items-center justify-between text-xs cursor-pointer transition-colors ${
+                  g.completed
+                    ? "bg-teal-500/5 border-teal-500/30 text-text-primary"
+                    : "bg-surface-raised border-border text-text-secondary hover:border-cyan-400/40"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2
+                    className={`w-4 h-4 ${g.completed ? "text-live" : "text-text-muted"}`}
+                  />
+                  <span className={g.completed ? "line-through opacity-80" : ""}>{g.label}</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-text-muted" />
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Analytics: Weekly Activity AreaChart (col-span-4) */}
+        <Card className="lg:col-span-4 p-6 bg-surface border border-border flex flex-col justify-between space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-mono text-indigo-400 font-semibold uppercase tracking-wider">
+                Momentum
+              </span>
+              <h3 className="font-serif text-lg font-medium text-text-primary">Weekly Score Trend</h3>
+            </div>
+            <span className="text-xs font-mono text-live bg-live/10 px-2 py-0.5 rounded-full border border-live/30">
+              Active Streak
+            </span>
+          </div>
+
+          <div className="h-56 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={weeklyTrendData}>
+                <defs>
+                  <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="day" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                <YAxis domain={[50, 100]} stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--surface)",
+                    borderColor: "var(--border)",
+                    color: "var(--text-primary)",
+                    borderRadius: "12px",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#22d3ee"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#scoreGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <p className="text-[11px] text-text-muted text-center font-sans">
+            Consistent performance across daily algorithmic & interview attempts
+          </p>
+        </Card>
+
+        {/* Analytics: Skill Radar (col-span-4) */}
+        <Card className="lg:col-span-4 p-6 bg-surface border border-border flex flex-col justify-between space-y-4">
+          <div>
+            <span className="text-[11px] font-mono text-purple-400 font-semibold uppercase tracking-wider">
+              Proficiency
+            </span>
+            <h3 className="font-serif text-lg font-medium text-text-primary">Topic Skill Radar</h3>
+          </div>
+
+          <div className="h-56 w-full flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={skillRadarData}>
+                <PolarGrid stroke="var(--border)" />
+                <PolarAngleAxis
+                  dataKey="topic"
+                  stroke="var(--text-muted)"
+                  tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="var(--border)" tick={false} />
+                <Radar
+                  name="Proficiency"
+                  dataKey="score"
+                  stroke="#a855f7"
+                  fill="#a855f7"
+                  fillOpacity={0.35}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <p className="text-[11px] text-text-muted text-center font-sans">
+            DSA, System Design, DBMS, OS, HR & Communication
+          </p>
+        </Card>
+      </div>
+
+      {/* SECTION 5: GETTING STARTED CHECKLIST (Auto-hides when complete, pretty design) */}
+      {!allChecklistDone && !dismissChecklist && (
+        <Reveal direction="up">
+          <Card className="p-6 md:p-8 bg-surface border border-border shadow-md space-y-6 relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+              <div>
+                <h3 className="font-serif text-lg sm:text-xl font-medium text-text-primary flex items-center gap-2">
+                  <Compass className="w-5 h-5 text-cyan-400" /> Getting Started Checklist
+                </h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Complete these essential onboarding milestones to join your campus placement roster.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono text-cyan-400 bg-cyan-400/10 px-3 py-1 rounded-full border border-cyan-400/30 font-semibold">
+                  {checklistItems.filter((i) => i.done).length} of {checklistItems.length} Done
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDismissChecklist(true)}
+                  className="p-1 text-text-muted hover:text-text-primary rounded-lg transition-colors"
+                  title="Dismiss checklist"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {checklistItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
+                    item.done
+                      ? "bg-teal-500/5 border-teal-500/30"
+                      : "bg-surface-raised/40 border-border hover:border-cyan-400/40"
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-semibold text-text-primary flex items-center justify-between">
+                      <span>{item.title}</span>
+                      {item.done && (
+                        <span className="text-[10px] font-mono text-teal-400 bg-teal-400/10 px-1.5 py-0.5 rounded font-bold">
+                          Done
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-[11px] text-text-muted leading-relaxed font-sans">{item.desc}</p>
+                  </div>
+
+                  <Button
+                    variant={item.done ? "outline" : "teal-cyan"}
+                    size="sm"
+                    onClick={() => navigate(item.link)}
+                    className="w-full text-xs font-mono mt-1"
+                  >
+                    {item.actionText}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Card>
         </Reveal>
       )}
 
-      {/* KPI Stat Cards */}
-      <motion.div
-        variants={stagger}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-      >
-        <StatCard
-          title="Overall Readiness"
-          value={readinessScore}
-          suffix="%"
-          subtitle={readinessScore > 0 ? "Campus Placement Score" : "Complete your first activity to see your score"}
-          icon={Award}
-          accentColor="cyan"
-          trend={readinessTrend}
-        />
-        <StatCard
-          title="Mock Rounds"
-          value={totalMockInterviews}
-          subtitle="AI Interviews Completed"
-          icon={Video}
-          accentColor="green"
-          trend={isDemo && totalMockInterviews > 0 ? { value: "+2 this week", isPositive: true } : undefined}
-        />
-        <StatCard
-          title="Problems Solved"
-          value={totalCodingSolved}
-          subtitle="DSA & Algorithm Challenges"
-          icon={Code2}
-          accentColor="purple"
-        />
-        <StatCard
-          title="Practice Streak"
-          value={profile.stats.currentStreak || 0}
-          suffix=" Days"
-          subtitle="Consistent Daily Momentum"
-          icon={Flame}
-          accentColor="amber"
-        />
-      </motion.div>
-
-      {/* Charts & Analytics / Empty State */}
-      {(() => {
-        const hasRealResults = isDemo || (totalCodingSolved > 0 || totalMockInterviews > 0);
-
-        if (!hasRealResults) {
-          const checklistItems = [
-            {
-              title: "1. Verify Student Identity",
-              desc: "Upload your College ID card to unlock full platform features.",
-              done: verifStatus === "Verified" || (user as any)?.verificationStatus === "APPROVED",
-              link: "/verify-identity",
-              btnText: "Verify ID",
-            },
-            {
-              title: "2. Complete Profile",
-              desc: "Add your headline, education, and technical skills to reach 100%.",
-              done: completion >= 80,
-              link: "/profile",
-              btnText: "Edit Profile",
-            },
-            {
-              title: "3. Practice Engineering Topics",
-              desc: "Review multi-domain questions and architectural sample answers.",
-              done: totalCompletedQuestions > 0 || (profile.stats.totalPracticeSessions || 0) > 0,
-              link: "/practice",
-              btnText: "Start Practice",
-            },
-            {
-              title: "4. Solve First Coding Problem",
-              desc: "Benchmark your DSA logic in the interactive coding arena.",
-              done: totalCodingSolved > 0,
-              link: "/coding",
-              btnText: "Coding Arena",
-            },
-            {
-              title: "5. Take First AI Mock Interview",
-              desc: "Experience real-time AI behavioral and technical interview rounds.",
-              done: totalMockInterviews > 0,
-              link: "/mock-interview",
-              btnText: "Mock Interview",
-            },
-            {
-              title: "6. Scan Placement Resume",
-              desc: "Get an instant ATS score and keyword gap analysis.",
-              done: resumeCount > 0,
-              link: "/resume-analyzer",
-              btnText: "Analyze Resume",
-            },
-          ];
-
-          return (
-            <Card className="p-6 md:p-8 bg-surface border-border space-y-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
-                <div>
-                  <h3 className="font-serif text-lg font-bold text-text-primary flex items-center gap-2">
-                    <Compass className="w-5 h-5 text-cyan-400" /> Getting Started Checklist
-                  </h3>
-                  <p className="text-xs text-text-muted">
-                    Complete these key onboarding steps to build momentum and join the campus leaderboard.
-                  </p>
-                </div>
-                <span className="text-xs font-mono text-cyan-400 bg-cyan-400/10 px-3 py-1 rounded-full border border-cyan-400/20 self-start sm:self-auto font-semibold">
-                  {checklistItems.filter((i) => i.done).length} / {checklistItems.length} Done
+      {/* SECTION 6 & 7: BALANCED TWO-COLUMN ROW (Contests + Recommendation on Left, Leaderboard on Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column (lg:col-span-7): Upcoming Live Tests + Personalized Recommendation Stack */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          {/* Card A: Upcoming Live Contests */}
+          <Card className="p-6 bg-surface border border-border flex flex-col justify-start items-stretch">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-mono text-rose-400 font-semibold uppercase tracking-wider">
+                  Contests & Tests
                 </span>
+                <h3 className="font-serif text-lg font-medium text-text-primary flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-rose-400" /> Upcoming Live Contests
+                </h3>
               </div>
+              <Link
+                to="/live-tests"
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-mono inline-flex items-center gap-1"
+              >
+                <span>View all</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {checklistItems.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${
-                      item.done
-                        ? "bg-teal-500/5 border-teal-500/30"
-                        : "bg-surface-raised/40 border-border hover:border-cyan-500/30"
-                    }`}
+            <div className="mt-4 space-y-3">
+              {liveTests.length === 0 ? (
+                <div className="text-center py-5 text-text-muted space-y-2">
+                  <Calendar className="w-7 h-7 mx-auto opacity-50 text-rose-400" />
+                  <p className="text-xs font-sans">No live tests scheduled right now.</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate("/live-tests")}
+                    className="text-xs"
                   >
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-semibold text-text-primary flex items-center gap-2">
-                        {item.title}
-                        {item.done && (
-                          <span className="text-[10px] font-mono text-teal-400 font-bold bg-teal-400/10 px-1.5 py-0.2 rounded">
-                            Done
-                          </span>
-                        )}
-                      </h4>
-                      <p className="text-[11px] text-text-muted leading-relaxed">{item.desc}</p>
-                    </div>
+                    View all tests
+                  </Button>
+                </div>
+              ) : (
+                liveTests.slice(0, 3).map((test) => {
+                  const startTime = test.scheduledStartTime ? new Date(test.scheduledStartTime) : new Date(Date.now() + 3600000 * 4);
+                  const diffMs = Math.max(0, startTime.getTime() - now.getTime());
+                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                  const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                  const diffSecs = Math.floor((diffMs % (1000 * 60)) / 1000);
 
-                    <Button
-                      variant={item.done ? "outline" : "teal-cyan"}
-                      size="sm"
-                      onClick={() => navigate(item.link)}
-                      className="shrink-0 text-xs font-mono"
+                  return (
+                    <div
+                      key={test.id}
+                      className="p-4 rounded-2xl bg-surface-raised/50 border border-border hover:border-rose-400/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      {item.btnText}
-                    </Button>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-text-primary">{test.title}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 font-semibold">
+                            {test.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-text-muted font-sans">
+                          {test.durationMinutes || 60} mins · {test.problems?.length || 4} challenges · {test.totalMarks || 100} marks
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right font-mono text-xs">
+                          <span className="text-[10px] text-text-muted block">Starts in</span>
+                          <span className="text-rose-300 font-semibold">
+                            {diffHours}h {diffMins}m {diffSecs}s
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="teal-cyan"
+                          onClick={() => navigate(`/live-tests?testId=${test.id}`)}
+                          className="text-xs font-mono"
+                        >
+                          Enter
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+
+          {/* Card B: Personalized Recommendation */}
+          <Reveal direction="up">
+            <Card className="p-6 bg-gradient-to-r from-surface via-surface-raised to-surface border border-cyan-400/30 shadow-md">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                    <Target className="w-6 h-6 animate-pulse" />
                   </div>
-                ))}
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
+                      Personalized Recommendation
+                    </span>
+                    <h4 className="font-serif text-base sm:text-lg font-medium text-text-primary">
+                      {totalMockInterviews === 0
+                        ? "Take your first AI Mock Interview round"
+                        : totalCodingSolved < 3
+                        ? "Solve algorithmic challenges in the Coding Arena"
+                        : "Benchmark Distributed Caching in System Design"}
+                    </h4>
+                    <p className="text-xs text-text-secondary leading-relaxed font-sans max-w-xl">
+                      {totalMockInterviews === 0
+                        ? "Simulate a 15-minute technical round with real-time rubric feedback on complexity and trade-off articulation."
+                        : totalCodingSolved < 3
+                        ? "Complete 3 benchmark DSA problems to unlock the 'Algorithmic Sprinter' achievement badge."
+                        : "System design rounds at Tier-1 companies prioritize cache-aside patterns and rate limiter logic."}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  variant="teal-cyan"
+                  size="md"
+                  onClick={() =>
+                    navigate(
+                      totalMockInterviews === 0
+                        ? "/mock-interview"
+                        : totalCodingSolved < 3
+                        ? "/coding"
+                        : "/practice?domain=system-design"
+                    )
+                  }
+                  className="shrink-0 font-semibold"
+                >
+                  <span>Start Action</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
               </div>
             </Card>
-          );
-        }
+          </Reveal>
+        </div>
 
-        return (
-          <div className="space-y-6">
-            {/* Real Performance Highlights: Strongest Domain & Needs Work */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-5 bg-surface border-emerald-500/30 flex items-start gap-4">
-                <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 shrink-0">
-                  <TrendingUp className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[11px] font-mono text-emerald-400 font-semibold uppercase tracking-wider">
-                    Strongest Domain
-                  </span>
-                  <h4 className="font-serif text-base font-semibold text-text-primary">
-                    Data Structures & Algorithms (DSA)
-                  </h4>
-                  <p className="text-xs text-text-muted">
-                    Strong algorithmic intuition with {profile.stats.codingProblemsSolved} challenges solved.
-                  </p>
-                </div>
-              </Card>
-
-              <Card className="p-5 bg-surface border-amber-500/30 flex items-start gap-4">
-                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 shrink-0">
-                  <AlertOctagon className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[11px] font-mono text-amber-400 font-semibold uppercase tracking-wider">
-                    Focus Area (Needs Work)
-                  </span>
-                  <h4 className="font-serif text-base font-semibold text-text-primary">
-                    System Design & Microservices
-                  </h4>
-                  <p className="text-xs text-text-muted">
-                    Recommended: practice distributed caching and rate limiter architectures to raise placement readiness.
-                  </p>
-                </div>
-              </Card>
+        {/* Right Column (lg:col-span-5): Campus Leaderboard Preview */}
+        <Card className="lg:col-span-5 p-6 bg-surface border border-border flex flex-col justify-start items-stretch self-start">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-mono text-amber-400 font-semibold uppercase tracking-wider">
+                Rankings
+              </span>
+              <h3 className="font-serif text-lg font-medium text-text-primary flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-400" /> Campus Leaderboard
+              </h3>
             </div>
-
-            {/* Performance Line Chart & Radar */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <Card className="lg:col-span-7 p-6 space-y-4 bg-surface border-border">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-serif text-lg font-medium text-text-primary">Score Momentum</h3>
-                    <p className="text-xs text-text-muted">Daily performance across completed rounds</p>
-                  </div>
-                  <span className="text-xs font-mono text-cyan-400 font-semibold bg-cyan-400/10 px-2.5 py-1 rounded-full border border-cyan-400/20">
-                    Active Student
-                  </span>
-                </div>
-
-                <div className="h-64 w-full pt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={performanceTrend}>
-                      <XAxis dataKey="day" stroke="var(--chart-text)" fontSize={11} />
-                      <YAxis domain={[50, 100]} stroke="var(--chart-text)" fontSize={11} />
-                      <Tooltip contentStyle={{ backgroundColor: "var(--tooltip-bg)", borderColor: "var(--tooltip-border)", color: "#ffffff", borderRadius: "8px" }} />
-                      <Line type="monotone" dataKey="score" stroke="var(--accent-bright)" strokeWidth={3} dot={{ fill: "var(--accent-bright)", r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="lg:col-span-5 p-6 space-y-4 bg-surface border-border">
-                <div>
-                  <h3 className="font-serif text-lg font-medium text-text-primary">Technical Proficiency Radar</h3>
-                  <p className="text-xs text-text-muted">Skill distribution across verified attempts</p>
-                </div>
-
-                <div className="h-64 w-full flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                      <PolarGrid stroke="var(--chart-grid)" />
-                      <PolarAngleAxis dataKey="subject" stroke="var(--chart-text)" tick={{ fill: "var(--chart-text)", fontSize: 11 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="var(--chart-grid)" />
-                      <Radar name="Proficiency" dataKey="A" stroke="var(--live)" fill="var(--live)" fillOpacity={0.35} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
-          </div>
-        );
-      })()}
-      {/* Motivational Quote of the Day + Next Best Action */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Reveal direction="up" delay={0.2}>
-          <QuoteCard />
-        </Reveal>
-        <Reveal direction="up" delay={0.3}>
-          <Card className="p-6 bg-surface border-border spotlight-card glow-hover h-full">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400"><TrendingUp className="w-5 h-5" /></span>
-              <div>
-                <h3 className="font-serif text-sm font-medium text-text-primary">Next Best Action</h3>
-                <p className="text-[11px] text-text-muted">Your personalized recommendation</p>
-              </div>
-            </div>
-            <p className="text-xs text-text-secondary leading-relaxed mb-4">
-              {completion < 80
-                ? "Complete your profile to unlock the verified badge and stand out to recruiters."
-                : profile.stats.mockInterviewsCompleted < 3
-                ? "Take a mock interview — your first 3 AI interviews unlock the 'Interview Ready' badge."
-                : "Challenge yourself with a Hard-level coding problem to boost your DSA rank."}
-            </p>
-            <button
-              onClick={() => navigate(completion < 80 ? "/profile" : profile.stats.mockInterviewsCompleted < 3 ? "/mock-interview" : "/coding")}
-              className="text-xs font-semibold text-accent hover:text-accent-bright transition-colors inline-flex items-center gap-2"
+            <Link
+              to="/leaderboard"
+              className="text-xs text-cyan-400 hover:text-cyan-300 font-mono inline-flex items-center gap-1"
             >
-              <span>Let's go</span>
-              <PointerArrow direction="right" size="sm" />
-            </button>
-          </Card>
-        </Reveal>
+              <span>View all</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {topStudents.map((s, idx) => (
+              <div
+                key={s.userId}
+                className="p-2.5 rounded-xl bg-surface-raised/40 border border-border flex items-center justify-between gap-3 text-xs"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
+                      idx === 0
+                        ? "bg-amber-400 text-black"
+                        : idx === 1
+                        ? "bg-slate-300 text-black"
+                        : idx === 2
+                        ? "bg-amber-700 text-white"
+                        : "bg-surface-raised text-text-muted"
+                    }`}
+                  >
+                    {s.rank}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-text-primary truncate">{s.name}</p>
+                    <p className="text-[10px] text-text-muted truncate">{s.college}</p>
+                  </div>
+                </div>
+
+                <div className="text-right font-mono shrink-0">
+                  <span className="text-cyan-400 font-semibold block">{s.score} XP</span>
+                  <span className="text-[10px] text-text-muted">{s.streakDays}d streak</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3.5 p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between text-xs font-mono">
+            <span className="text-text-secondary">Your Current Standing:</span>
+            <span className="text-cyan-400 font-bold">Top 8% percentile</span>
+          </div>
+        </Card>
       </div>
+
+      {/* SECTION 9: ACHIEVEMENTS AND BADGES */}
+      <Reveal direction="up">
+        <Card className="p-6 bg-surface border border-border flex flex-col justify-start items-stretch">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-mono text-purple-400 font-semibold uppercase tracking-wider">
+                Milestones
+              </span>
+              <h3 className="font-serif text-lg font-medium text-text-primary flex items-center gap-2">
+                <Award className="w-5 h-5 text-purple-400" /> Achievements & Badges
+              </h3>
+            </div>
+            <span className="text-xs font-mono text-text-muted">
+              {badgesList.filter((b) => b.unlocked).length} of {badgesList.length} Unlocked
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {badgesList.map((badge) => {
+              const Icon = badge.icon;
+              return (
+                <div
+                  key={badge.id}
+                  className={`p-3.5 rounded-2xl border flex flex-col items-center text-center gap-2 transition-all ${
+                    badge.unlocked
+                      ? `${badge.color} shadow-sm scale-[1.02]`
+                      : "bg-surface-raised/30 border-border text-text-muted opacity-50"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      badge.unlocked ? "bg-surface" : "bg-surface-raised"
+                    }`}
+                  >
+                    {badge.unlocked ? (
+                      <Icon className="w-5 h-5" />
+                    ) : (
+                      <Lock className="w-4 h-4 text-text-muted" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold truncate max-w-full">{badge.name}</p>
+                    <p className="text-[10px] text-text-muted leading-tight mt-0.5">{badge.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </Reveal>
+
+      {/* SECTION 10: RECENT ACTIVITY TIMELINE */}
+      <Card className="w-full p-6 bg-surface border border-border flex flex-col justify-start items-stretch">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="space-y-0.5">
+            <span className="text-[11px] font-mono text-cyan-400 font-semibold uppercase tracking-wider">
+              Activity Log
+            </span>
+            <h3 className="font-serif text-lg font-medium text-text-primary flex items-center gap-2">
+              <Activity className="w-5 h-5 text-cyan-400" /> Recent Practice Timeline
+            </h3>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          {interviewSessions.length === 0 && totalCodingSolved === 0 ? (
+            <div className="col-span-2 py-8 text-center text-text-muted space-y-2">
+              <Activity className="w-8 h-8 mx-auto opacity-50" />
+              <p className="text-xs font-sans">No recorded activities yet.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("/practice")}
+                className="text-xs font-mono"
+              >
+                Start Your First Session
+              </Button>
+            </div>
+          ) : (
+            <>
+              {interviewSessions.slice(0, 2).map((s) => (
+                <div
+                  key={s.id}
+                  className="p-3.5 rounded-2xl bg-surface-raised/40 border border-border flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-teal-500/15 text-teal-400 flex items-center justify-center shrink-0">
+                      <Video className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-text-primary">{s.roleTitle || "AI Mock Round"}</p>
+                      <p className="text-[10px] text-text-muted">{s.date || "Completed"}</p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-live font-semibold text-sm">{s.overallScore || 85}%</span>
+                </div>
+              ))}
+
+              {totalCodingSolved > 0 && (
+                <div className="p-3.5 rounded-2xl bg-surface-raised/40 border border-border flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0">
+                      <Code2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-text-primary">DSA Problem Benchmark</p>
+                      <p className="text-[10px] text-text-muted">Solved with optimal complexity</p>
+                    </div>
+                  </div>
+                  <span className="font-mono text-indigo-300 font-semibold text-sm">+50 XP</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <p className="mt-4 text-[11px] text-text-muted text-center font-sans border-t border-border pt-3">
+          Completed rounds sync automatically with your placement profile
+        </p>
+      </Card>
+
+      {/* DAILY MOTIVATION SECTION (Bottom Position) */}
+      <Reveal direction="up" delay={0.1}>
+        <QuoteCard />
+      </Reveal>
     </div>
   );
 };
+
+export default StudentDashboard;

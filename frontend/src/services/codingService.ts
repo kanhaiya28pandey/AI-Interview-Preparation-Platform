@@ -401,7 +401,8 @@ export const codingService = {
       }
 
       try {
-        const aiRes = await axios.post("http://localhost:8000/api/ai/coding/execute", {
+        const aiBase = import.meta.env.VITE_AI_SERVICE_URL || "/api/ai";
+        const aiRes = await axios.post(`${aiBase}/coding/execute`, {
           code,
           fnName: problem.fnName || "solve",
           testCases: testCasesToRun.map((tc) => ({
@@ -511,7 +512,8 @@ export const codingService = {
       }
 
       try {
-        const aiRes = await axios.post("http://localhost:8000/api/ai/coding/execute", {
+        const aiBase = import.meta.env.VITE_AI_SERVICE_URL || "/api/ai";
+        const aiRes = await axios.post(`${aiBase}/coding/execute`, {
           code,
           fnName: problem.fnName || "solve",
           testCases: problem.testCases.map((tc) => ({

@@ -92,8 +92,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, step = 1 }) =>
   const currentQuote = authQuotes[activeQuoteIndex];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-ink text-text-primary select-none relative">
-      <FloatingOrbs count={3} />
+    <div className="h-screen flex flex-col overflow-hidden bg-transparent text-text-primary select-none relative z-10">
       {/* Top Navbar: Fixed height in normal flow, never scrolls */}
       <Navbar />
 

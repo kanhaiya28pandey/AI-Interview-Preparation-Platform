@@ -48,7 +48,7 @@ export const FAQ_CATEGORIES: FAQCategory[] = [
         category: "Getting Started",
         question: "How do I toggle between Dark and Light visual themes?",
         answer:
-          "Click the Sun/Moon theme toggle icon in the topbar (or press Ctrl+K and type 'theme'). The app immediately transitions all surface tokens, charts, and glow effects to match your system or chosen preference.",
+          "Click the Sun/Moon theme toggle icon in the topbar or go to Settings. The app immediately transitions all surface tokens, charts, and glow effects to match your system or chosen preference.",
         helpfulCount: 29,
         unhelpfulCount: 0,
         tags: ["theme", "dark mode", "light mode", "appearance"],

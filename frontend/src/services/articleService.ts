@@ -214,7 +214,8 @@ export const articleService = {
     interviewQA: ArticleQAItem[];
   }> {
     try {
-      const response = await fetch("http://localhost:8000/api/ai/article/generate", {
+      const aiBase = import.meta.env.VITE_AI_SERVICE_URL || "/api/ai";
+      const response = await fetch(`${aiBase}/article/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

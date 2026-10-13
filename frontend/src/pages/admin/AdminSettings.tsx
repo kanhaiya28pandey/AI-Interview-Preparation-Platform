@@ -9,8 +9,9 @@ import { AppearanceSettingsCard } from "@/components/common/AppearanceSettingsCa
 import { isMockMode } from "@/lib/dataMode";
 
 export const AdminSettings: React.FC = () => {
-  const [apiBaseUrl, setApiBaseUrl] = useState(import.meta.env.VITE_API_BASE_URL || "http://localhost:8080");
-  const [useMocks, setUseMocks] = useState(isMockMode());
+  const [apiBaseUrl, setApiBaseUrl] = useState(
+    import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || ""
+  );
 
   const handleSaveSystem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +22,7 @@ export const AdminSettings: React.FC = () => {
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
         <h2 className="font-serif text-2xl font-medium text-text-primary">System Settings</h2>
-        <p className="text-xs text-text-secondary">Configure backend API base URL, mock fallback flags, and CORS parameters.</p>
+        <p className="text-xs text-text-secondary">Configure backend API URL and appearance parameters.</p>
       </div>
 
       {/* Appearance Settings */}
@@ -34,27 +35,11 @@ export const AdminSettings: React.FC = () => {
 
         <form onSubmit={handleSaveSystem} className="space-y-4">
           <Input
-            label="Backend Base URL (VITE_API_BASE_URL)"
+            label="Backend API URL (VITE_API_URL)"
             value={apiBaseUrl}
             onChange={(e) => setApiBaseUrl(e.target.value)}
-            placeholder="http://localhost:8080"
+            placeholder="e.g. https://api.yourdomain.com"
           />
-
-          <div className="flex items-center justify-between p-3 bg-surface-raised border border-border rounded-lg text-xs">
-            <div>
-              <span className="font-semibold text-text-primary block">Mock Fallback Mode (VITE_USE_MOCKS)</span>
-              <span className="text-text-muted">Simulate non-auth endpoints when backend endpoints are not yet deployed.</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setUseMocks(!useMocks)}
-              className={`px-3 py-1.5 rounded text-xs font-mono font-bold transition-colors ${
-                useMocks ? "bg-live/20 text-live border border-live/40" : "bg-surface text-text-muted border border-border"
-              }`}
-            >
-              {useMocks ? "ENABLED (MOCK)" : "DISABLED (REAL API)"}
-            </button>
-          </div>
 
           <div className="pt-2">
             <Button type="submit" variant="primary" size="sm">
