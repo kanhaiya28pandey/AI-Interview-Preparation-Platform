@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Shield, Settings as SettingsIcon, Server, Database } from "lucide-react";
 import { toast } from "sonner";
 import { AppearanceSettingsCard } from "@/components/common/AppearanceSettingsCard";
+import { isMockMode } from "@/lib/dataMode";
 
 export const AdminSettings: React.FC = () => {
   const [apiBaseUrl, setApiBaseUrl] = useState(import.meta.env.VITE_API_BASE_URL || "http://localhost:8080");
-  const [useMocks, setUseMocks] = useState(import.meta.env.VITE_USE_MOCKS !== "false");
+  const [useMocks, setUseMocks] = useState(isMockMode());
 
   const handleSaveSystem = (e: React.FormEvent) => {
     e.preventDefault();

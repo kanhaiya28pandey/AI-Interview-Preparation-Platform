@@ -9,7 +9,14 @@ import com.interviewplatform.backend.model.ContentItem;
 
 @Repository
 public interface ContentItemRepository extends MongoRepository<ContentItem, String> {
-    List<ContentItem> findByType(String type);
+
     List<ContentItem> findByStatus(String status);
-    List<ContentItem> findBySubject(String subject);
+
+    List<ContentItem> findByType(String type);
+
+    List<ContentItem> findByTypeAndStatus(String type, String status);
+
+    long countByType(String type);
+
+    long countByTypeAndStatus(String type, String status);
 }

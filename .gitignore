@@ -37,10 +37,10 @@ develop-eggs/
 dist/
 downloads/
 eggs/
-.eggs/
+# Python build lib
 /lib/
-/lib64/
 !frontend/src/lib/
+lib64/
 parts/
 sdist/
 var/

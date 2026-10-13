@@ -22,6 +22,16 @@ public class ContentAuditLog {
         this.timestamp = LocalDateTime.now().toString();
     }
 
+    public ContentAuditLog(String contentId, String contentTitle, String contentType, String action, String performedBy, String details) {
+        this.timestamp = LocalDateTime.now().toString();
+        this.contentId = contentId;
+        this.contentTitle = contentTitle;
+        this.contentType = contentType;
+        this.action = action;
+        this.performedBy = performedBy;
+        this.details = details;
+    }
+
     public ContentAuditLog(String id, String contentId, String contentTitle, String contentType, String action, String performedBy, String details) {
         this.id = id;
         this.contentId = contentId;
