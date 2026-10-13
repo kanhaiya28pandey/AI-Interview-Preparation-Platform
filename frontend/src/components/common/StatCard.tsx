@@ -63,7 +63,7 @@ export const StatCard: React.FC<StatCardProps> = ({
     >
       <Card
         className={cn(
-          "relative overflow-hidden group transition-all duration-300 spotlight-card",
+          "relative overflow-hidden group transition-[border-color,transform,box-shadow] duration-200 spotlight-card",
           "hover:border-cyan-400/30 hover:scale-[1.015]",
           className
         )}
@@ -104,7 +104,7 @@ export const StatCard: React.FC<StatCardProps> = ({
               whileHover={{ rotate: [0, -8, 8, 0], scale: 1.1 }}
               transition={{ duration: 0.4 }}
               className={cn(
-                "p-3 rounded-xl border transition-all duration-300",
+                "p-3 rounded-xl border transition-[box-shadow,transform] duration-200",
                 accent.bg, accent.border, accent.text,
                 "group-hover:" + accent.glow
               )}

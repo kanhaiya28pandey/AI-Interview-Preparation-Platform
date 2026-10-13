@@ -174,7 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: "/resume-analyzer", label: "Resume Analyzer", icon: Sparkles, badge: "AI", locked: !isVerified },
     { to: "/leaderboard", label: "Leaderboard", icon: Trophy, locked: !isVerified },
     { to: "/profile", label: "My Profile", icon: User, locked: !isVerified },
-    { to: "/settings", label: "Settings", icon: Settings, locked: !isVerified },
+    { to: "/settings", label: "Settings", icon: Settings },
     { to: "/help", label: "Help & Support", icon: HelpCircle },
   ];
 
@@ -200,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const widthClass = collapsed ? "w-[68px]" : "w-64";
 
     return (
-      <div className={cn("flex flex-col h-full bg-surface border-r border-border text-text-primary transition-all duration-200 ease-in-out p-3", widthClass)}>
+      <div className={cn("flex flex-col h-full bg-surface border-r border-border text-text-primary transition-[width] duration-200 ease-in-out p-3", widthClass)}>
         {/* Brand Header */}
         <div
           className={cn(
@@ -381,7 +381,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Desktop Persistent Sidebar */}
       <aside
         className={cn(
-          "hidden lg:block h-full shrink-0 z-40 transition-all duration-200 ease-in-out",
+          "hidden lg:block h-full shrink-0 z-40 transition-[width] duration-200 ease-in-out",
           isCollapsed ? "w-[68px]" : "w-64"
         )}
       >

@@ -25,15 +25,15 @@ export const GlobalCommandPalette: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
+    // Esc to close
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setIsOpen((prev) => !prev);
+      if (e.key === "Escape" && isOpen) {
+        setIsOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isOpen]);
 
   const COMMAND_ITEMS = [
     { label: "Dashboard", category: "Navigation", icon: LayoutDashboard, path: "/dashboard" },

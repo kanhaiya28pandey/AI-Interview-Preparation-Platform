@@ -10,7 +10,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import { useReducedEffects } from "@/hooks/useReducedEffects";
 
 const SYMBOLS = [
-  "{ }", "</>", "=>", "fn", "if", "++", "[]", "//", "01", "&&",
+  "{ }", "</>", "=>", "if", "++", "[]", "//", "01", "&&",
   "!=", "::", "let", "null",
 ];
 
@@ -24,7 +24,7 @@ interface Particle {
   opacity: number;
 }
 
-export const CodeRain: React.FC<{ count?: number }> = ({ count = 12 }) => {
+export const CodeRain: React.FC<{ count?: number }> = ({ count = 8 }) => {
   const reduced = useReducedEffects();
   const [paused, setPaused] = useState(false);
 
@@ -36,14 +36,14 @@ export const CodeRain: React.FC<{ count?: number }> = ({ count = 12 }) => {
   }, []);
 
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: Math.min(count, 12) }, (_, i) => ({
+    return Array.from({ length: Math.min(count, 8) }, (_, i) => ({
       id: i,
       symbol: SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)],
       left: `${5 + Math.random() * 90}%`,
-      animDuration: `${12 + Math.random() * 20}s`,
+      animDuration: `${14 + Math.random() * 20}s`,
       delay: `${-Math.random() * 20}s`,
-      fontSize: `${9 + Math.random() * 5}px`,
-      opacity: 0.05 + Math.random() * 0.1,
+      fontSize: `${9 + Math.random() * 4}px`,
+      opacity: 0.02 + Math.random() * 0.04, // Very subtle, under 6% opacity
     }));
   }, [count]);
 
@@ -52,7 +52,7 @@ export const CodeRain: React.FC<{ count?: number }> = ({ count = 12 }) => {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none"
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden select-none"
     >
       {particles.map((p) => (
         <span

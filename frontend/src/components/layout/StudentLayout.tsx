@@ -105,14 +105,9 @@ export const StudentLayout: React.FC = () => {
      * app-shell: overflow-hidden locks the document — the browser NEVER gets
      * a scrollbar on the window. Only .app-scroll (the <main>) scrolls.
      * h-dvh: fills the visual viewport on mobile (avoids toolbar overlap).
+     * bg-transparent lets the global AppBackground render behind the layout.
      */
-    <div className="app-shell h-dvh bg-ink text-text-primary flex relative">
-      {/* Decorative background FX — pointer-events-none, behind everything */}
-      {backgroundStyle === "orbs" && <FloatingOrbs count={3} />}
-      {backgroundStyle === "particles" && <ParticleField />}
-      {backgroundStyle === "mesh" && <GradientMesh />}
-      {backgroundStyle === "coderain" && <CodeRain />}
-
+    <div className="app-shell h-dvh bg-transparent text-text-primary flex relative z-10">
       {/* Sidebar */}
       <Sidebar
         isOpenMobile={mobileOpen}
@@ -170,7 +165,7 @@ export const StudentLayout: React.FC = () => {
           ref={mainRef}
           tabIndex={-1}
           className={cn(
-            "app-scroll flex-1 min-h-0 relative z-10 outline-none",
+            "app-scroll flex-1 min-h-0 relative z-10 outline-none pb-24",
             location.pathname === "/live-tests" || location.pathname === "/coding"
               ? "p-2 sm:p-5"
               : "p-4 sm:p-8"
@@ -181,7 +176,7 @@ export const StudentLayout: React.FC = () => {
               "w-full mx-auto",
               location.pathname === "/live-tests" || location.pathname === "/coding"
                 ? "max-w-none"
-                : "max-w-7xl"
+                : "max-w-[1600px]"
             )}
           >
             <ErrorBoundary fallbackTitle="Student Section Error" fallbackMessage="An error occurred while loading this view.">

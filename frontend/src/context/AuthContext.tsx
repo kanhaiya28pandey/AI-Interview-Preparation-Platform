@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
-        setIsDemoMode(storedDemo);
+        setIsDemoMode(false);
       }
     } catch (e) {
       console.error("Failed to parse stored auth user:", e);
@@ -56,10 +56,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const saveAuth = (authData: AuthResponse, isDemo = false) => {
+  const saveAuth = (authData: AuthResponse) => {
     const { token: authToken, userId, name, email, role, verificationStatus } = authData;
     const isExplicitAdmin = role?.toUpperCase().includes("ADMIN");
-    const resolvedStatus = isDemo || isExplicitAdmin
+    const resolvedStatus = isExplicitAdmin
       ? "Verified"
       : (verificationStatus || "Unverified");
 
@@ -73,49 +73,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setToken(authToken);
     setUser(userData);
-    setIsDemoMode(isDemo);
+    setIsDemoMode(false);
 
     localStorage.setItem("ai_interview_prep_token", authToken);
     localStorage.setItem("ai_interview_prep_user", JSON.stringify(userData));
-    localStorage.setItem("ai_interview_prep_demo", isDemo ? "true" : "false");
+    localStorage.removeItem("ai_interview_prep_demo");
   };
 
   const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const res = await authService.login(credentials);
-    saveAuth(res, false);
+    saveAuth(res);
     return res;
   };
 
   const register = async (credentials: RegisterCredentials): Promise<AuthResponse> => {
     const res = await authService.register(credentials);
-    saveAuth({ ...res, verificationStatus: "Unverified" }, false);
+    saveAuth({ ...res, verificationStatus: "Unverified" });
     return res;
   };
 
   const loginDemoStudent = () => {
-    const demoData: AuthResponse = {
-      token: "demo-student-jwt-token-2026",
-      userId: "demo-usr-student-01",
-      name: "Kanhaiya Pandey",
-      email: "kanhaiya.student@srmist.edu.in",
-      role: "STUDENT",
-      message: "Demo student session activated",
-      verificationStatus: "Verified",
-    };
-    saveAuth(demoData, true);
+    // No-op for backwards compatibility: demo mode disabled
   };
 
   const loginDemoAdmin = () => {
-    const demoData: AuthResponse = {
-      token: "demo-admin-jwt-token-2026",
-      userId: "demo-usr-admin-01",
-      name: "Ananya Sharma",
-      email: "ananya.admin@aiinterviewprep.com",
-      role: "ADMIN",
-      message: "Demo admin session activated",
-      verificationStatus: "Verified",
-    };
-    saveAuth(demoData, true);
+    // No-op for backwards compatibility: demo mode disabled
   };
 
   const forgotPassword = async (email: string): Promise<string> => {

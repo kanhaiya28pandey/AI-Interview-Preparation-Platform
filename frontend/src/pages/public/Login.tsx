@@ -12,7 +12,7 @@ import { AlertCircle, CheckCircle2, Sparkles, Eye, EyeOff, ShieldCheck, ArrowRig
 import { motion } from "framer-motion";
 
 export const Login: React.FC = () => {
-  const { login, loginDemoStudent, loginDemoAdmin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/dashboard";
@@ -29,16 +29,6 @@ export const Login: React.FC = () => {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
-
-  const handleDemoStudent = () => {
-    loginDemoStudent();
-    navigate("/dashboard", { replace: true });
-  };
-
-  const handleDemoAdmin = () => {
-    loginDemoAdmin();
-    navigate("/admin", { replace: true });
-  };
 
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
@@ -65,7 +55,12 @@ export const Login: React.FC = () => {
         }
       }, 700);
     } catch (err: any) {
-      setServerError(err.message || "Sign in failed. Check your credentials.");
+      const msg = err.message || "Sign in failed. Check your credentials.";
+      setServerError(
+        msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")
+          ? "Unable to reach the platform server. Please check your internet connection."
+          : msg
+      );
       setIsSubmitting(false);
     }
   };
@@ -74,31 +69,27 @@ export const Login: React.FC = () => {
     <AuthLayout>
       <Card className="p-6 sm:p-8 glass border-beam-card border border-border shadow-soft space-y-6 w-full relative">
         <div className="text-left space-y-2">
-          <span className="font-mono text-xs uppercase tracking-widest text-cyan-400">Student / Admin Access</span>
+          <span className="font-mono text-xs uppercase tracking-widest text-cyan-400">Student & Admin Access</span>
           <h1 className="font-serif text-3xl font-medium text-text-primary">Welcome Back</h1>
           <p className="text-xs text-text-secondary">Sign in to resume your mock interview series and placement benchmarks.</p>
         </div>
 
-        {/* Instant Demo Buttons */}
-        <div className="p-3 bg-surface-raised border border-cyan-400/30 rounded-xl space-y-2">
-          <span className="font-mono text-[11px] text-accent font-semibold uppercase tracking-wider block text-center">
-            ✨ Instant Demo Access (No Backend Required)
-          </span>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="teal-cyan" size="sm" onClick={handleDemoStudent} type="button" className="text-xs">
-              <Sparkles className="w-3.5 h-3.5" /> Demo Student
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleDemoAdmin} type="button" className="text-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Demo Admin
-            </Button>
-          </div>
-        </div>
-
-        {/* Error Banner */}
+        {/* Error Banner with Retry */}
         {serverError && (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-danger-bg border border-danger/40 text-danger text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span className="leading-relaxed">{serverError}</span>
+          <div className="flex items-start justify-between gap-2.5 p-3.5 rounded-lg bg-danger-bg border border-danger/40 text-danger text-xs">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{serverError}</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleSubmit(onSubmit)()}
+              className="text-[11px] py-1 px-2.5 shrink-0 border-danger/40 text-danger hover:bg-danger/10"
+            >
+              Retry
+            </Button>
           </div>
         )}
 

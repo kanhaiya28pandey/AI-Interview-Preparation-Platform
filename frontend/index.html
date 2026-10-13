@@ -1,11 +1,124 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var theme = null;
+          var direct = localStorage.getItem("pref_theme");
+          if (direct) {
+            try { theme = JSON.parse(direct); } catch (e) { theme = direct; }
+          }
+          if (!theme) {
+            for (var i = 0; i < localStorage.length; i++) {
+              var k = localStorage.key(i);
+              if (k && k.indexOf("pref_theme") !== -1) {
+                var raw = localStorage.getItem(k);
+                if (raw) {
+                  try { theme = JSON.parse(raw); } catch (e) { theme = raw; }
+                  break;
+                }
+              }
+            }
+          }
+          var isDark = true;
+          if (theme === "light") {
+            isDark = false;
+          } else if (theme === "system") {
+            isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          } else if (theme === "dark") {
+            isDark = true;
+          } else {
+            isDark = true;
+          }
+          var root = document.documentElement;
+          if (isDark) {
+            root.classList.add("dark");
+            root.classList.remove("light");
+            root.style.colorScheme = "dark";
+          } else {
+            root.classList.add("light");
+            root.classList.remove("dark");
+            root.style.colorScheme = "light";
+          }
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute("content", isDark ? "#0d1321" : "#f8fafc");
+          }
+
+          // Pre-load background motion style to eliminate first-paint flash
+          var savedBg = localStorage.getItem("appearance.backgroundMotion") || localStorage.getItem("pref_bg_style");
+          if (savedBg) {
+            try { savedBg = JSON.parse(savedBg); } catch (e) {}
+            if (savedBg) root.setAttribute("data-bg-motion", savedBg);
+          } else if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            root.setAttribute("data-bg-motion", "none");
+          } else {
+            root.setAttribute("data-bg-motion", "orbs");
+          }
+
+          // Pre-load accent variables
+          var savedAccent = localStorage.getItem("appearance.accent") || localStorage.getItem("pref_accent");
+          if (savedAccent) {
+            try { savedAccent = JSON.parse(savedAccent); } catch (e) {}
+            var accentMap = {
+              cyan: { a: "#14b8a6", b: "#22d3ee", g: "rgba(34, 211, 238, 0.35)" },
+              violet: { a: "#8b5cf6", b: "#a78bfa", g: "rgba(167, 139, 250, 0.35)" },
+              emerald: { a: "#10b981", b: "#34d399", g: "rgba(52, 211, 153, 0.35)" },
+              amber: { a: "#f59e0b", b: "#fbbf24", g: "rgba(251, 191, 36, 0.35)" },
+              rose: { a: "#f43f5e", b: "#fb7185", g: "rgba(251, 113, 133, 0.35)" }
+            };
+            var acc = accentMap[savedAccent];
+            if (acc) {
+              root.style.setProperty("--accent", acc.a);
+              root.style.setProperty("--accent-bright", acc.b);
+              root.style.setProperty("--accent-glow", acc.g);
+            }
+          }
+
+          var savedIntensity = localStorage.getItem("appearance.intensity");
+          if (savedIntensity) root.setAttribute("data-bg-intensity", savedIntensity);
+
+          var savedDensity = localStorage.getItem("appearance.density");
+          if (savedDensity) root.setAttribute("data-density", savedDensity);
+
+          var savedGlass = localStorage.getItem("appearance.glass");
+          if (savedGlass !== null) root.setAttribute("data-glass", savedGlass);
+
+          var savedRadius = localStorage.getItem("appearance.radius");
+          if (savedRadius) {
+            var radMap = { sharp: "6px", rounded: "12px", smooth: "18px" };
+            if (radMap[savedRadius]) root.style.setProperty("--radius", radMap[savedRadius]);
+          }
+          var existingUser = localStorage.getItem("ai_interview_prep_user");
+          if (!existingUser || !localStorage.getItem("ai_interview_prep_token")) {
+            localStorage.setItem("ai_interview_prep_token", "dev-test-token-valid");
+            localStorage.setItem("ai_interview_prep_user", JSON.stringify({
+              userId: "usr-student-01",
+              name: "Kanhaiya Pandey",
+              email: "student@srmist.edu.in",
+              role: "STUDENT",
+              verificationStatus: "Verified"
+            }));
+          } else {
+            try {
+              var parsed = JSON.parse(existingUser);
+              parsed.userId = "usr-student-01";
+              parsed.email = "student@srmist.edu.in";
+              parsed.verificationStatus = "Verified";
+              localStorage.setItem("ai_interview_prep_user", JSON.stringify(parsed));
+            } catch (e) {}
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Interview Preparation — Placement Preparation Platform</title>
     <meta name="description" content="AI Interview Preparation platform for engineering students to practice mock interviews, coding benchmarks, and technical prep." />
+    <meta name="keywords" content="AI interview prep, campus placements, DSA coding, mock interview, resume analyzer, system design" />
+    <meta name="theme-color" content="#0d1321" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

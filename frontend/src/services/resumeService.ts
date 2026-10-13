@@ -346,12 +346,12 @@ export const resumeService = {
 
   async getAdminAnalytics(): Promise<AdminResumeAnalytics> {
     try {
+      const base = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || "";
+      const token = localStorage.getItem("ai_interview_prep_token");
       const res = await axios.get<AdminResumeAnalytics>(
-        `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8080"}/api/v1/admin/resume-analytics`,
+        `${base}/api/v1/admin/resume-analytics`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("ai_interview_prep_token") || "demo-admin-test-token"}`,
-          },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         }
       );
       if (res.data) {

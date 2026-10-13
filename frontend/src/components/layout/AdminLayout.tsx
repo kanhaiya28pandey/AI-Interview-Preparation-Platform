@@ -93,13 +93,9 @@ export const AdminLayout: React.FC = () => {
      * app-shell: overflow-hidden locks the document — the browser NEVER gets
      * a scrollbar on the window. Only .app-scroll (the <main>) scrolls.
      * h-dvh: fills the visual viewport on mobile (avoids toolbar overlap).
+     * bg-transparent lets the global AppBackground render behind the layout.
      */
-    <div className="app-shell h-dvh bg-ink text-text-primary flex relative">
-      {/* Decorative background FX — pointer-events-none, behind everything */}
-      {backgroundStyle === "orbs" && <FloatingOrbs count={3} />}
-      {backgroundStyle === "particles" && <ParticleField />}
-      {backgroundStyle === "mesh" && <GradientMesh />}
-      {backgroundStyle === "coderain" && <CodeRain />}
+    <div className="app-shell h-dvh bg-transparent text-text-primary flex relative z-10">
 
       {/*
        * Sidebar: h-full fills the shell exactly — its background always
@@ -132,9 +128,9 @@ export const AdminLayout: React.FC = () => {
         <main
           ref={mainRef}
           tabIndex={-1}
-          className="app-scroll flex-1 min-h-0 p-4 sm:p-8 relative z-10 outline-none"
+          className="app-scroll flex-1 min-h-0 p-4 sm:p-8 pb-24 relative z-10 outline-none"
         >
-          <div className="max-w-7xl w-full mx-auto">
+          <div className="max-w-[1600px] w-full mx-auto">
             <ErrorBoundary fallbackTitle="Admin Section Error" fallbackMessage="An error occurred while rendering this admin view.">
               <PageTransition>
                 <Outlet />

@@ -23,3 +23,4 @@ export * from "./HotspotDot";
 export * from "./CoachMark";
 // Step 5: Ambient background
 export * from "./CodeRain";
+export * from "../common/AppBackground";

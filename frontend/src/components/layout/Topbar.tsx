@@ -18,6 +18,7 @@ import {
   CheckCheck,
   HelpCircle,
   ArrowRight,
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   X,
@@ -34,7 +35,7 @@ import {
   Inbox,
 } from "lucide-react";
 import { useNavigate, NavLink } from "react-router-dom";
-import { CommandPalette } from "@/components/common/CommandPalette";
+import { GlobalSearch } from "@/components/common/GlobalSearch";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
@@ -59,11 +60,12 @@ export const Topbar: React.FC<TopbarProps> = ({
   const [notificationFilter, setNotificationFilter] = useState<string>("all");
   const [showQuickHelp, setShowQuickHelp] = useState(false);
   const [quickHelpQuery, setQuickHelpQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications();
   const reducedEffects = useReducedEffects();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDivElement>(null);
-  const { isDark, toggleTheme } = useAppearance();
+  const { isDark, toggleTheme, isThemeTransitioning } = useAppearance();
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const notifCounts = {
@@ -180,67 +182,104 @@ export const Topbar: React.FC<TopbarProps> = ({
     : allFaqs.slice(0, 3);
 
   return (
-    <header className="h-16 border-b border-border bg-surface z-30 px-4 sm:px-8 flex items-center justify-between gap-4 select-none shrink-0 shadow-sm">
-      <CommandPalette />
-
-      <div className="flex items-center gap-3 min-w-0">
-        {onOpenMobileSidebar && (
-          <Button variant="ghost" size="sm" onClick={onOpenMobileSidebar} className="lg:hidden p-2 h-auto text-text-secondary shrink-0">
-            <Menu className="w-5 h-5" />
-          </Button>
-        )}
-        {onToggleSidebarCollapse && (
+    <header className="h-16 border-b border-border bg-surface z-40 px-4 sm:px-8 flex items-center justify-between gap-4 select-none shrink-0 shadow-sm relative">
+      {mobileSearchOpen ? (
+        <div className="flex-1 flex items-center gap-2 w-full animate-in fade-in duration-150">
           <Button
             variant="ghost"
             size="sm"
-            onClick={onToggleSidebarCollapse}
-            className="hidden lg:flex p-2 h-auto text-text-secondary hover:text-cyan-400 shrink-0"
-            title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={() => setMobileSearchOpen(false)}
+            className="p-2 h-auto text-text-secondary hover:text-cyan-400 shrink-0 cursor-pointer"
+            aria-label="Back to dashboard view"
           >
-            {isSidebarCollapsed ? (
-              <ChevronRight className="w-5 h-5 text-cyan-400" />
-            ) : (
-              <ChevronLeft className="w-5 h-5 text-text-muted" />
-            )}
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-        )}
-        <h1 className="font-serif text-lg sm:text-xl font-medium text-text-primary tracking-tight truncate">
-          {title || "Dashboard Overview"}
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Command Palette Trigger */}
-        <div
-          onClick={() => {
-            const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true });
-            window.dispatchEvent(event);
-          }}
-          className="hidden md:flex items-center gap-2 bg-surface-raised border border-border px-3 py-1.5 rounded-lg text-xs text-text-muted w-48 sm:w-56 focus-within:border-cyan-400/50 cursor-pointer transition-colors"
-          title="Press Ctrl+K"
-        >
-          <Search className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-          <span className="text-text-muted truncate">Search or Ctrl+K...</span>
-          <kbd className="bg-surface border border-border px-1.5 py-0.5 rounded text-[10px] font-mono ml-auto text-text-secondary">⌘K</kbd>
+          <GlobalSearch
+            className="flex-1 min-w-0"
+            autoFocus
+            onClose={() => setMobileSearchOpen(false)}
+          />
         </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 min-w-0">
+            {onOpenMobileSidebar && (
+              <Button variant="ghost" size="sm" onClick={onOpenMobileSidebar} className="lg:hidden p-2 h-auto text-text-secondary shrink-0">
+                <Menu className="w-5 h-5" />
+              </Button>
+            )}
+            {onToggleSidebarCollapse && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleSidebarCollapse}
+                className="hidden lg:flex p-2 h-auto text-text-secondary hover:text-cyan-400 shrink-0"
+                title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {isSidebarCollapsed ? (
+                  <ChevronRight className="w-5 h-5 text-cyan-400" />
+                ) : (
+                  <ChevronLeft className="w-5 h-5 text-text-muted" />
+                )}
+              </Button>
+            )}
+            <h1 className="font-serif text-lg sm:text-xl font-medium text-text-primary tracking-tight truncate">
+              {title || "Dashboard Overview"}
+            </h1>
+          </div>
 
-        {/* Demo Mode Badge */}
-        {isDemoMode && (
-          <span className="hidden sm:inline-flex items-center gap-1 bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 px-2.5 py-0.5 rounded-full text-[11px] font-mono">
-            <Sparkles className="w-3 h-3" /> DEMO SESSION
-          </span>
-        )}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Mobile Search Button */}
+            <Button
+              id="topbar-mobile-search-btn"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobileSearchOpen(true)}
+              className="md:hidden p-2 h-auto text-text-secondary hover:text-teal-600 dark:hover:text-teal-300 shrink-0 cursor-pointer"
+              title="Search"
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4 text-teal-600 dark:text-teal-300" />
+            </Button>
+
+            {/* Working Global Search Bar */}
+            <GlobalSearch className="hidden md:block w-56 sm:w-72" />
 
         {/* Theme Toggle Button */}
         <Button
+          id="theme-toggle-btn"
           variant="ghost"
           size="sm"
-          onClick={toggleTheme}
-          className="p-2 h-auto text-text-secondary hover:text-cyan-400"
+          onClick={(e) => {
+            e.currentTarget.blur();
+            toggleTheme();
+          }}
+          disabled={isThemeTransitioning}
+          className="p-2 h-auto text-text-secondary hover:text-cyan-400 group relative cursor-pointer"
           title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
-          {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-500" />}
+          <div className="relative w-4 h-4 flex items-center justify-center overflow-hidden">
+            <span
+              className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ease-out ${
+                isDark
+                  ? "rotate-0 opacity-100 scale-100 text-amber-400"
+                  : "-rotate-90 opacity-0 scale-50 pointer-events-none text-amber-400"
+              }`}
+            >
+              <Sun className="w-4 h-4" />
+            </span>
+            <span
+              className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ease-out ${
+                !isDark
+                  ? "rotate-0 opacity-100 scale-100 text-cyan-500"
+                  : "rotate-90 opacity-0 scale-50 pointer-events-none text-cyan-500"
+              }`}
+            >
+              <Moon className="w-4 h-4" />
+            </span>
+          </div>
         </Button>
 
         {/* Quick Help ? Button & Popover */}
@@ -620,6 +659,8 @@ export const Topbar: React.FC<TopbarProps> = ({
           <LogOut className="w-4 h-4" />
         </Button>
       </div>
-    </header>
+    </>
+  )}
+</header>
   );
 };

@@ -1,57 +1,104 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useAppearance } from "@/context/AppearanceContext";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/common/Logo";
 import { RoleBadge } from "@/components/common/RoleBadge";
-import { Sparkles, Command, Sun, Moon } from "lucide-react";
+import { GlobalSearch } from "@/components/common/GlobalSearch";
+import { Sun, Moon, Search, ArrowLeft } from "lucide-react";
 
 export const Navbar: React.FC = () => {
-  const { isAuthenticated, user, logout, loginDemoStudent, isDemoMode } = useAuth();
-  const { isDark, toggleTheme } = useAppearance();
+  const { isAuthenticated, user, logout } = useAuth();
+  const { isDark, toggleTheme, isThemeTransitioning } = useAppearance();
   const navigate = useNavigate();
-
-  const handleDemoStudent = () => {
-    loginDemoStudent();
-    navigate("/dashboard");
-  };
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   return (
-    <header className="w-full sticky top-0 z-40 bg-surface border-b border-border select-none shadow-sm">
-      <nav className="flex items-center justify-between px-4 sm:px-6 py-3.5 max-w-7xl mx-auto w-full">
-        <Logo size="md" />
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Command palette tip */}
-          <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono text-text-muted bg-surface-raised border border-border px-2.5 py-1 rounded-lg">
-            <Command className="w-3 h-3 text-cyan-400" />
-            <span>Press</span>
-            <kbd className="bg-ink px-1 rounded text-text-secondary">Ctrl</kbd>
-            <span>+</span>
-            <kbd className="bg-ink px-1 rounded text-text-secondary">K</kbd>
-          </div>
-
-          {/* Theme Toggle Button */}
+    <header className="w-full sticky top-0 z-40 bg-surface/85 backdrop-blur-md border-b border-border/80 select-none shadow-sm">
+      {mobileSearchOpen ? (
+        <div className="flex items-center px-4 sm:px-6 max-w-[1600px] mx-auto w-full py-3 gap-2 animate-in fade-in duration-150">
           <Button
             variant="ghost"
             size="sm"
-            onClick={toggleTheme}
-            className="p-2 text-text-secondary hover:text-cyan-400"
-            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            onClick={() => setMobileSearchOpen(false)}
+            className="p-2 text-text-secondary hover:text-cyan-400 shrink-0 cursor-pointer"
+            aria-label="Back to page"
           >
-            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-500" />}
+            <ArrowLeft className="w-5 h-5" />
           </Button>
+          <GlobalSearch
+            className="flex-1 min-w-0"
+            autoFocus
+            onClose={() => setMobileSearchOpen(false)}
+          />
+        </div>
+      ) : (
+        <nav className="flex items-center justify-between px-4 sm:px-6 lg:px-12 max-w-[1600px] mx-auto w-full py-3.5 gap-4">
+          {/* Brand Logo */}
+          <div className="shrink-0">
+            <Logo size="md" />
+          </div>
 
-          {isDemoMode && (
-            <span className="hidden sm:inline-flex text-[10px] font-mono bg-cyan-400/15 text-cyan-400 border border-cyan-400/40 px-2.5 py-1 rounded-full items-center gap-1">
-              <Sparkles className="w-3 h-3" /> DEMO MODE
-            </span>
-          )}
+          {/* Global Clickable Search Bar */}
+          <div className="flex-1 max-w-md mx-2 hidden md:block">
+            <GlobalSearch className="w-full" />
+          </div>
+
+          {/* Right Action Group */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Mobile Search Button */}
+            <Button
+              id="navbar-mobile-search-btn"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobileSearchOpen(true)}
+              className="md:hidden p-2 text-text-secondary hover:text-teal-600 dark:hover:text-teal-300 shrink-0 cursor-pointer"
+              title="Search"
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4 text-teal-600 dark:text-teal-300" />
+            </Button>
+
+          {/* Theme Toggle Button */}
+          <Button
+            id="navbar-theme-toggle-btn"
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.currentTarget.blur();
+              toggleTheme();
+            }}
+            disabled={isThemeTransitioning}
+            className="p-2 text-text-secondary hover:text-cyan-400 group relative cursor-pointer"
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            <div className="relative w-4 h-4 flex items-center justify-center overflow-hidden">
+              <span
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ease-out ${
+                  isDark
+                    ? "rotate-0 opacity-100 scale-100 text-amber-400"
+                    : "-rotate-90 opacity-0 scale-50 pointer-events-none text-amber-400"
+                }`}
+              >
+                <Sun className="w-4 h-4" />
+              </span>
+              <span
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ease-out ${
+                  !isDark
+                    ? "rotate-0 opacity-100 scale-100 text-cyan-500"
+                    : "rotate-90 opacity-0 scale-50 pointer-events-none text-cyan-500"
+                }`}
+              >
+                <Moon className="w-4 h-4" />
+              </span>
+            </div>
+          </Button>
 
           {isAuthenticated ? (
             <>
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden lg:flex items-center gap-2">
                 <RoleBadge role={user?.role} size="sm" />
                 <span className="text-xs font-mono text-text-secondary">
                   Hi, <strong className="text-cyan-400 font-semibold">{user?.name}</strong>
@@ -61,35 +108,47 @@ export const Navbar: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(window.location.pathname.startsWith("/admin") ? "/dashboard" : "/admin")}
+                  onClick={() =>
+                    navigate(
+                      window.location.pathname.startsWith("/admin")
+                        ? "/dashboard"
+                        : "/admin"
+                    )
+                  }
                   className="text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10"
                 >
-                  {window.location.pathname.startsWith("/admin") ? "Switch to Student View" : "Switch to Admin View"}
+                  {window.location.pathname.startsWith("/admin")
+                    ? "Student View"
+                    : "Admin View"}
                 </Button>
               )}
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => navigate(user?.role === "ADMIN" ? "/admin" : "/dashboard")}
+                onClick={() =>
+                  navigate(user?.role === "ADMIN" ? "/admin" : "/dashboard")
+                }
               >
                 Dashboard
               </Button>
-              <Button variant="ghost" size="sm" onClick={logout} className="hidden sm:inline-flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="hidden sm:inline-flex"
+              >
                 Sign out
               </Button>
             </>
           ) : (
             <>
-              <Button variant="teal-cyan" size="sm" onClick={handleDemoStudent} className="hidden sm:inline-flex">
-                <Sparkles className="w-3.5 h-3.5" /> Try Demo
-              </Button>
               <Link to="/login">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="hover:text-cyan-400">
                   Sign in
                 </Button>
               </Link>
               <Link to="/register">
-                <Button variant="primary" size="sm">
+                <Button variant="primary" size="sm" className="shadow-[0_0_15px_rgba(34,211,238,0.25)]">
                   Get Started
                 </Button>
               </Link>
@@ -97,6 +156,9 @@ export const Navbar: React.FC = () => {
           )}
         </div>
       </nav>
-    </header>
+    )}
+  </header>
   );
 };
+
+export default Navbar;
