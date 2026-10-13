@@ -12,7 +12,6 @@ import com.interviewplatform.backend.dto.QuizSubmissionRequest;
 import com.interviewplatform.backend.model.ContentItem;
 import com.interviewplatform.backend.model.QuizQuestion;
 import com.interviewplatform.backend.model.QuizTopic;
-import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.repository.ContentItemRepository;
 import com.interviewplatform.backend.repository.QuizQuestionRepository;
 import com.interviewplatform.backend.repository.QuizTopicRepository;

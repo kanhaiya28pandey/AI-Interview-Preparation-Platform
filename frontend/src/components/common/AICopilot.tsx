@@ -261,25 +261,43 @@ export const AICopilot: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Single Floating Trigger Button */}
+        {/* New Single Round Floating Trigger Button */}
         {!isOpen && (
-          <motion.button
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
-            onClick={() => setIsOpen(true)}
-            aria-label="Open AI Copilot Chat"
-            className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-cyan-500 via-teal-500 to-cyan-600 text-[#0d1321] font-semibold text-xs shadow-[0_8px_25px_rgba(34,211,238,0.4)] border border-cyan-300/60 hover:shadow-[0_10px_35px_rgba(34,211,238,0.6)] transition-[box-shadow,transform] duration-200 cursor-pointer"
-          >
-            <Bot className="w-4 h-4 text-[#0d1321]" />
-            <span className="font-mono tracking-tight hidden sm:inline">AI Copilot</span>
-            {/* Small status dot on the button only when AI service is reachable */}
-            {isAiOnline && (
-              <span
-                className="w-2 h-2 rounded-full bg-emerald-950 animate-pulse"
-                title="AI Copilot Online"
-              />
-            )}
-          </motion.button>
+          <div className="relative group">
+            {/* Tooltip on hover */}
+            <span
+              role="tooltip"
+              className="absolute right-[calc(100%+12px)] top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-surface-raised/95 border border-border text-xs font-semibold text-text-primary shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10"
+            >
+              AI Copilot
+            </span>
+
+            {/* Gentle pulse ring every few seconds */}
+            <span
+              className="absolute inset-0 rounded-full bg-[#FF6B81]/35 animate-ping pointer-events-none"
+              style={{ animationDuration: "3.5s" }}
+              aria-hidden="true"
+            />
+
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
+              onClick={() => setIsOpen(true)}
+              aria-label="Open AI Copilot"
+              title="AI Copilot"
+              className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-[#F43F5E] via-[#FF5376] to-[#FF6B81] text-white flex items-center justify-center shadow-[0_8px_25px_rgba(244,63,94,0.45)] hover:shadow-[0_12px_35px_rgba(255,107,129,0.7)] transition-[box-shadow,transform] duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6B81] focus-visible:ring-offset-2"
+            >
+              <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-white shrink-0 drop-shadow-sm" />
+
+              {/* Small status dot only if AI service is reachable */}
+              {isAiOnline && (
+                <span
+                  className="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-surface animate-pulse"
+                  title="AI Copilot Online"
+                />
+              )}
+            </motion.button>
+          </div>
         )}
       </div>
 

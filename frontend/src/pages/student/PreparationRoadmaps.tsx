@@ -186,11 +186,11 @@ export const PreparationRoadmaps: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fade-in pb-16">
-      {/* Top Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Header Banner with Readable Backdrop */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface-raised/40 border border-border/40 backdrop-blur-sm shadow-xs">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
               <Compass className="w-5 h-5" />
             </div>
             <div>
@@ -198,11 +198,11 @@ export const PreparationRoadmaps: React.FC = () => {
                 <h1 className="font-serif text-2xl font-bold text-text-primary tracking-tight">
                   Placement Preparation Roadmaps
                 </h1>
-                <Badge variant="accent" className="font-mono text-xs">
+                <Badge variant="accent" className="font-mono text-xs font-semibold">
                   {domains.length} Career Tracks
                 </Badge>
               </div>
-              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+              <p className="text-xs sm:text-sm text-text-secondary font-medium mt-0.5">
                 Comprehensive beginner-to-advanced placement curricula tailored for engineering roles and company recruitment rounds.
               </p>
             </div>
@@ -210,10 +210,10 @@ export const PreparationRoadmaps: React.FC = () => {
         </div>
 
         {/* Global Progress pill */}
-        <div className="flex items-center gap-3 bg-surface-raised/60 border border-border px-4 py-2.5 rounded-2xl self-start md:self-auto">
+        <div className="flex items-center gap-3 bg-surface-raised/80 border border-border px-4 py-2.5 rounded-2xl self-start md:self-auto shrink-0 shadow-xs">
           <GraduationCap className="w-5 h-5 text-cyan-400 shrink-0" />
           <div className="text-left">
-            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider font-semibold">
               Total Milestones Solved
             </div>
             <div className="text-xs font-bold text-text-primary">
@@ -223,15 +223,15 @@ export const PreparationRoadmaps: React.FC = () => {
         </div>
       </div>
 
-      {/* DOMAIN SELECTION GRID - Full Clear Visibility */}
+      {/* DOMAIN SELECTION GRID - Full Clear Visibility with Readable Backdrop */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 px-3 py-2 rounded-xl bg-surface-raised/30 border border-border/30 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted font-mono flex items-center gap-1.5">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-text-primary font-mono flex items-center gap-1.5">
               <Target className="w-4 h-4 text-cyan-400" /> Select Placement Domain & Track
             </h2>
           </div>
-          <span className="text-xs text-text-muted">
+          <span className="text-xs text-text-secondary font-medium">
             Click any track to view its full week-by-week curriculum
           </span>
         </div>

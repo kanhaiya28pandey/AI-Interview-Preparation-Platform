@@ -28,9 +28,12 @@ export default {
           soft: "#14b8a6",
         },
         text: {
-          primary: "#eceae3",
-          secondary: "#9098ae",
-          muted: "#5e6a85",
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          muted: "var(--text-muted)",
+          label: "var(--text-label)",
+          hint: "var(--text-hint)",
+          locked: "var(--text-locked)",
         },
         live: "#4ade80",
         danger: {

@@ -316,22 +316,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     isActive
                       ? "bg-cyan-400/15 text-cyan-400 border border-cyan-400/30 shadow-nav"
                       : link.locked
-                      ? "text-text-muted/60 hover:text-text-muted hover:bg-surface-raised/40 cursor-not-allowed"
-                      : "text-text-secondary hover:text-text-primary hover:bg-surface-raised"
+                      ? "text-text-locked hover:text-text-secondary hover:bg-surface-raised/40 cursor-not-allowed font-medium"
+                      : "text-text-secondary hover:text-text-primary hover:bg-surface-raised font-medium"
                   )}
                   title={link.locked ? "Verify your identity to unlock" : undefined}
                 >
                   <Icon
                     className={cn(
                       "w-4 h-4 shrink-0 transition-colors",
-                      isActive ? "text-cyan-400" : "text-text-muted group-hover:text-text-primary"
+                      isActive
+                        ? "text-cyan-400"
+                        : link.locked
+                        ? "text-text-locked"
+                        : "text-text-muted group-hover:text-text-primary"
                     )}
                   />
                   {!collapsed && (
                     <>
                       <span className="flex-1 truncate">{link.label}</span>
                       {link.locked ? (
-                        <Lock className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                        <Lock className="w-3.5 h-3.5 text-text-locked shrink-0" />
                       ) : link.badge ? (
                         <span className="text-[10px] font-mono bg-cyan-400/20 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                           <Sparkles className="w-2.5 h-2.5" />

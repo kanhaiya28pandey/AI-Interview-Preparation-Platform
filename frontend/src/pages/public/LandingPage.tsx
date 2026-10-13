@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { CompanyMarquee } from "@/components/common/CompanyMarquee";
-import { TestimonialsCarousel } from "@/components/common/TestimonialsCarousel";
 import { GradientMesh, FloatingOrbs, AnimatedCounter, Reveal, TiltCard } from "@/components/fx";
 import { HERO_ROLES } from "@/constants/heroRoles";
 import { HeroShowcase } from "@/components/landing/HeroShowcase";
@@ -483,23 +482,6 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Testimonials Carousel */}
-      <section className="py-20 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12">
-        <div className="space-y-12">
-          <Reveal direction="up" className="text-center max-w-xl mx-auto space-y-2">
-            <p className="font-mono text-xs uppercase tracking-widest text-accent font-semibold">
-              Student Testimonials
-            </p>
-            <h2 className="font-serif text-3xl font-medium text-text-primary">
-              Hear from students who nailed placement day
-            </h2>
-          </Reveal>
-
-          <Reveal direction="up" delay={0.2}>
-            <TestimonialsCarousel />
-          </Reveal>
-        </div>
-      </section>
 
       {/* FAQ Accordion */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20 w-full space-y-8">
