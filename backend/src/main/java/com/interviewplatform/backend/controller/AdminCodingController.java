@@ -14,7 +14,7 @@ import com.interviewplatform.backend.model.CodingProblem;
 import com.interviewplatform.backend.service.CodingJudgeService;
 
 @RestController
-@RequestMapping({"/api/v1/admin/coding-tests", "/api/admin/coding-tests"})
+@RequestMapping({"/api/v1/admin/coding-problems", "/api/admin/coding-problems", "/api/v1/admin/coding-tests", "/api/admin/coding-tests"})
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminCodingController {
 

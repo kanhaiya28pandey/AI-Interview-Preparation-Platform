@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interviewplatform.backend.model.FormattingItem;
+import com.interviewplatform.backend.model.JdMatchDetail;
 import com.interviewplatform.backend.model.KeywordDetail;
 import com.interviewplatform.backend.model.MissingSkillDetail;
 import com.interviewplatform.backend.model.ResumeAnalysis;
@@ -116,11 +117,19 @@ public class GeminiAiService {
                     { "name": "Skills", "status": "good", "score": 88, "extractedContent": "Skills snippet", "suggestions": ["Tip 3"] },
                     { "name": "Education", "status": "good", "score": 90, "extractedContent": "Education snippet", "suggestions": ["Tip 4"] }
                   ],
-                  "roleFitComparison": [
                     { "roleName": "%s", "score": 82 },
                     { "roleName": "Software Engineer", "score": 78 },
                     { "roleName": "Full Stack Developer", "score": 74 }
-                  ]
+                  ],
+                  "jdMatch": {
+                    "jobDescriptionProvided": true,
+                    "matchScore": 84,
+                    "matchingKeywords": ["React", "TypeScript", "REST APIs"],
+                    "missingKeywords": ["Docker", "Kubernetes"],
+                    "experienceMatch": "Strong candidate alignment with core requirements.",
+                    "roleAlignment": "Demonstrates practical competencies matching target responsibilities.",
+                    "recommendations": ["Incorporate missing keywords in your experience section", "Tailor bullet points to emphasize relevant project outcomes"]
+                  }
                 }
                 
                 Candidate Resume Text:
@@ -301,6 +310,80 @@ public class GeminiAiService {
                 new RoleFitItem("Full Stack Developer", Math.max(50, overallAts - 10))
         );
 
+        JdMatchDetail jdMatch = new JdMatchDetail();
+        if (jobDescription != null && !jobDescription.trim().isBlank()) {
+            jdMatch.setJobDescriptionProvided(true);
+            String lowerJd = jobDescription.toLowerCase();
+
+            List<String> commonIndustryTerms = List.of(
+                    "react", "angular", "vue", "next.js", "node.js", "express", "typescript", "javascript",
+                    "java", "spring", "spring boot", "python", "django", "fastapi", "flask", "c++", "c#", ".net",
+                    "sql", "mysql", "postgresql", "mongodb", "redis", "elasticsearch", "kafka", "rabbitmq",
+                    "aws", "azure", "gcp", "docker", "kubernetes", "ci/cd", "jenkins", "git", "github", "gitlab",
+                    "rest", "rest api", "graphql", "grpc", "microservices", "agile", "scrum", "jira",
+                    "testing", "jest", "junit", "cypress", "selenium", "terraform", "linux", "cloud",
+                    "algorithms", "data structures", "system design", "distributed systems", "concurrency"
+            );
+
+            List<String> jdKeywords = new ArrayList<>();
+            for (String term : commonIndustryTerms) {
+                if (lowerJd.contains(term)) {
+                    jdKeywords.add(term);
+                }
+            }
+
+            String[] tokens = jobDescription.split("[\\s,;:.()\\[\\]{}/]+");
+            for (String token : tokens) {
+                String clean = token.toLowerCase().trim();
+                if (clean.length() >= 3 && !jdKeywords.contains(clean)) {
+                    if (token.equals(token.toUpperCase()) && token.length() >= 2 && token.length() <= 6) {
+                        jdKeywords.add(clean);
+                    }
+                }
+            }
+
+            List<String> matchingJdKeywords = new ArrayList<>();
+            List<String> missingJdKeywords = new ArrayList<>();
+
+            for (String kw : jdKeywords) {
+                if (lower.contains(kw)) {
+                    matchingJdKeywords.add(capitalizeWords(kw));
+                } else {
+                    missingJdKeywords.add(capitalizeWords(kw));
+                }
+            }
+
+            int jdScore = 75;
+            if (!jdKeywords.isEmpty()) {
+                jdScore = Math.min(98, Math.max(35, (matchingJdKeywords.size() * 100) / jdKeywords.size()));
+            }
+
+            jdMatch.setMatchScore(jdScore);
+            jdMatch.setMatchingKeywords(matchingJdKeywords);
+            jdMatch.setMissingKeywords(missingJdKeywords);
+            jdMatch.setExperienceMatch(matchingJdKeywords.size() >= 4
+                    ? "Strong technical alignment with stated job requirements."
+                    : "Partial alignment. Core foundational skills present, but specific tools are missing.");
+            jdMatch.setRoleAlignment("Resume demonstrates capability for the target requirements with " + matchingJdKeywords.size() + " directly matched competencies.");
+
+            List<String> jdRecs = new ArrayList<>();
+            if (!missingJdKeywords.isEmpty()) {
+                jdRecs.add("Incorporate high-priority requirements from this JD: " + String.join(", ", missingJdKeywords.subList(0, Math.min(3, missingJdKeywords.size()))) + ".");
+            }
+            jdRecs.add("Mirror exact terminology and phrases from the job description in your project descriptions.");
+            jdRecs.add("Highlight projects where you used " + (matchingJdKeywords.isEmpty() ? "relevant technologies" : matchingJdKeywords.get(0)) + " to prove practical experience.");
+            jdMatch.setRecommendations(jdRecs);
+
+            // Re-weight overall ATS score with JD match score
+            overallAts = Math.round((overallAts * 0.60f) + (jdScore * 0.40f));
+            subScores.setKeywordMatch(Math.round((subScores.getKeywordMatch() * 0.5f) + (jdScore * 0.5f)));
+        } else {
+            jdMatch.setJobDescriptionProvided(false);
+            jdMatch.setMatchScore(0);
+            jdMatch.setRoleAlignment("Standard general role benchmarking applied (no custom job description supplied).");
+            jdMatch.setRecommendations(List.of("Paste a specific job description to benchmark exact keyword matches and custom ATS filters."));
+        }
+
         ResumeAnalysis analysis = new ResumeAnalysis();
         analysis.setRole(role);
         analysis.setField(field != null ? field : "IT Services");
@@ -316,6 +399,7 @@ public class GeminiAiService {
         analysis.setFormattingChecklist(formattingChecklist);
         analysis.setSections(sections);
         analysis.setRoleFitComparison(roleFit);
+        analysis.setJdMatch(jdMatch);
 
         return analysis;
     }

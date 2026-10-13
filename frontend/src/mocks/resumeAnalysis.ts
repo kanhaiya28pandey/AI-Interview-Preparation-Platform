@@ -56,6 +56,16 @@ export interface AnalysisHistoryItem {
   fileName: string;
 }
 
+export interface JdMatchDetail {
+  jobDescriptionProvided: boolean;
+  matchScore: number;
+  matchingKeywords: string[];
+  missingKeywords: string[];
+  experienceMatch: string;
+  roleAlignment: string;
+  recommendations: string[];
+}
+
 export interface ResumeAnalysisResult {
   role: string;
   field: string;
@@ -72,6 +82,7 @@ export interface ResumeAnalysisResult {
   sections: SectionAnalysis[];
   roleFitComparison: RoleFitItem[];
   history: AnalysisHistoryItem[];
+  jdMatch?: JdMatchDetail;
 }
 
 export interface MissingSkillStat {

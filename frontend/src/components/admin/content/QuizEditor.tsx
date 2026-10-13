@@ -604,7 +604,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                     <span className="px-2 py-0.5 rounded-full bg-surface border border-border text-text-muted">
                       {q.difficulty}
                     </span>
-                    <span className="text-text-muted">• {q.marks} mark{q.marks > 1 ? "s" : ""}</span>
+                    <span className="text-text-muted">• {q.marks || 1} mark{(q.marks || 1) > 1 ? "s" : ""}</span>
                   </div>
 
                   <p className="text-xs font-medium text-text-primary leading-relaxed">{q.question}</p>

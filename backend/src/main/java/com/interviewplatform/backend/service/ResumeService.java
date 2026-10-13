@@ -191,7 +191,7 @@ public class ResumeService {
             );
         }
 
-        double avgScore = all.stream().mapToInt(ResumeAnalysis::getAtsScore).average().orElse(79.0);
+        double avgScore = all.stream().mapToInt(r -> r.getAtsScore()).average().orElse(79.0);
         avgScore = Math.round(avgScore * 10.0) / 10.0;
 
         // Role distribution

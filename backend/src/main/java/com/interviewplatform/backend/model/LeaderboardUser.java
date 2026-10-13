@@ -11,14 +11,20 @@ public class LeaderboardUser {
     private int problemsSolved;
     private int mockInterviewsCount;
     private int avgInterviewScore;
+    private String email;
     private String badge; // "Gold" | "Silver" | "Bronze" | "Master" | "Pro"
     private boolean isCurrentUser;
 
     public LeaderboardUser() {}
 
     public LeaderboardUser(int rank, String userId, String name, String avatar, String college, int score, int streakDays, int problemsSolved, int mockInterviewsCount, int avgInterviewScore, String badge) {
+        this(rank, userId, null, name, avatar, college, score, streakDays, problemsSolved, mockInterviewsCount, avgInterviewScore, badge);
+    }
+
+    public LeaderboardUser(int rank, String userId, String email, String name, String avatar, String college, int score, int streakDays, int problemsSolved, int mockInterviewsCount, int avgInterviewScore, String badge) {
         this.rank = rank;
         this.userId = userId;
+        this.email = email;
         this.name = name;
         this.avatar = avatar;
         this.college = college;
@@ -35,6 +41,9 @@ public class LeaderboardUser {
 
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

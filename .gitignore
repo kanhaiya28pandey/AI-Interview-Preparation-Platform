@@ -5,6 +5,7 @@
 *.env
 *.secret
 !.env.example
+run-dev.ps1
 
 
 # Node / Frontend
@@ -36,8 +37,9 @@ develop-eggs/
 dist/
 downloads/
 eggs/
-.eggs/
-lib/
+# Python build lib
+/lib/
+!frontend/src/lib/
 lib64/
 parts/
 sdist/

@@ -17,4 +17,8 @@ public interface InterviewSessionRepository extends MongoRepository<InterviewSes
     List<InterviewSession> findByEmailOrderByStartedAtDesc(String email);
 
     long countByStatus(String status);
+
+    void deleteByUserId(String userId);
+
+    void deleteByEmail(String email);
 }

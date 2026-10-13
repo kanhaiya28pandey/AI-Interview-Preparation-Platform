@@ -9,17 +9,19 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.interviewplatform.backend.dto.CodeExecutionRequest;
 import com.interviewplatform.backend.model.CodingProblem;
+import com.interviewplatform.backend.model.CodingSubmission;
 import com.interviewplatform.backend.model.ExecutionResult;
 import com.interviewplatform.backend.service.CodingJudgeService;
 
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/v1/coding")
+@RequestMapping({"/api/v1/coding", "/api/coding"})
 public class CodingController {
 
     private final CodingJudgeService judgeService;
@@ -38,6 +40,26 @@ public class CodingController {
     public ResponseEntity<CodingProblem> getProblemById(@PathVariable String id) {
         CodingProblem problem = judgeService.getProblemById(id);
         return ResponseEntity.ok(problem);
+    }
+
+    @GetMapping("/submissions")
+    public ResponseEntity<List<CodingSubmission>> getSubmissions(
+            Authentication authentication,
+            @RequestParam(required = false) String problemId
+    ) {
+        String authEmail = authentication != null ? authentication.getName() : null;
+        List<CodingSubmission> submissions = judgeService.getSubmissions(authEmail, problemId);
+        return ResponseEntity.ok(submissions);
+    }
+
+    @GetMapping("/submissions/{problemId}")
+    public ResponseEntity<List<CodingSubmission>> getSubmissionsByProblem(
+            Authentication authentication,
+            @PathVariable String problemId
+    ) {
+        String authEmail = authentication != null ? authentication.getName() : null;
+        List<CodingSubmission> submissions = judgeService.getSubmissions(authEmail, problemId);
+        return ResponseEntity.ok(submissions);
     }
 
     @PostMapping("/run")

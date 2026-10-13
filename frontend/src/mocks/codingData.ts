@@ -49,6 +49,10 @@ export interface CodingProblem {
     python: string;
     java: string;
     cpp: string;
+    c?: string;
+    mysql?: string;
+    postgresql?: string;
+    sql?: string;
   };
   fnName: string;
   xpReward: number;

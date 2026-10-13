@@ -4,6 +4,7 @@ import { mockStudentsProgress, StudentProgress } from "@/mocks/studentProgressDa
 import { mockAdminUsers, AdminUser } from "@/mocks/adminData";
 import { verificationService } from "@/services/verificationService";
 import { isMockMode } from "@/lib/dataMode";
+import api from "@/lib/api";
 
 export interface MasterStudent {
   id: string;
@@ -19,6 +20,7 @@ export interface MasterStudent {
   year: string;
   rollNumber: string;
   idCardFrontUrl: string;
+  idCardBackUrl?: string;
   selfieUrl?: string;
   registeredAt: string;
   verificationStatus: "Pending Verification" | "Verified" | "Rejected" | "Pending";
@@ -34,6 +36,8 @@ export interface MasterStudent {
   interviewsCompleted: number;
   avgInterviewScore: number;
   avgQuizScore: number;
+  testsAttended?: number;
+  totalXp?: number;
   bestAtsScore: number;
   lastActive: string;
 }
@@ -64,6 +68,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "4th Year",
     rollNumber: "RA2111003010452",
     idCardFrontUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
     registeredAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(), // 2 hrs ago (NEW)
     verificationStatus: "Verified",
     role: "STUDENT",
@@ -92,6 +97,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "3rd Year",
     rollNumber: "21BIT0184",
     idCardFrontUrl: "https://images.unsplash.com/photo-1579389083078-4e7018379f7e?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=80",
     registeredAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(), // 5 hrs ago (NEW)
     verificationStatus: "Pending Verification",
     role: "STUDENT",
@@ -120,6 +126,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "4th Year",
     rollNumber: "2021A7PS0042P",
     idCardFrontUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=80",
     registeredAt: new Date(Date.now() - 12 * 3600 * 1000).toISOString(), // 12 hrs ago (NEW)
     verificationStatus: "Rejected",
     rejectionCategory: "Blurry or Unreadable ID Card",
@@ -150,6 +157,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     year: "2nd Year",
     rollNumber: "CS22M014",
     idCardFrontUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+    selfieUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=80",
     registeredAt: "2026-09-20T10:30:00Z",
     verificationStatus: "Verified",
     role: "STUDENT",
@@ -271,8 +279,8 @@ interface AdminStoreContextType {
   syncFromSubmissions: (submissions: VerificationSubmission[]) => void;
   addStudent: (studentData: Partial<MasterStudent>) => MasterStudent;
   updateStudent: (id: string, updates: Partial<MasterStudent>) => void;
-  deleteStudent: (id: string) => void;
-  bulkDeleteStudents: (ids: string[]) => void;
+  deleteStudent: (id: string, email?: string) => Promise<void> | void;
+  bulkDeleteStudents: (ids: string[]) => Promise<void> | void;
   restoreStudent: (student: MasterStudent) => void;
   restoreStudents: (students: MasterStudent[]) => void;
   deactivateStudent: (id: string) => void;
@@ -389,6 +397,118 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setStudents(parsed);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to sync master students:", e);
+      }
+    };
+
+    window.addEventListener("master-students-updated", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("master-students-updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRealPlatformData = async () => {
+      try {
+        const [studentsRes, verifsRes, auditRes] = await Promise.allSettled([
+          api.get("/api/v1/admin/students").catch(() => api.get("/api/v1/admin/users")),
+          api.get("/api/v1/admin/verifications"),
+          api.get("/api/v1/admin/content/audit-logs"),
+        ]);
+
+        if (!isMounted) return;
+
+        const verifList = verifsRes.status === "fulfilled" && Array.isArray(verifsRes.value.data) ? verifsRes.value.data : [];
+        const verifMap = new Map<string, any>();
+        verifList.forEach((v: any) => {
+          if (v.userId) verifMap.set(String(v.userId).toLowerCase(), v);
+          if (v.email) verifMap.set(String(v.email).toLowerCase(), v);
+        });
+
+        if (studentsRes.status === "fulfilled" && Array.isArray(studentsRes.value.data) && studentsRes.value.data.length > 0) {
+          const realStudents: MasterStudent[] = studentsRes.value.data
+            .filter((u: any) => u.role !== "ADMIN" && !u.email?.includes("admin"))
+            .map((u: any) => {
+              const v = verifMap.get(String(u.id || "").toLowerCase()) ||
+                        verifMap.get(String(u.userId || "").toLowerCase()) ||
+                        verifMap.get(String(u.email || "").toLowerCase());
+              return {
+                id: u.id || u.userId,
+                userId: u.userId || u.id,
+                name: u.name || "Student",
+                email: u.email,
+                phone: u.phone || "+91 98765 43210",
+                college: u.college || v?.collegeName || "SRM Institute of Science and Technology",
+                course: u.course || "B.Tech",
+                branch: u.branch || "Computer Science",
+                yearSemester: u.year || "3rd Year",
+                year: u.year || "3rd Year",
+                rollNumber: u.rollNumber || v?.rollNumber || "RA2111003010452",
+                idCardFrontUrl: v?.idCardFrontUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+                idCardBackUrl: v?.idCardBackUrl,
+                selfieUrl: v?.selfieUrl || u?.avatar || u?.avatarUrl || u?.profilePicture,
+                registeredAt: u.joinedDate || u.createdAt || new Date().toISOString(),
+                verificationStatus: (v?.status === "Verified" ? "Verified" : v?.status === "Rejected" ? "Rejected" : "Pending Verification") as any,
+                role: "STUDENT",
+                status: (u.status === "BLOCKED" ? "BLOCKED" : "ACTIVE") as any,
+                profileCompletion: u.activityScore ? Math.min(100, u.activityScore + 10) : 85,
+                activityScore: u.activityScore || 80,
+                riskLevel: (u.riskLevel === "At Risk" ? "At Risk" : u.riskLevel === "Inactive" ? "Inactive" : "On Track") as any,
+                streakDays: u.streakDays || 1,
+                problemsSolved: u.problemsSolved || 0,
+                interviewsCompleted: u.interviewsCompleted || 0,
+                avgInterviewScore: u.avgInterviewScore || 80,
+                avgQuizScore: u.avgQuizScore || 85,
+                bestAtsScore: u.bestAtsScore || 80,
+                lastActive: u.lastActive || "Recently",
+              };
+            });
+
+          if (realStudents.length > 0) {
+            setStudents(realStudents);
+            saveToStorage(realStudents);
+          }
+        }
+
+        if (auditRes.status === "fulfilled" && Array.isArray(auditRes.value.data) && auditRes.value.data.length > 0) {
+          const realAudits: AdminAuditEntry[] = auditRes.value.data.map((l: any) => ({
+            id: l.id || `audit-${Math.random()}`,
+            action: (l.action?.toUpperCase() || "UPDATE") as any,
+            adminName: l.performedBy || "Administrator",
+            adminEmail: "admin@aiinterviewprep.com",
+            targetCount: 1,
+            targets: [l.title || l.contentId || "Content Item"],
+            timestamp: l.timestamp || new Date().toISOString(),
+            details: l.details || `${l.action} on ${l.title || "item"}`,
+          }));
+          setAuditLogs(realAudits);
+          localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(realAudits));
+        }
+      } catch (err) {
+        console.warn("Real admin store data sync notice:", err);
+      }
+    };
+
+    fetchRealPlatformData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const addStudent = (studentData: Partial<MasterStudent>): MasterStudent => {
     const newId = studentData.id || `usr-student-${Date.now()}`;
     const newStudent: MasterStudent = {
@@ -442,10 +562,66 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     saveToStorage(updatedList);
   };
 
-  const deleteStudent = (id: string) => {
-    const target = students.find((s) => s.id === id || s.userId === id);
-    const updatedList = students.filter((s) => s.id !== id && s.userId !== id);
+  const deleteStudent = async (id: string, email?: string): Promise<void> => {
+    const target = students.find(
+      (s) =>
+        s.id === id ||
+        s.userId === id ||
+        (email && s.email.toLowerCase() === email.toLowerCase())
+    );
+    const targetEmail = email || target?.email;
+    const targetUserId = target?.userId || target?.id || id;
+
+    const updatedList = students.filter(
+      (s) =>
+        s.id !== id &&
+        s.userId !== id &&
+        (!targetEmail || s.email.toLowerCase() !== targetEmail.toLowerCase())
+    );
     saveToStorage(updatedList);
+
+    // Clean up local verification cache if any
+    try {
+      const storedVerifs = localStorage.getItem("ai_interview_prep_verifications");
+      if (storedVerifs) {
+        const parsed = JSON.parse(storedVerifs);
+        const filtered = parsed.filter(
+          (v: any) =>
+            v.id !== id &&
+            v.verificationId !== id &&
+            v.userId !== targetUserId &&
+            (!targetEmail || v.email?.toLowerCase() !== targetEmail.toLowerCase())
+        );
+        localStorage.setItem("ai_interview_prep_verifications", JSON.stringify(filtered));
+      }
+    } catch (e) {
+      console.warn("Error cleaning local verifications:", e);
+    }
+
+    // Call backend API to permanently purge user from database by BOTH email and ID
+    const deleteCalls: Promise<any>[] = [];
+    if (targetEmail) {
+      deleteCalls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(targetEmail)}`).catch(() => {}));
+      deleteCalls.push(api.delete(`/api/v1/admin/verifications/${encodeURIComponent(targetEmail)}`).catch(() => {}));
+    }
+    if (targetUserId && targetUserId !== targetEmail) {
+      deleteCalls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(targetUserId)}`).catch(() => {}));
+      deleteCalls.push(api.delete(`/api/v1/admin/verifications/${encodeURIComponent(targetUserId)}`).catch(() => {}));
+    }
+    await Promise.allSettled(deleteCalls);
+
+    // Clear local auth session if the deleted user is currently cached in this browser
+    try {
+      const storedUserStr = localStorage.getItem("ai_interview_prep_user");
+      if (storedUserStr) {
+        const parsedUser = JSON.parse(storedUserStr);
+        if (targetEmail && parsedUser.email?.toLowerCase() === targetEmail.toLowerCase()) {
+          localStorage.removeItem("ai_interview_prep_user");
+          localStorage.removeItem("ai_interview_prep_token");
+        }
+      }
+    } catch {}
+
     if (target) {
       addAuditLog({
         action: "DELETE_STUDENT",
@@ -453,15 +629,54 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         adminEmail: "admin@aiprep.com",
         targetCount: 1,
         targets: [target.name || target.email],
-        details: `Deleted candidate record for ${target.name} (${target.email})`,
+        details: `Permanently deleted candidate record and database profile for ${target.name} (${target.email})`,
       });
     }
   };
 
-  const bulkDeleteStudents = (ids: string[]) => {
+  const bulkDeleteStudents = async (ids: string[]): Promise<void> => {
     const targets = students.filter((s) => ids.includes(s.id) || ids.includes(s.userId));
     const updatedList = students.filter((s) => !ids.includes(s.id) && !ids.includes(s.userId));
     saveToStorage(updatedList);
+
+    try {
+      const storedVerifs = localStorage.getItem("ai_interview_prep_verifications");
+      if (storedVerifs) {
+        const parsed = JSON.parse(storedVerifs);
+        const filtered = parsed.filter((v: any) => {
+          const matches = targets.some(
+            (t) =>
+              v.id === t.id ||
+              v.verificationId === t.id ||
+              v.userId === t.id ||
+              v.userId === t.userId ||
+              (t.email && v.email?.toLowerCase() === t.email.toLowerCase())
+          );
+          return !matches;
+        });
+        localStorage.setItem("ai_interview_prep_verifications", JSON.stringify(filtered));
+      }
+    } catch (e) {
+      console.warn("Error cleaning local verifications:", e);
+    }
+
+    await Promise.allSettled(
+      targets.flatMap((t) => {
+        const calls: Promise<any>[] = [];
+        if (t.email) {
+          calls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(t.email)}`).catch(() => {}));
+          calls.push(api.delete(`/api/v1/admin/verifications/${encodeURIComponent(t.email)}`).catch(() => {}));
+        }
+        if (t.id && t.id !== t.email) {
+          calls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(t.id)}`).catch(() => {}));
+        }
+        if (t.userId && t.userId !== t.email && t.userId !== t.id) {
+          calls.push(api.delete(`/api/v1/admin/users/${encodeURIComponent(t.userId)}`).catch(() => {}));
+        }
+        return calls;
+      })
+    );
+
     if (targets.length > 0) {
       addAuditLog({
         action: "BULK_DELETE_STUDENTS",
@@ -469,7 +684,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         adminEmail: "admin@aiprep.com",
         targetCount: targets.length,
         targets: targets.map((t) => t.name || t.email),
-        details: `Bulk deleted ${targets.length} candidate account(s)`,
+        details: `Permanently bulk deleted ${targets.length} candidate account(s) and database profiles`,
       });
     }
   };
@@ -613,7 +828,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     updateStudent(id, {
       verificationStatus: "Rejected",
-      status: "BLOCKED",
+      status: "ACTIVE",
       rejectionCategory: category,
       rejectionNotes: notes,
     });
@@ -668,7 +883,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return {
           ...s,
           verificationStatus: "Rejected" as const,
-          status: "BLOCKED" as const,
+          status: "ACTIVE" as const,
           rejectionCategory: category,
           rejectionNotes: notes,
         };

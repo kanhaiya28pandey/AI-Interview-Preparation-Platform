@@ -8,6 +8,9 @@ target/
 .env.*.local
 *.env
 !.env.example
+run-dev.ps1
+uploads/
+!uploads/.gitkeep
 
 ### STS ###
 .apt_generated

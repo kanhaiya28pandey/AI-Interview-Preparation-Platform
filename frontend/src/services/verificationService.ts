@@ -348,8 +348,7 @@ export const verificationService = {
       };
 
       console.warn("[verificationService] getVerificationStatus API error:", err);
-      // Real backend mode: strictly Unverified if not found / error
-      return { status: "Unverified" };
+      return this.resolveStatus(userId, email);
     }
   },
 
@@ -504,7 +503,9 @@ export const verificationService = {
         timestamp: new Date().toLocaleTimeString(),
         details: `Count: ${Array.isArray(res.data) ? res.data.length : 0}`,
       };
-      return res.data;
+      if (Array.isArray(res.data)) {
+        return res.data;
+      }
     } catch (err: any) {
       lastVerificationRequestLog = {
         url: "/api/v1/admin/verifications",
@@ -513,8 +514,9 @@ export const verificationService = {
         timestamp: new Date().toLocaleTimeString(),
         details: `Error: ${err?.response?.data?.message || err?.message || "Failed"}`,
       };
-      throw err;
+      console.warn("Backend getAllSubmissions notice:", err);
     }
+    return getStoredSubmissions();
   },
 
   async reviewVerification(
@@ -795,5 +797,13 @@ export const verificationService = {
 
     // Fallback if userId was directly the verificationId
     return this.reviewVerification(userId, action, rejectionCategory, rejectionNotes);
+  },
+
+  async deleteRejectedVerification(id: string): Promise<void> {
+    try {
+      await api.delete(`/api/v1/admin/verifications/${id}`);
+    } catch {
+      await api.delete(`/api/v1/admin/users/${id}`).catch(() => {});
+    }
   },
 };

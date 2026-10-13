@@ -52,8 +52,15 @@ const DELETE_MS = 35;
 const HOLD_MS = 1600;
 
 export const LandingPage: React.FC = () => {
-  const { isAuthenticated, user, loginDemoStudent, loginDemoAdmin } = useAuth();
+  const { isAuthenticated, user, logout, loginDemoStudent, loginDemoAdmin } = useAuth();
   const navigate = useNavigate();
+
+  // Automatically log out when landing on the landing page so session starts fresh
+  useEffect(() => {
+    if (isAuthenticated || localStorage.getItem("ai_interview_prep_token")) {
+      logout();
+    }
+  }, [isAuthenticated, logout]);
 
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);

@@ -4,10 +4,12 @@ import { useAuth } from "@/context/AuthContext";
 import { StatCard } from "@/components/common/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { CardSkeleton } from "@/components/common/Skeletons";
-import { Video, Code2, Flame, Award, TrendingUp, AlertOctagon, Compass, X } from "lucide-react";
+import { Video, Code2, Flame, Award, TrendingUp, AlertOctagon, Compass, X, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { profileService } from "@/services/profileService";
 import { progressService } from "@/services/progressService";
 import { isDemoUser } from "@/lib/userScope";
@@ -17,6 +19,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, RadarChart
 import { useVerificationStatus } from "@/hooks/useVerificationStatus";
 import { ShieldAlert, Clock, AlertTriangle } from "lucide-react";
 import { Reveal, PointerArrow } from "@/components/fx";
+import { QuoteCard } from "@/components/student/QuoteCard";
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -195,13 +198,55 @@ export const StudentDashboard: React.FC = () => {
 
           <div className="flex gap-3 z-10 shrink-0 flex-wrap">
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Button variant="primary" size="md" onClick={() => navigate("/mock-interview")}>
-                <Video className="w-4 h-4" /> Start Mock Interview
+              <Button
+                variant={verifStatus === "Verified" ? "primary" : "outline"}
+                size="md"
+                onClick={() => {
+                  if (verifStatus !== "Verified") {
+                    toast.warning("Mock Interview is locked. Your identity is pending verification by admin.", {
+                      action: {
+                        label: "Check Status",
+                        onClick: () => navigate("/verify-identity"),
+                      },
+                    });
+                    return;
+                  }
+                  navigate("/mock-interview");
+                }}
+                className={verifStatus !== "Verified" ? "border-amber-400/40 text-amber-300" : ""}
+                title={verifStatus !== "Verified" ? "Locked until Admin Verification" : undefined}
+              >
+                {verifStatus !== "Verified" ? <Lock className="w-4 h-4 text-amber-400" /> : <Video className="w-4 h-4" />}
+                <span>Start Mock Interview</span>
+                {verifStatus !== "Verified" && (
+                  <Badge variant="accent" className="text-[10px] py-0 px-1.5 ml-1">Locked</Badge>
+                )}
               </Button>
             </motion.div>
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              <Button variant="outline" size="md" onClick={() => navigate("/coding")}>
-                <Code2 className="w-4 h-4" /> Coding Arena
+              <Button
+                variant="outline"
+                size="md"
+                onClick={() => {
+                  if (verifStatus !== "Verified") {
+                    toast.warning("Coding Arena is locked. Your identity is pending verification by admin.", {
+                      action: {
+                        label: "Check Status",
+                        onClick: () => navigate("/verify-identity"),
+                      },
+                    });
+                    return;
+                  }
+                  navigate("/coding");
+                }}
+                className={verifStatus !== "Verified" ? "border-amber-400/40 text-amber-300" : ""}
+                title={verifStatus !== "Verified" ? "Locked until Admin Verification" : undefined}
+              >
+                {verifStatus !== "Verified" ? <Lock className="w-4 h-4 text-amber-400" /> : <Code2 className="w-4 h-4" />}
+                <span>Coding Arena</span>
+                {verifStatus !== "Verified" && (
+                  <Badge variant="accent" className="text-[10px] py-0 px-1.5 ml-1">Locked</Badge>
+                )}
               </Button>
             </motion.div>
           </div>
@@ -458,21 +503,7 @@ export const StudentDashboard: React.FC = () => {
       {/* Motivational Quote of the Day + Next Best Action */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Reveal direction="up" delay={0.2}>
-          <Card className="p-6 bg-surface border-border relative overflow-hidden h-full">
-            <div className="absolute top-3 right-3 text-4xl opacity-10 select-none" aria-hidden="true">💡</div>
-            <h3 className="font-serif text-sm font-medium text-text-muted uppercase tracking-wider mb-3">Quote of the Day</h3>
-            <blockquote className="text-text-primary font-serif text-base italic leading-relaxed">
-              {[
-                '"The only way to do great work is to love what you do." — Steve Jobs',
-                '"First, solve the problem. Then, write the code." — John Johnson',
-                '"Talk is cheap. Show me the code." — Linus Torvalds',
-                '"Programs must be written for people to read." — Abelson & Sussman',
-                '"The best error message is the one that never shows up." — Thomas Fuchs',
-                '"Code is like humor. When you have to explain it, it\'s bad." — Cory House',
-                '"Simplicity is the soul of efficiency." — Austin Freeman',
-              ][Math.floor((new Date().getFullYear() * 365 + new Date().getMonth() * 31 + new Date().getDate()) % 7)]}
-            </blockquote>
-          </Card>
+          <QuoteCard />
         </Reveal>
         <Reveal direction="up" delay={0.3}>
           <Card className="p-6 bg-surface border-border spotlight-card glow-hover h-full">

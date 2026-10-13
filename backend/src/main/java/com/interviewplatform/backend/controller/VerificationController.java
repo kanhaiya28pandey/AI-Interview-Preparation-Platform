@@ -1,6 +1,9 @@
 package com.interviewplatform.backend.controller;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,22 +12,28 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.interviewplatform.backend.dto.VerificationStatusResponse;
 import com.interviewplatform.backend.dto.VerificationSubmissionRequest;
 import com.interviewplatform.backend.model.Verification;
+import com.interviewplatform.backend.service.FileStorageService;
 import com.interviewplatform.backend.service.VerificationService;
 
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/v1/verification")
+@RequestMapping({"/api/v1/verification", "/api/v1/verifications"})
 public class VerificationController {
 
     private final VerificationService verificationService;
+    private final FileStorageService fileStorageService;
+    private final com.interviewplatform.backend.service.NotificationService notificationService;
 
-    public VerificationController(VerificationService verificationService) {
+    public VerificationController(VerificationService verificationService, FileStorageService fileStorageService, com.interviewplatform.backend.service.NotificationService notificationService) {
         this.verificationService = verificationService;
+        this.fileStorageService = fileStorageService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/status")
@@ -38,13 +47,37 @@ public class VerificationController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping(value = "/upload-id", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> uploadIdCard(
+            @RequestParam("file") MultipartFile file
+    ) {
+        String storedPath = fileStorageService.storeFile(file, "verifications");
+        return ResponseEntity.ok(Map.of(
+                "fileUrl", storedPath,
+                "fileName", file.getOriginalFilename() != null ? file.getOriginalFilename() : "id_card",
+                "message", "ID document uploaded successfully"
+        ));
+    }
+
     @PostMapping("/submit")
     public ResponseEntity<Verification> submitVerification(
             Authentication authentication,
             @Valid @RequestBody VerificationSubmissionRequest request
     ) {
-        String authEmail = authentication.getName();
+        String authEmail = authentication != null ? authentication.getName() : null;
         Verification saved = verificationService.submitVerification(authEmail, request);
+        try {
+            String studentName = saved.getStudentName() != null ? saved.getStudentName() : "Student";
+            String college = saved.getCollegeName() != null ? saved.getCollegeName() : "Campus";
+            notificationService.notifyAdmins(
+                    "verification",
+                    "New Verification Request: " + studentName,
+                    studentName + " from " + college + " (" + saved.getRollNumber() + ") submitted student verification documents for review.",
+                    "/admin/verifications",
+                    "warning"
+            );
+        } catch (Exception ignored) {
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 }

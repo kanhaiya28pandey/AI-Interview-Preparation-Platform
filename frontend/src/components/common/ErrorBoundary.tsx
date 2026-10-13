@@ -102,10 +102,12 @@ export class ErrorBoundaryClass extends Component<Props, State> {
               </p>
               {import.meta.env.DEV && this.state.error?.message && (
                 <div className="mt-3 p-3 bg-red-950/40 border border-red-500/30 rounded-lg text-xs font-mono text-red-300 text-left overflow-auto max-h-36 shadow-inner">
-                  <div className="font-bold text-[10px] text-red-400 uppercase tracking-wider mb-1">
-                    Development Error Details:
-                  </div>
-                  {this.state.error.message}
+                  <div>{this.state.error.message}</div>
+                  {this.state.error.stack && (
+                    <pre className="mt-2 text-[10px] text-red-400/80 max-h-32 overflow-y-auto whitespace-pre-wrap font-mono border-t border-red-500/20 pt-1">
+                      {this.state.error.stack}
+                    </pre>
+                  )}
                 </div>
               )}
             </div>

@@ -22,4 +22,12 @@ public interface VerificationRepository extends MongoRepository<Verification, St
     List<Verification> findAllByOrderBySubmittedAtDesc();
 
     List<Verification> findByStatusOrderBySubmittedAtDesc(String status);
+
+    boolean existsByUserId(String userId);
+
+    boolean existsByEmail(String email);
+
+    void deleteByUserId(String userId);
+
+    void deleteByEmail(String email);
 }

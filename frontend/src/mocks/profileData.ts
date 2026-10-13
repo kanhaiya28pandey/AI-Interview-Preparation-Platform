@@ -92,6 +92,8 @@ export interface UserProfile {
   portfolioUrl?: string;
   codingPlatformHandle?: string;
   resumeUrl?: string;
+  branch?: string;
+  rollNumber?: string;
   onboardingComplete: boolean;
   verificationStatus?: "Pending Verification" | "Verified" | "Rejected" | "Resubmission Required" | "Unverified";
   verificationReason?: string;
@@ -102,6 +104,7 @@ export interface UserProfile {
     codingProblemsSolved: number;
     mockInterviewsCompleted: number;
     quizzesCompleted: number;
+    articlesRead?: number;
     overallRating: number;
     currentStreak: number;
     totalXP: number;

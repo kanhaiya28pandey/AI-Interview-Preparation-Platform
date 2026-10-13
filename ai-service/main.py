@@ -2,14 +2,14 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import PORT, HOST
-from routers import resume_ats, interview_ai, coding_ai
+from routers import resume_ats, interview_ai, coding_ai, quiz_ai, article_ai
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("ai_service")
 
 app = FastAPI(
     title="AI Interview Preparation Platform - AI Microservice",
-    description="Dedicated microservice for Google Gemini ATS Resume Parsing, Mock Interview Evaluation, and Code Review",
+    description="Dedicated microservice for Google Gemini ATS Resume Parsing, Mock Interview Evaluation, Code Review, MCQ, and Article Generation",
     version="1.0.0"
 )
 
@@ -24,6 +24,8 @@ app.add_middleware(
 app.include_router(resume_ats.router)
 app.include_router(interview_ai.router)
 app.include_router(coding_ai.router)
+app.include_router(quiz_ai.router)
+app.include_router(article_ai.router)
 
 @app.get("/")
 def root():

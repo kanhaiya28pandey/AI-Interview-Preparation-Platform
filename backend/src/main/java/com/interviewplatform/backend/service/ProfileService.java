@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.interviewplatform.backend.model.SkillItem;
+import com.interviewplatform.backend.model.EducationEntry;
 import com.interviewplatform.backend.model.User;
 import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.repository.UserProfileRepository;
@@ -65,14 +65,33 @@ public class ProfileService {
         if (updates.getCollege() != null) current.setCollege(updates.getCollege());
         if (updates.getGraduationYear() != null) current.setGraduationYear(updates.getGraduationYear());
         if (updates.getDegree() != null) current.setDegree(updates.getDegree());
+        if (updates.getBranch() != null) current.setBranch(updates.getBranch());
+        if (updates.getRollNumber() != null) current.setRollNumber(updates.getRollNumber());
 
-        if (updates.getEducationEntries() != null) current.setEducationEntries(updates.getEducationEntries());
+        if (updates.getEducationEntries() != null) {
+            current.setEducationEntries(updates.getEducationEntries());
+            if (!updates.getEducationEntries().isEmpty()) {
+                EducationEntry primaryEdu = updates.getEducationEntries().get(0);
+                if (current.getCollege() == null || current.getCollege().isBlank()) {
+                    current.setCollege(primaryEdu.getInstitution());
+                }
+                if (current.getDegree() == null || current.getDegree().isBlank()) {
+                    current.setDegree(primaryEdu.getDegree());
+                }
+                if (current.getGraduationYear() == null || current.getGraduationYear().isBlank()) {
+                    current.setGraduationYear(String.valueOf(primaryEdu.getEndYear()));
+                }
+                if (current.getBranch() == null || current.getBranch().isBlank()) {
+                    current.setBranch(primaryEdu.getFieldOfStudy());
+                }
+            }
+        }
         if (updates.getSchoolEducation() != null) current.setSchoolEducation(updates.getSchoolEducation());
 
         if (updates.getSkillsList() != null) {
             current.setSkillsList(updates.getSkillsList());
             List<String> flatSkills = updates.getSkillsList().stream()
-                    .map(SkillItem::getName)
+                    .map(item -> item.getName())
                     .filter(s -> s != null && !s.isBlank())
                     .toList();
             current.setSkills(flatSkills);
@@ -101,15 +120,34 @@ public class ProfileService {
             user.setAvatarUrl(updates.getAvatar());
         }
 
+        current.setOnboardingComplete(updates.isOnboardingComplete());
         if (updates.getPhotoChecklist() != null) current.setPhotoChecklist(updates.getPhotoChecklist());
         if (updates.getVerificationStatus() != null) current.setVerificationStatus(updates.getVerificationStatus());
         if (updates.getVerificationReason() != null) current.setVerificationReason(updates.getVerificationReason());
-        if (updates.getVerificationId() != null) current.setVerificationId(updates.getVerificationId());
+        if (updates.getStats() != null) {
+            current.setStats(updates.getStats());
+        }
 
         current.setUpdatedAt(LocalDateTime.now().toString());
 
         userRepository.save(user);
         return userProfileRepository.save(current);
+    }
+
+    public UserProfile updateStatsByEmail(String email, com.interviewplatform.backend.model.UserStats stats) {
+        String normalizedEmail = email.trim().toLowerCase();
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        UserProfile current = userProfileRepository.findByUserId(user.getId())
+                .orElseGet(() -> createInitialProfile(user));
+
+        if (stats != null) {
+            current.setStats(stats);
+            current.setUpdatedAt(LocalDateTime.now().toString());
+            userProfileRepository.save(current);
+        }
+        return current;
     }
 
     private UserProfile createInitialProfile(User user) {

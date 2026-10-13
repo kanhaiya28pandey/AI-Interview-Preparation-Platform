@@ -1,24 +1,46 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { leaderboardService } from "@/services/leaderboardService";
 import { LeaderboardUser } from "@/mocks/leaderboardData";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
-import { Trophy, Crown, Flame, Award, ArrowUp, ArrowDown } from "lucide-react";
+import { Trophy, Crown, Flame, Award } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export const Leaderboard: React.FC = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "weekly" | "college">("all");
+  const userCollege = (user as any)?.college || "";
+  const collegeDisplay = userCollege ? userCollege.split(" ")[0] : "SRM";
 
-  useEffect(() => {
-    setLoading(true);
+  const loadLeaderboard = useCallback(() => {
     leaderboardService.getLeaderboard(filter).then((res) => {
       setData(res);
       setLoading(false);
     });
   }, [filter]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadLeaderboard();
+
+    const handleUpdate = () => {
+      loadLeaderboard();
+    };
+
+    window.addEventListener("student-xp-updated", handleUpdate);
+    window.addEventListener("student-progress-updated", handleUpdate);
+    window.addEventListener("master-students-updated", handleUpdate);
+
+    return () => {
+      window.removeEventListener("student-xp-updated", handleUpdate);
+      window.removeEventListener("student-progress-updated", handleUpdate);
+      window.removeEventListener("master-students-updated", handleUpdate);
+    };
+  }, [loadLeaderboard]);
 
   if (loading) return <CardSkeleton />;
 
@@ -53,7 +75,7 @@ export const Leaderboard: React.FC = () => {
             onClick={() => setFilter("college")}
             className={`px-3 py-1.5 rounded transition-colors ${filter === "college" ? "bg-gradient-to-r from-teal-500 to-cyan-400 text-[#0d1321] font-semibold" : "text-text-muted hover:text-text-primary"}`}
           >
-            My Campus (SRM)
+            My Campus ({collegeDisplay})
           </button>
         </div>
       </div>
@@ -107,26 +129,30 @@ export const Leaderboard: React.FC = () => {
         );
       })()}
 
-      {/* Top 3 Podium Section */}
-      {top3.length >= 3 && (
+      {/* Top Podium Section */}
+      {top3.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 items-end">
           {/* 2nd Place */}
-          <Card className="p-6 text-center space-y-3 bg-surface border-slate-500/40 md:order-1 order-2">
-            <div className="relative inline-block">
-              <img src={top3[1].avatar} alt={top3[1].name} className="w-16 h-16 rounded-full object-cover border-2 border-slate-300 mx-auto" />
-              <span className="absolute -bottom-2 right-0 bg-slate-300 text-ink font-mono font-bold text-xs px-2 py-0.5 rounded-full">
-                #2
-              </span>
-            </div>
-            <div>
-              <h3 className="font-serif text-lg font-medium text-text-primary">{top3[1].name}</h3>
-              <p className="text-xs text-text-muted font-mono truncate">{top3[1].college}</p>
-            </div>
-            <div className="pt-2 border-t border-border flex justify-around text-xs font-mono">
-              <div><span className="text-text-muted block">Total XP</span><span className="font-bold text-slate-300">{top3[1].score}</span></div>
-              <div><span className="text-text-muted block">Rating</span><span className="font-bold text-live">{top3[1].avgInterviewScore}%</span></div>
-            </div>
-          </Card>
+          {top3.length >= 2 ? (
+            <Card className="p-6 text-center space-y-3 bg-surface border-slate-500/40 md:order-1 order-2">
+              <div className="relative inline-block">
+                <img src={top3[1].avatar} alt={top3[1].name} className="w-16 h-16 rounded-full object-cover border-2 border-slate-300 mx-auto" />
+                <span className="absolute -bottom-2 right-0 bg-slate-300 text-ink font-mono font-bold text-xs px-2 py-0.5 rounded-full">
+                  #2
+                </span>
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-medium text-text-primary">{top3[1].name}</h3>
+                <p className="text-xs text-text-muted font-mono truncate">{top3[1].college}</p>
+              </div>
+              <div className="pt-2 border-t border-border flex justify-around text-xs font-mono">
+                <div><span className="text-text-muted block">Total XP</span><span className="font-bold text-slate-300">{top3[1].score}</span></div>
+                <div><span className="text-text-muted block">Rating</span><span className="font-bold text-live">{top3[1].avgInterviewScore}%</span></div>
+              </div>
+            </Card>
+          ) : (
+            <div className="hidden md:block md:order-1" />
+          )}
 
           {/* 1st Place (Center Champion) */}
           <Card className="p-6 text-center space-y-4 bg-gradient-to-b from-gold/20 to-surface border-2 border-gold md:order-2 order-1 transform md:-translate-y-4 shadow-2xl relative">
@@ -148,22 +174,26 @@ export const Leaderboard: React.FC = () => {
           </Card>
 
           {/* 3rd Place */}
-          <Card className="p-6 text-center space-y-3 bg-surface border-amber-700/40 md:order-3 order-3">
-            <div className="relative inline-block">
-              <img src={top3[2].avatar} alt={top3[2].name} className="w-16 h-16 rounded-full object-cover border-2 border-amber-700 mx-auto" />
-              <span className="absolute -bottom-2 right-0 bg-amber-700 text-text-primary font-mono font-bold text-xs px-2 py-0.5 rounded-full">
-                #3
-              </span>
-            </div>
-            <div>
-              <h3 className="font-serif text-lg font-medium text-text-primary">{top3[2].name}</h3>
-              <p className="text-xs text-text-muted font-mono truncate">{top3[2].college}</p>
-            </div>
-            <div className="pt-2 border-t border-border flex justify-around text-xs font-mono">
-              <div><span className="text-text-muted block">Total XP</span><span className="font-bold text-amber-500">{top3[2].score}</span></div>
-              <div><span className="text-text-muted block">Rating</span><span className="font-bold text-live">{top3[2].avgInterviewScore}%</span></div>
-            </div>
-          </Card>
+          {top3.length >= 3 ? (
+            <Card className="p-6 text-center space-y-3 bg-surface border-amber-700/40 md:order-3 order-3">
+              <div className="relative inline-block">
+                <img src={top3[2].avatar} alt={top3[2].name} className="w-16 h-16 rounded-full object-cover border-2 border-amber-700 mx-auto" />
+                <span className="absolute -bottom-2 right-0 bg-amber-700 text-text-primary font-mono font-bold text-xs px-2 py-0.5 rounded-full">
+                  #3
+                </span>
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-medium text-text-primary">{top3[2].name}</h3>
+                <p className="text-xs text-text-muted font-mono truncate">{top3[2].college}</p>
+              </div>
+              <div className="pt-2 border-t border-border flex justify-around text-xs font-mono">
+                <div><span className="text-text-muted block">Total XP</span><span className="font-bold text-amber-500">{top3[2].score}</span></div>
+                <div><span className="text-text-muted block">Rating</span><span className="font-bold text-live">{top3[2].avgInterviewScore}%</span></div>
+              </div>
+            </Card>
+          ) : (
+            <div className="hidden md:block md:order-3" />
+          )}
         </div>
       )}
 

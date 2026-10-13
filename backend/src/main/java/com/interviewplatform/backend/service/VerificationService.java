@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
@@ -11,7 +12,6 @@ import com.interviewplatform.backend.dto.ReviewVerificationRequest;
 import com.interviewplatform.backend.dto.VerificationStatusResponse;
 import com.interviewplatform.backend.dto.VerificationSubmissionRequest;
 import com.interviewplatform.backend.model.User;
-import com.interviewplatform.backend.model.UserProfile;
 import com.interviewplatform.backend.model.Verification;
 import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
@@ -23,16 +23,19 @@ public class VerificationService {
     private final VerificationRepository verificationRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final EmailService emailService;
     private final Random random = new Random();
 
     public VerificationService(
             VerificationRepository verificationRepository,
             UserRepository userRepository,
-            UserProfileRepository userProfileRepository
+            UserProfileRepository userProfileRepository,
+            EmailService emailService
     ) {
         this.verificationRepository = verificationRepository;
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
+        this.emailService = emailService;
     }
 
     public VerificationStatusResponse getVerificationStatus(String email, String userId) {
@@ -64,26 +67,35 @@ public class VerificationService {
     }
 
     public Verification submitVerification(String authEmail, VerificationSubmissionRequest request) {
-        User user = userRepository.findByEmail(authEmail.trim().toLowerCase())
-                .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+        User user = null;
+        if (authEmail != null && !authEmail.isBlank()) {
+            user = userRepository.findByEmail(authEmail.trim().toLowerCase()).orElse(null);
+        }
+        if (user == null && request.getUserId() != null && !request.getUserId().isBlank()) {
+            user = userRepository.findById(request.getUserId()).orElse(null);
+        }
+        if (user == null && request.getEmail() != null && !request.getEmail().isBlank()) {
+            user = userRepository.findByEmail(request.getEmail().trim().toLowerCase()).orElse(null);
+        }
+
+        String userId = user != null ? user.getId() : (request.getUserId() != null ? request.getUserId() : "usr-" + UUID.randomUUID().toString().substring(0, 8));
+        String studentName = (request.getStudentName() != null && !request.getStudentName().isBlank())
+                ? request.getStudentName().trim() : (user != null && user.getName() != null ? user.getName() : "Student Candidate");
+        String email = (request.getEmail() != null && !request.getEmail().isBlank())
+                ? request.getEmail().trim().toLowerCase() : (user != null ? user.getEmail() : "student@example.com");
 
         int randomNum = 1000 + random.nextInt(9000);
         String verificationId = "VER-2026-" + randomNum;
 
         Verification verification = new Verification();
         verification.setVerificationId(verificationId);
-        verification.setUserId(user.getId());
-        String studentName = (request.getStudentName() != null && !request.getStudentName().isBlank())
-                ? request.getStudentName().trim() : (user.getName() != null ? user.getName() : "Student Candidate");
-        String email = (request.getEmail() != null && !request.getEmail().isBlank())
-                ? request.getEmail().trim().toLowerCase() : user.getEmail();
-
+        verification.setUserId(userId);
         verification.setStudentName(studentName);
         verification.setEmail(email);
-        verification.setCollegeName(request.getCollegeName().trim());
-        verification.setRollNumber(request.getRollNumber().trim());
-        verification.setCourseBranch(request.getCourseBranch().trim());
-        verification.setYearSemester(request.getYearSemester().trim());
+        verification.setCollegeName(request.getCollegeName() != null ? request.getCollegeName().trim() : "");
+        verification.setRollNumber(request.getRollNumber() != null ? request.getRollNumber().trim() : "");
+        verification.setCourseBranch(request.getCourseBranch() != null ? request.getCourseBranch().trim() : "");
+        verification.setYearSemester(request.getYearSemester() != null ? request.getYearSemester().trim() : "");
         verification.setIdCardFrontUrl(request.getIdCardFrontUrl());
         verification.setIdCardBackUrl(request.getIdCardBackUrl());
         verification.setSelfieUrl(request.getSelfieUrl());
@@ -93,17 +105,19 @@ public class VerificationService {
         Verification savedVerification = verificationRepository.save(verification);
 
         // Sync status to User
-        user.setVerificationStatus("Pending Verification");
-        userRepository.save(user);
+        if (user != null) {
+            user.setVerificationStatus("Pending Verification");
+            userRepository.save(user);
 
-        // Sync status to UserProfile
-        userProfileRepository.findByUserId(user.getId()).ifPresent(profile -> {
-            profile.setVerificationStatus("Pending Verification");
-            profile.setVerificationId(verificationId);
-            profile.setCollege(request.getCollegeName());
-            profile.setUpdatedAt(LocalDateTime.now().toString());
-            userProfileRepository.save(profile);
-        });
+            // Sync status to UserProfile
+            userProfileRepository.findByUserId(user.getId()).ifPresent(profile -> {
+                profile.setVerificationStatus("Pending Verification");
+                profile.setVerificationId(verificationId);
+                if (request.getCollegeName() != null) profile.setCollege(request.getCollegeName());
+                profile.setUpdatedAt(LocalDateTime.now().toString());
+                userProfileRepository.save(profile);
+            });
+        }
 
         return savedVerification;
     }
@@ -117,6 +131,9 @@ public class VerificationService {
 
     public Verification reviewVerification(String verificationId, ReviewVerificationRequest request) {
         Verification verification = verificationRepository.findByVerificationId(verificationId)
+                .or(() -> verificationRepository.findById(verificationId))
+                .or(() -> verificationRepository.findTopByUserIdOrderBySubmittedAtDesc(verificationId))
+                .or(() -> verificationRepository.findTopByEmailOrderBySubmittedAtDesc(verificationId.trim().toLowerCase()))
                 .orElseThrow(() -> new IllegalArgumentException("Verification request not found with id: " + verificationId));
 
         String newStatus;
@@ -137,7 +154,10 @@ public class VerificationService {
 
         Verification updated = verificationRepository.save(verification);
 
-        // Sync back to User
+        // Sync back to User and trigger notification email
+        String studentEmail = verification.getEmail();
+        String studentName = verification.getStudentName();
+
         if (verification.getUserId() != null) {
             userRepository.findById(verification.getUserId()).ifPresent(u -> {
                 u.setVerificationStatus(newStatus);
@@ -153,6 +173,77 @@ public class VerificationService {
             });
         }
 
+        // Send email update to student
+        if (studentEmail != null && !studentEmail.isBlank()) {
+            emailService.sendVerificationStatusEmail(studentEmail, studentName, newStatus, updated.getRejectionNotes());
+        }
+
         return updated;
+    }
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VerificationService.class);
+
+    public void deleteRejectedVerification(String id, String adminId) {
+        Verification verification = verificationRepository.findById(id)
+                .or(() -> verificationRepository.findByVerificationId(id))
+                .or(() -> verificationRepository.findTopByUserIdOrderBySubmittedAtDesc(id))
+                .or(() -> verificationRepository.findTopByEmailOrderBySubmittedAtDesc(id.trim().toLowerCase()))
+                .orElse(null);
+
+        String userId = verification != null ? verification.getUserId() : id;
+        String email = verification != null ? verification.getEmail() : null;
+
+        // If not found in verification, try finding user to get their details
+        if (email == null) {
+            Optional<User> uOpt = userRepository.findById(id).or(() -> userRepository.findByEmail(id.trim().toLowerCase()));
+            if (uOpt.isPresent()) {
+                userId = uOpt.get().getId();
+                email = uOpt.get().getEmail();
+            }
+        }
+
+        // Delete verification record(s)
+        if (verification != null) {
+            verificationRepository.delete(verification);
+        }
+        if (userId != null && !userId.isBlank()) {
+            verificationRepository.deleteByUserId(userId);
+        }
+        if (email != null && !email.isBlank()) {
+            verificationRepository.deleteByEmail(email.trim().toLowerCase());
+        }
+
+        // Permanently delete user document from users collection (so email can register cleanly again)
+        if (userId != null && !userId.isBlank()) {
+            userRepository.findById(userId).ifPresent(u -> {
+                if (!"ADMIN".equalsIgnoreCase(u.getRole())) {
+                    userRepository.delete(u);
+                }
+            });
+            userProfileRepository.deleteByUserId(userId);
+        }
+        if (email != null && !email.isBlank()) {
+            userRepository.findByEmail(email.trim().toLowerCase()).ifPresent(u -> {
+                if (!"ADMIN".equalsIgnoreCase(u.getRole())) {
+                    userRepository.delete(u);
+                }
+            });
+            userProfileRepository.deleteByEmail(email.trim().toLowerCase());
+        }
+
+        logger.info("AUDIT LOG: Admin [{}] permanently deleted REJECTED verification record [{}] and user [{}] ({}) at [{}]",
+                adminId, id, userId, email, LocalDateTime.now());
+    }
+
+    public int deleteBulkRejectedVerifications(List<String> ids, String adminId) {
+        if (ids == null || ids.isEmpty()) {
+            throw new IllegalArgumentException("No verification IDs provided for bulk deletion");
+        }
+        int count = 0;
+        for (String id : ids) {
+            deleteRejectedVerification(id, adminId);
+            count++;
+        }
+        return count;
     }
 }

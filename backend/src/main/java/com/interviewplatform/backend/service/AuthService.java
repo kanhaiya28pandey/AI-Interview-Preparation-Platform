@@ -14,28 +14,41 @@ import com.interviewplatform.backend.dto.RegisterRequest;
 import com.interviewplatform.backend.dto.ResetPasswordRequest;
 import com.interviewplatform.backend.dto.UserSummaryResponse;
 import com.interviewplatform.backend.model.User;
+import com.interviewplatform.backend.model.UserProfile;
+import com.interviewplatform.backend.repository.UserProfileRepository;
 import com.interviewplatform.backend.repository.UserRepository;
+import com.interviewplatform.backend.model.Verification;
+import com.interviewplatform.backend.repository.VerificationRepository;
 import com.interviewplatform.backend.security.JwtService;
 
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final VerificationRepository verificationRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
+    private final NotificationService notificationService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthService(
             UserRepository userRepository,
+            UserProfileRepository userProfileRepository,
+            VerificationRepository verificationRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            EmailService emailService
+            EmailService emailService,
+            NotificationService notificationService
     ) {
         this.userRepository = userRepository;
+        this.userProfileRepository = userProfileRepository;
+        this.verificationRepository = verificationRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
+        this.notificationService = notificationService;
     }
 
     public boolean checkEmailExists(String email) {
@@ -57,10 +70,57 @@ public class AuthService {
         user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("STUDENT");
-        user.setVerificationStatus("Verified");
+        user.setVerificationStatus("Pending Verification");
         user.setBlocked(false);
 
         User savedUser = userRepository.save(user);
+
+        // Automatically initialize UserProfile
+        UserProfile profile = new UserProfile(savedUser.getId(), savedUser.getName(), savedUser.getEmail());
+        profile.setRole("STUDENT");
+        profile.setVerificationStatus("Pending Verification");
+        profile.setUpdatedAt(LocalDateTime.now().toString());
+        userProfileRepository.save(profile);
+
+        // Automatically create pending verification record for student in admin queue
+        if ("STUDENT".equalsIgnoreCase(savedUser.getRole())) {
+            try {
+                if (!verificationRepository.existsByUserId(savedUser.getId())) {
+                    Verification verification = new Verification();
+                    verification.setVerificationId("VER-2026-" + (1000 + secureRandom.nextInt(9000)));
+                    verification.setUserId(savedUser.getId());
+                    verification.setStudentName(savedUser.getName());
+                    verification.setEmail(savedUser.getEmail());
+                    verification.setStatus("Pending Verification");
+                    verification.setSubmittedAt(LocalDateTime.now().toString());
+                    verification.setCollegeName("Pending ID upload");
+                    verification.setRollNumber("Pending ID upload");
+                    verification.setCourseBranch("General");
+                    verification.setYearSemester("Year 1");
+                    verification.setIdCardFrontUrl("https://images.unsplash.com/photo-1544717305-2782549b5136?w=600");
+                    verificationRepository.save(verification);
+
+                    notificationService.notifyAdmins(
+                            "verification",
+                            "New Student Registration: " + savedUser.getName(),
+                            savedUser.getName() + " (" + savedUser.getEmail() + ") registered and is awaiting identity verification.",
+                            "/admin/verifications",
+                            "warning"
+                    );
+
+                    notificationService.notifyUser(
+                            savedUser.getId(),
+                            "verification",
+                            "Registration Received",
+                            "Welcome to AI Interview Prep! Your account is pending admin verification. Action tasks will unlock once verified.",
+                            "/verify-identity",
+                            "info"
+                    );
+                }
+            } catch (Exception ex) {
+                // Non-blocking fallback
+            }
+        }
 
         String token = jwtService.generateToken(savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
 
