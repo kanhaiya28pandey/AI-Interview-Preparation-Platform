@@ -15,6 +15,9 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
+  --color-text-label: var(--text-label);
+  --color-text-hint: var(--text-hint);
+  --color-text-locked: var(--text-locked);
   --color-live: var(--live);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
@@ -106,14 +109,78 @@
 
 .text-text-secondary {
   color: var(--text-secondary) !important;
+  font-weight: 500;
 }
 
 .text-text-muted {
   color: var(--text-muted) !important;
+  font-weight: 500;
+}
+
+.text-text-label {
+  color: var(--text-label) !important;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.text-text-hint {
+  color: var(--text-hint) !important;
+  font-weight: 500;
+}
+
+.text-text-locked {
+  color: var(--text-locked) !important;
+  font-weight: 500;
 }
 
 .text-accent {
   color: var(--accent) !important;
+}
+
+/* Typography clarity, accessibility & contrast standards */
+.text-text-secondary,
+.text-text-muted,
+.text-text-hint {
+  font-weight: 500;
+}
+
+/* Ensure small uppercase labels have font-weight 600 and letter spacing */
+.uppercase.text-\[10px\],
+.uppercase.text-\[11px\],
+.uppercase.text-xs,
+[class*="tracking-wide"].uppercase,
+[class*="tracking-wider"].uppercase,
+[class*="tracking-widest"].uppercase {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* Ensure minimum accessible readable font size for small labels */
+.uppercase.text-\[10px\],
+.uppercase.text-\[11px\] {
+  font-size: 12px;
+}
+
+/* Soft ambient text shadow for readability over motion/gradient backgrounds */
+.ambient-text-shadow {
+  text-shadow: var(--text-shadow-ambient);
+}
+
+/* Section header backdrop for readability over animated motion styles */
+.header-backdrop {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 0.75rem;
+  padding: 0.375rem 0.875rem;
+  display: inline-block;
+}
+html.dark .header-backdrop {
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+html.light .header-backdrop {
+  background-color: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 @layer base {
@@ -129,20 +196,24 @@
     --accent-glow: rgba(34, 211, 238, 0.35);
     --gold: #22d3ee;
     --gold-soft: #14b8a6;
-    --text-primary: #eceae3;
-    --text-secondary: #9098ae;
-    --text-muted: #5e6a85;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #cbd5e1;
+    --text-label: #cbd5e1;
+    --text-hint: #cbd5e1;
+    --text-locked: #94a3b8;
     --live: #4ade80;
     --danger: #f2867b;
     --danger-bg: #2b1a1d;
     --tooltip-bg: #141b2c;
     --tooltip-border: #28324a;
     --chart-grid: #28324a;
-    --chart-text: #9098ae;
+    --chart-text: #cbd5e1;
     --glow-bg: rgba(34, 211, 238, 0.1);
     --shadow-card-hover: 0 0 24px rgba(34, 211, 238, 0.25);
     --shadow-btn-glow: 0 0 24px rgba(34, 211, 238, 0.35);
     --shadow-btn-glow-hover: 0 0 32px rgba(34, 211, 238, 0.55);
+    --text-shadow-ambient: 0 1px 2px rgba(0, 0, 0, 0.45);
     --shadow-nav-active: 0 0 12px rgba(34, 211, 238, 0.2);
     --shadow-soft-drop: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 
@@ -222,20 +293,24 @@
     --gold-soft: #0891b2;
     --text-primary: #0f172a;
     --text-secondary: #334155;
-    --text-muted: #64748b;
+    --text-muted: #475569;
+    --text-label: #475569;
+    --text-hint: #475569;
+    --text-locked: #64748b;
     --live: #16a34a;
     --danger: #dc2626;
     --danger-bg: #fef2f2;
     --tooltip-bg: #0f172a;
     --tooltip-border: #334155;
     --chart-grid: #e2e8f0;
-    --chart-text: #475569;
+    --chart-text: #334155;
     --glow-bg: rgba(8, 145, 178, 0.08);
     --shadow-card-hover: 0 8px 24px -4px rgba(15, 23, 42, 0.1), 0 2px 6px -1px rgba(15, 23, 42, 0.06);
     --shadow-btn-glow: 0 6px 18px rgba(8, 145, 178, 0.28);
     --shadow-btn-glow-hover: 0 10px 25px rgba(8, 145, 178, 0.38);
     --shadow-nav-active: 0 2px 10px rgba(8, 145, 178, 0.2);
     --shadow-soft-drop: 0 12px 30px -4px rgba(15, 23, 42, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
+    --text-shadow-ambient: 0 1px 1px rgba(255, 255, 255, 0.6);
 
     /* Light Mode Palette: Saturated, High-contrast, WCAG AA Compliant */
     --cyan-200: #0e7490;

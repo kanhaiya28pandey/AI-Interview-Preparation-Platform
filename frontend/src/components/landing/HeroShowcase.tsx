@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Terminal,
   Sparkles,
-  Flame,
   CheckCircle2,
   TrendingUp,
   Cpu,
@@ -128,9 +127,9 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
                       <span className="text-live font-semibold flex items-center gap-1 text-[11px]">
                         <TrendingUp className="w-3.5 h-3.5" /> Instant Scorecard: {preview.avgScore}/100
                       </span>
-                      <span className="text-[10px] text-text-muted font-mono">Top 6% percentile</span>
+                      <span className="text-[11px] text-text-muted font-mono font-medium">Top 6% percentile</span>
                     </div>
-                    <p className="text-text-muted text-[11px] leading-relaxed">
+                    <p className="text-text-secondary text-[11px] leading-relaxed font-medium">
                       ✓ Clear trade-off analysis and runtime complexity articulated. <br />
                       💡 Tip: Mention requestIdleCallback / scheduling hooks.
                     </p>
@@ -138,12 +137,12 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
                 </div>
 
                 {/* Terminal Footer (Full visible status line with clean breathing room) */}
-                <div className="px-4 py-3 bg-surface-raised border-t border-border flex justify-between items-center text-xs font-mono text-text-muted">
+                <div className="px-4 py-3 bg-surface-raised border-t border-border flex justify-between items-center text-xs font-mono text-text-secondary font-medium">
                   <span className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-live animate-pulse" />
                     Status: <strong className="text-live font-medium">Evaluator Active</strong>
                   </span>
-                  <span className="text-text-muted/70 text-[11px] font-mono">
+                  <span className="text-text-muted text-[11px] font-mono font-medium">
                     AI Real-Time Evaluation
                   </span>
                 </div>
@@ -187,7 +186,7 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
             </div>
 
             <div className="pr-1 text-left">
-              <span className="text-[9px] font-mono text-text-muted block uppercase tracking-wider">
+              <span className="text-[10px] font-mono text-text-muted block uppercase tracking-wider font-semibold">
                 Readiness Score
               </span>
               <span className="text-xs font-semibold text-text-primary flex items-center gap-1">
@@ -197,46 +196,12 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
           </motion.div>
         </div>
 
-        {/* Shared Aligned Cards Row for Card C & Card D */}
-        <div className="hidden sm:flex relative z-20 mt-6 sm:mt-8 flex-col md:flex-row items-stretch md:items-start justify-end md:justify-between gap-6 md:gap-8 px-2 sm:px-4 w-full max-w-lg lg:max-w-none mb-12 sm:mb-16">
-          {/* Floating Card C: Streak + Leaderboard (Visible on md and up) */}
+        {/* Centered Dynamic Role-Aware Skill Tags Card */}
+        <div className="flex relative z-20 mt-6 sm:mt-8 items-center justify-center w-full px-2 sm:px-4 mb-8 sm:mb-10">
           <motion.div
             animate={reducedMotion ? undefined : { y: [0, -4, 0] }}
             transition={reducedMotion ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            className="hidden md:flex flex-col gap-2 p-4 rounded-xl bg-surface-raised/95 border border-border backdrop-blur-md shadow-2xl text-text-primary w-full md:w-[calc(50%-16px)] max-w-[260px]"
-            aria-hidden="true"
-          >
-            <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
-                <Flame className="w-3.5 h-3.5 text-orange-400 animate-pulse" />
-                <span>12 Day Streak</span>
-              </div>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-semibold">
-                Top 1%
-              </span>
-            </div>
-
-            <div className="space-y-1 text-[10px] font-mono">
-              <div className="flex items-center justify-between text-text-primary">
-                <span className="truncate">🥇 Aarav S.</span>
-                <span className="text-live font-semibold">98%</span>
-              </div>
-              <div className="flex items-center justify-between text-text-secondary">
-                <span className="truncate">🥈 Priya N.</span>
-                <span className="text-cyan-400 font-semibold">96%</span>
-              </div>
-              <div className="flex items-center justify-between text-text-muted">
-                <span className="truncate">🥉 Vikram R.</span>
-                <span className="text-text-muted">94%</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Floating Card D: Dynamic Role-Aware Skill Tags Card (Visible on sm and up) */}
-          <motion.div
-            animate={reducedMotion ? undefined : { y: [0, -4, 0] }}
-            transition={reducedMotion ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            className="flex flex-col gap-2 p-4 rounded-xl bg-surface-raised/95 border backdrop-blur-md shadow-xl text-text-primary w-full md:w-[calc(50%-16px)] max-w-[260px] transition-colors"
+            className="flex flex-col gap-2 p-4 rounded-xl bg-surface-raised/95 border backdrop-blur-md shadow-xl text-text-primary w-full max-w-sm transition-colors text-left"
             style={{
               borderColor: `${currentRole.accentColor}50`,
               boxShadow: `0 8px 24px -6px ${currentRole.glowColor}`,
@@ -250,15 +215,15 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
                 animate={{ opacity: 1, scale: 1 }}
                 exit={reducedMotion ? undefined : { opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.18 }}
-                className="space-y-2 text-left"
+                className="space-y-2.5"
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {React.createElement(currentRole.icon, {
-                    className: "w-3.5 h-3.5 shrink-0",
+                    className: "w-4 h-4 shrink-0",
                     style: { color: currentRole.accentColor },
                   })}
                   <span
-                    className="text-xs font-semibold truncate"
+                    className="text-xs font-semibold truncate tracking-wide"
                     style={{ color: currentRole.accentColor }}
                   >
                     {currentRole.label}
@@ -269,7 +234,7 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
                   {preview.skills.map((skill) => (
                     <span
                       key={skill}
-                      className="text-[9px] font-mono px-2 py-0.5 rounded bg-surface border border-border text-text-secondary whitespace-nowrap"
+                      className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-md bg-surface border border-border text-text-secondary whitespace-nowrap"
                     >
                       {skill}
                     </span>
@@ -280,9 +245,9 @@ export const HeroShowcase: React.FC<HeroShowcaseProps> = memo(
           </motion.div>
         </div>
 
-        {/* Tech Stack Chip Row placed neatly below the cards in normal document flow with clear clearance */}
-        <div className="w-full flex flex-col items-center justify-center gap-2 z-10 relative">
-          <span className="font-mono text-[11px] uppercase tracking-widest text-text-muted">
+        {/* Tech Stack Chip Row placed neatly below the card with clean clearance */}
+        <div className="w-full flex flex-col items-center justify-center gap-2.5 z-10 relative">
+          <span className="font-mono text-xs uppercase tracking-widest text-text-muted font-semibold">
             Built with
           </span>
           <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">

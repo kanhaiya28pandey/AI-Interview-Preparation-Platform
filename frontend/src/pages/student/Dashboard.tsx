@@ -1006,7 +1006,7 @@ export const StudentDashboard: React.FC = () => {
                   className={`p-3.5 rounded-2xl border flex flex-col items-center text-center gap-2 transition-all ${
                     badge.unlocked
                       ? `${badge.color} shadow-sm scale-[1.02]`
-                      : "bg-surface-raised/30 border-border text-text-muted opacity-50"
+                      : "bg-surface-raised/30 border-border text-text-locked"
                   }`}
                 >
                   <div

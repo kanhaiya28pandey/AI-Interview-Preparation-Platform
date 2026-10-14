@@ -253,13 +253,6 @@ public class GeminiAiService {
         boolean hasProjects = lower.contains("project") || lower.contains("portfolio");
         boolean hasSkills = lower.contains("skills") || lower.contains("technologies");
 
-        int sectionScore = 50;
-        if (hasSummary) sectionScore += 10;
-        if (hasExperience) sectionScore += 12;
-        if (hasEducation) sectionScore += 10;
-        if (hasProjects) sectionScore += 10;
-        if (hasSkills) sectionScore += 8;
-
         int keywordScore = targetKeywords.isEmpty() ? 75 : Math.min(95, Math.max(50, (matchedCount * 100) / targetKeywords.size()));
         int formattingScore = (text.length() > 500 && text.length() < 12000) ? 90 : 72;
         int experienceScore = hasExperience ? (hasProjects ? 85 : 75) : 65;

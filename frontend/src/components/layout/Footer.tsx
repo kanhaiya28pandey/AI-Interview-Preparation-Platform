@@ -15,9 +15,9 @@ export const Footer: React.FC = () => {
   return (
     <footer className="w-full border-t border-border/80 bg-surface/90 text-text-muted select-none mt-auto">
       <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12 pb-10 border-b border-border/60">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10 pb-10 border-b border-border/60">
           {/* Brand Column */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="sm:col-span-2 lg:col-span-1 space-y-4">
             <Logo size="md" />
             <p className="text-xs text-text-secondary leading-relaxed max-w-sm font-sans">
               The comprehensive AI-powered interview practice platform built for college campus placements. Practice DSA coding, simulated mock interviews, and technical roadmaps with real-time AI scoring.
@@ -124,21 +124,45 @@ export const Footer: React.FC = () => {
               </li>
             </ul>
           </div>
+
+          {/* Legal & Support */}
+          <div className="space-y-3">
+            <h4 className="font-serif text-sm font-semibold text-text-primary tracking-wide">
+              Legal & Support
+            </h4>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <Link to="/help" className="hover:text-cyan-400 transition-colors">
+                  Support
+                </Link>
+              </li>
+              <li>
+                <Link to="#" className="hover:text-cyan-400 transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="#" className="hover:text-cyan-400 transition-colors">
+                  Terms of Service
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-text-muted gap-4">
-          <div className="font-mono text-[11px]">
+        <div className="pt-6 pb-6 sm:pb-2 flex flex-col sm:flex-row justify-between items-center text-xs text-text-muted gap-4 sm:pr-24">
+          <div className="font-mono text-[11px] text-center sm:text-left">
             © {new Date().getFullYear()} AI Interview Preparation Platform. Designed for campus placement drives.
           </div>
-          <div className="flex items-center gap-6 font-mono text-[11px]">
+          <div className="flex items-center gap-6 font-mono text-[11px] flex-wrap justify-center">
             <Link to="/help" className="hover:text-text-primary transition-colors">
               Support
             </Link>
-            <Link to="/privacy" className="hover:text-text-primary transition-colors">
+            <Link to="#" className="hover:text-text-primary transition-colors">
               Privacy
             </Link>
-            <Link to="/terms" className="hover:text-text-primary transition-colors">
+            <Link to="#" className="hover:text-text-primary transition-colors">
               Terms
             </Link>
           </div>

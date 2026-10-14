@@ -932,7 +932,7 @@ export const Coding: React.FC = () => {
                               <Clock className="w-4 h-4 text-amber-400 mx-auto" />
                             </span>
                           ) : (
-                            <span className="text-text-muted/40 font-mono text-xs block text-center" title="Todo">
+                            <span className="text-text-muted font-mono text-xs block text-center" title="Todo">
                               —
                             </span>
                           )}

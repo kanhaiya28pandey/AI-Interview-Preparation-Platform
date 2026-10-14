@@ -445,7 +445,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           placeholder="Search topics, tracks, tests..."
           aria-expanded={isOpen}
           aria-label="Search topics, tracks, tests"
-          className="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-white/10 hover:border-teal-500/50 dark:hover:border-teal-400/50 focus:border-teal-500 dark:focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 dark:focus:ring-teal-400/20 focus:outline-none text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 transition-[border-color,box-shadow] duration-200 font-sans"
+          className="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-white/10 hover:border-teal-500/50 dark:hover:border-teal-400/50 focus:border-teal-500 dark:focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 dark:focus:ring-teal-400/20 focus:outline-none text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-600 dark:placeholder:text-slate-300 transition-[border-color,box-shadow] duration-200 font-sans font-medium"
         />
         {query ? (
           <button
@@ -454,7 +454,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
               setQuery("");
               inputRef.current?.focus();
             }}
-            className="absolute right-2.5 p-1 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-md transition-colors"
+            className="absolute right-2.5 p-1 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100 rounded-md transition-colors"
             title="Clear search"
             aria-label="Clear search"
           >
@@ -470,7 +470,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
           {!query && recentSearches.length > 0 && (
             <div className="px-3.5 py-2.5 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0B1120] flex items-center justify-between text-xs shrink-0 transition-colors">
               <div className="flex items-center gap-1.5 overflow-x-auto min-w-0 pr-2 [scrollbar-width:none]">
-                <span className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1 shrink-0 font-mono uppercase font-semibold tracking-wider">
+                <span className="text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1 shrink-0 font-mono uppercase font-semibold tracking-wider">
                   <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-300" /> Recent:
                 </span>
                 {recentSearches.map((term, i) => (
@@ -511,7 +511,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 <p className="font-serif text-sm font-semibold text-slate-900 dark:text-slate-100">
                   No matches found for "{debouncedQuery}"
                 </p>
-                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs mx-auto font-sans">
+                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium max-w-xs mx-auto font-sans">
                   Try searching for <span className="text-teal-700 dark:text-teal-300 font-medium">DSA</span>, <span className="text-teal-700 dark:text-teal-300 font-medium">System Design</span>, or <span className="text-teal-700 dark:text-teal-300 font-medium">Mock Interview</span>.
                 </p>
               </div>
@@ -556,7 +556,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                           </p>
                         </div>
                         {item.description && (
-                          <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate max-w-sm sm:max-w-md font-sans">
+                          <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium truncate max-w-sm sm:max-w-md font-sans">
                             {highlightMatch(item.description, debouncedQuery)}
                           </p>
                         )}

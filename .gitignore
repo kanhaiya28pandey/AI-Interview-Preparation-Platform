@@ -16,6 +16,7 @@ dist/
 
 # Java / Spring Boot
 target/
+bin/
 .mvn/wrapper/maven-wrapper.jar
 .apt_generated
 .classpath
@@ -50,8 +51,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.venv
-venv
+.venv/
+venv/
 ENV
 env.bak
 venv.bak
