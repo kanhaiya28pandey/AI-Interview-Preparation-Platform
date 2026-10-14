@@ -235,7 +235,19 @@ export const LiveTests: React.FC = () => {
     setCodingLanguages(initLangs);
     setMcqAnswers({});
     setMarkedForReview({});
-    setRunOutputs({});
+    liveTestService.recordActiveSession({
+      id: user?.userId || "student-user",
+      testId: testToStart.id,
+      name: user?.name || "Student",
+      role: (user?.role as any) || "STUDENT",
+      college: (user as any)?.college || "SRM Institute of Science and Technology",
+      rollNumber: (user as any)?.rollNumber || "RA-LIVE-01",
+      progress: 0,
+      timeLeftSeconds: testToStart.durationMinutes * 60,
+      tabSwitchCount: 0,
+      status: "Active",
+      lastPing: "Just now",
+    });
 
     toast.success(`Entered proctored live arena for "${testToStart.title}". Good luck!`);
   };
@@ -468,8 +480,9 @@ export const LiveTests: React.FC = () => {
     const totalMarks = activeArenaTest.totalMarks || 100;
     calculatedScore = Math.max(0, Math.min(totalMarks, calculatedScore));
     const percentage = Math.round((calculatedScore / totalMarks) * 100);
+    const maxDurationSecs = activeArenaTest.durationMinutes * 60;
+    const timeTaken = Math.min(maxDurationSecs, Math.max(30, maxDurationSecs - arenaTimer));
     const passed = calculatedScore >= (activeArenaTest.passingMarks || 40);
-    const timeTaken = (activeArenaTest.durationMinutes * 60) - arenaTimer;
 
     const submission: LiveTestSubmission = {
       id: `sub-${Date.now()}`,
@@ -485,7 +498,7 @@ export const LiveTests: React.FC = () => {
       percentage,
       rank: Math.floor(Math.random() * 8) + 1,
       passed,
-      timeTakenSeconds: Math.max(60, timeTaken),
+      timeTakenSeconds: timeTaken,
       submittedAt: new Date().toISOString(),
       submissionType: subType,
       tabSwitchCount,

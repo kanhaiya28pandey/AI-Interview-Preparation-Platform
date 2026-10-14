@@ -24,6 +24,7 @@ export interface MasterStudent {
   idCardBackUrl?: string;
   selfieUrl?: string;
   registeredAt: string;
+  submittedAt?: string;
   verificationStatus: "Pending Verification" | "Verified" | "Rejected" | "Pending";
   rejectionCategory?: string;
   rejectionNotes?: string;
@@ -31,7 +32,7 @@ export interface MasterStudent {
   status: "ACTIVE" | "BLOCKED" | "PENDING" | "INACTIVE";
   profileCompletion: number;
   activityScore: number;
-  riskLevel: "On Track" | "Needs Attention" | "At Risk" | "Inactive";
+  riskLevel: "On Track" | "Needs Attention" | "At Risk" | "Inactive" | "Not Started";
   streakDays: number;
   problemsSolved: number;
   interviewsCompleted: number;
@@ -68,7 +69,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     yearSemester: "Year 4 / Sem 7",
     year: "4th Year",
     rollNumber: "RA2111003010452",
-    idCardFrontUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+    idCardFrontUrl: "",
     selfieUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
     registeredAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(), // 2 hrs ago (NEW)
     verificationStatus: "Verified",
@@ -157,7 +158,7 @@ const SEED_STUDENTS: MasterStudent[] = [
     yearSemester: "Year 2 / Sem 3",
     year: "2nd Year",
     rollNumber: "CS22M014",
-    idCardFrontUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+    idCardFrontUrl: "",
     selfieUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=80",
     registeredAt: "2026-09-20T10:30:00Z",
     verificationStatus: "Verified",
@@ -229,6 +230,14 @@ export const mapSubmissionToMasterStudent = (
       ? "BLOCKED"
       : "PENDING";
 
+  const incomingCard = sub.idCardFrontUrl && !sub.idCardFrontUrl.includes("photo-1544717305") ? sub.idCardFrontUrl : "";
+  const existingCard = existing?.idCardFrontUrl && !existing.idCardFrontUrl.includes("photo-1544717305") ? existing.idCardFrontUrl : "";
+  const finalCard = incomingCard || existingCard;
+
+  const finalCollege = (sub.collegeName && sub.collegeName !== "Pending ID upload")
+    ? sub.collegeName
+    : (existing?.college && existing.college !== "Pending ID upload" ? existing.college : (sub.collegeName || existing?.college || ""));
+
   return {
     id: sub.userId || sub.verificationId || existing?.id || `sub-${Date.now()}`,
     userId: sub.userId || existing?.userId || sub.verificationId,
@@ -236,30 +245,31 @@ export const mapSubmissionToMasterStudent = (
     name: sub.studentName || existing?.name || "Student Candidate",
     email: sub.email || existing?.email || "",
     phone: existing?.phone || "+91 98765 00000",
-    college: sub.collegeName || existing?.college || "",
+    college: finalCollege,
     course,
     branch,
     yearSemester: sub.yearSemester || existing?.yearSemester || "Year 1 / Sem 1",
     year,
     rollNumber: sub.rollNumber || existing?.rollNumber || "",
-    idCardFrontUrl: sub.idCardFrontUrl || existing?.idCardFrontUrl || "",
+    idCardFrontUrl: finalCard,
     selfieUrl: sub.selfieUrl || existing?.selfieUrl,
     registeredAt: sub.submittedAt || existing?.registeredAt || new Date().toISOString(),
+    submittedAt: sub.submittedAt || existing?.submittedAt || new Date().toISOString(),
     verificationStatus: verifStatus,
     rejectionCategory: sub.rejectionCategory || (verifStatus === "Rejected" ? existing?.rejectionCategory : undefined),
     rejectionNotes: sub.rejectionNotes || (verifStatus === "Rejected" ? existing?.rejectionNotes : undefined),
     role: "STUDENT",
     status: existing?.status && existing.status !== "PENDING" && verifStatus !== "Rejected" ? existing.status : studentStatus,
-    profileCompletion: existing?.profileCompletion ?? (verifStatus === "Verified" ? 85 : 50),
-    activityScore: existing?.activityScore ?? (verifStatus === "Verified" ? 75 : 40),
-    riskLevel: existing?.riskLevel || "On Track",
-    streakDays: existing?.streakDays ?? (verifStatus === "Verified" ? 5 : 0),
-    problemsSolved: existing?.problemsSolved ?? (verifStatus === "Verified" ? 12 : 0),
-    interviewsCompleted: existing?.interviewsCompleted ?? (verifStatus === "Verified" ? 2 : 0),
-    avgInterviewScore: existing?.avgInterviewScore ?? (verifStatus === "Verified" ? 78 : 0),
-    avgQuizScore: existing?.avgQuizScore ?? (verifStatus === "Verified" ? 80 : 0),
-    bestAtsScore: existing?.bestAtsScore ?? (verifStatus === "Verified" ? 82 : 0),
-    lastActive: existing?.lastActive || "Active recently",
+    profileCompletion: existing?.profileCompletion ?? 0,
+    activityScore: existing?.activityScore ?? 0,
+    riskLevel: existing?.riskLevel || "Not Started",
+    streakDays: existing?.streakDays ?? 0,
+    problemsSolved: existing?.problemsSolved ?? 0,
+    interviewsCompleted: existing?.interviewsCompleted ?? 0,
+    avgInterviewScore: existing?.avgInterviewScore ?? 0,
+    avgQuizScore: existing?.avgQuizScore ?? 0,
+    bestAtsScore: existing?.bestAtsScore ?? 0,
+    lastActive: existing?.lastActive || "Recently registered",
   };
 };
 
@@ -441,10 +451,24 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           : [];
       const verifMap = new Map<string, any>();
       verifList.forEach((v: any) => {
-        if (v.userId) verifMap.set(String(v.userId).toLowerCase(), v);
-        if (v.id) verifMap.set(String(v.id).toLowerCase(), v);
-        if (v.verificationId) verifMap.set(String(v.verificationId).toLowerCase(), v);
-        if (v.email) verifMap.set(String(v.email).toLowerCase(), v);
+        const keys = [v.userId, v.id, v.verificationId, v.email].filter(Boolean).map((k) => String(k).toLowerCase());
+        keys.forEach((key) => {
+          const existing = verifMap.get(key);
+          if (!existing) {
+            verifMap.set(key, v);
+          } else {
+            const existingHasCard = existing.idCardFrontUrl && !existing.idCardFrontUrl.includes("photo-1544717305");
+            const currentHasCard = v.idCardFrontUrl && !v.idCardFrontUrl.includes("photo-1544717305");
+            const existingIsPending = existing.collegeName === "Pending ID upload";
+            const currentIsPending = v.collegeName === "Pending ID upload";
+
+            if (!existingHasCard && currentHasCard) {
+              verifMap.set(key, v);
+            } else if (existingIsPending && !currentIsPending) {
+              verifMap.set(key, v);
+            }
+          }
+        });
       });
 
       const usersList =
@@ -488,6 +512,11 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           const studentStatus: MasterStudent["status"] =
             usr?.status === "BLOCKED" || u.status === "BLOCKED" ? "BLOCKED" : "ACTIVE";
 
+          const cardUrl = v?.idCardFrontUrl && !v.idCardFrontUrl.includes("photo-1544717305") ? v.idCardFrontUrl : "";
+          const collegeName = (v?.collegeName && v.collegeName !== "Pending ID upload")
+            ? v.collegeName
+            : (u.college && u.college !== "Pending ID upload" ? u.college : (v?.collegeName || u.college || "SRM Institute of Science and Technology"));
+
           const studentObj: MasterStudent = {
             id: u.id || u.userId || usr?.id || `usr-${Date.now()}`,
             userId: u.userId || usr?.id || u.id,
@@ -495,30 +524,31 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             name: u.name || usr?.name || "Student",
             email: u.email || usr?.email || "",
             phone: u.phone || v?.phone || "+91 98765 43210",
-            college: u.college || v?.collegeName || "SRM Institute of Science and Technology",
+            college: collegeName,
             course: u.course || v?.courseBranch?.split(/[-–/]/)[0]?.trim() || "B.Tech",
             branch: u.branch || v?.courseBranch || "Computer Science",
             yearSemester: u.year || v?.yearSemester || "3rd Year",
             year: u.year || "3rd Year",
-            rollNumber: u.rollNumber || v?.rollNumber || "RA2411003010452",
-            idCardFrontUrl: v?.idCardFrontUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+            rollNumber: u.rollNumber || v?.rollNumber || "",
+            idCardFrontUrl: cardUrl,
             idCardBackUrl: v?.idCardBackUrl,
             selfieUrl: v?.selfieUrl || u?.avatarUrl || u?.avatar,
             registeredAt: u.joinedDate || usr?.joinedDate || u.createdAt || new Date().toISOString(),
+            submittedAt: v?.submittedAt || u.joinedDate || usr?.joinedDate || u.createdAt || new Date().toISOString(),
             verificationStatus: verifStatus,
             rejectionCategory: v?.rejectionCategory,
             rejectionNotes: v?.rejectionNotes,
             role: "STUDENT",
             status: studentStatus,
-            profileCompletion: u.activityScore ? Math.min(100, u.activityScore + 10) : 85,
-            activityScore: u.activityScore !== undefined ? u.activityScore : 80,
-            riskLevel: (u.riskLevel === "At Risk" ? "At Risk" : u.riskLevel === "Inactive" ? "Inactive" : "On Track") as any,
-            streakDays: u.streakDays || 1,
+            profileCompletion: u.activityScore ? Math.min(100, u.activityScore + 10) : 0,
+            activityScore: u.activityScore !== undefined ? u.activityScore : 0,
+            riskLevel: (u.riskLevel === "At Risk" ? "At Risk" : u.riskLevel === "Inactive" ? "Inactive" : u.activityScore > 0 ? "On Track" : "Not Started") as any,
+            streakDays: u.streakDays || 0,
             problemsSolved: u.problemsSolved || 0,
             interviewsCompleted: u.interviewsCompleted || 0,
-            avgInterviewScore: u.avgInterviewScore || 80,
-            avgQuizScore: u.avgQuizScore || 85,
-            bestAtsScore: u.bestAtsScore || 80,
+            avgInterviewScore: u.avgInterviewScore || 0,
+            avgQuizScore: u.avgQuizScore || 0,
+            bestAtsScore: u.bestAtsScore || 0,
             lastActive: u.lastActive || "Recently",
           };
 
@@ -543,33 +573,40 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 ? "Rejected"
                 : "Pending Verification";
 
+            const cardUrl = v?.idCardFrontUrl && !v.idCardFrontUrl.includes("photo-1544717305") ? v.idCardFrontUrl : "";
+            const collegeName = (v?.collegeName && v.collegeName !== "Pending ID upload")
+              ? v.collegeName
+              : (v?.collegeName || "SRM Institute of Science and Technology");
+
             combinedMap.set(key, {
               id: u.id,
               userId: u.id,
               verificationId: v?.verificationId,
               name: u.name || "Student",
               email: u.email,
-              phone: "+91 98765 43210",
-              college: v?.collegeName || "SRM Institute of Science and Technology",
+              phone: v?.phone || "+91 98765 43210",
+              college: collegeName,
               course: v?.courseBranch?.split(/[-–/]/)[0]?.trim() || "B.Tech",
               branch: v?.courseBranch || "Computer Science",
               yearSemester: v?.yearSemester || "3rd Year",
               year: "3rd Year",
-              rollNumber: v?.rollNumber || "RA2411003010452",
-              idCardFrontUrl: v?.idCardFrontUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+              rollNumber: v?.rollNumber || "",
+              idCardFrontUrl: cardUrl,
+              selfieUrl: v?.selfieUrl || u?.avatarUrl,
               registeredAt: u.joinedDate || new Date().toISOString(),
+              submittedAt: v?.submittedAt || u.joinedDate || new Date().toISOString(),
               verificationStatus: verifStatus,
               role: "STUDENT",
               status: u.status === "BLOCKED" ? "BLOCKED" : "ACTIVE",
-              profileCompletion: 80,
-              activityScore: 75,
-              riskLevel: "On Track",
-              streakDays: 3,
-              problemsSolved: 12,
-              interviewsCompleted: u.interviewsCompleted || 1,
-              avgInterviewScore: 80,
-              avgQuizScore: 82,
-              bestAtsScore: 78,
+              profileCompletion: 0,
+              activityScore: 0,
+              riskLevel: "Not Started",
+              streakDays: 0,
+              problemsSolved: 0,
+              interviewsCompleted: 0,
+              avgInterviewScore: 0,
+              avgQuizScore: 0,
+              bestAtsScore: 0,
               lastActive: u.lastActive || "Recently",
             });
           }
@@ -627,7 +664,7 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       yearSemester: studentData.yearSemester || "Year 1 / Sem 1",
       year: studentData.year || "1st Year",
       rollNumber: studentData.rollNumber || `REG${Math.floor(100000 + Math.random() * 900000)}`,
-      idCardFrontUrl: studentData.idCardFrontUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+      idCardFrontUrl: studentData.idCardFrontUrl || "",
       selfieUrl: studentData.selfieUrl,
       registeredAt: studentData.registeredAt || new Date().toISOString(),
       verificationStatus: studentData.verificationStatus || "Pending Verification",
@@ -876,10 +913,12 @@ export const AdminStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const approveVerification = async (id: string) => {
     const student = students.find((s) => s.id === id || s.userId === id || s.verificationId === id);
     const targetVerificationId = student?.verificationId || student?.id || id;
+    const photo = student?.selfieUrl || student?.idCardFrontUrl;
 
     updateStudent(id, {
       verificationStatus: "Verified",
       status: "ACTIVE",
+      ...(photo ? { selfieUrl: photo, avatarUrl: photo, avatar: photo } : {}),
       rejectionCategory: undefined,
       rejectionNotes: undefined,
     });

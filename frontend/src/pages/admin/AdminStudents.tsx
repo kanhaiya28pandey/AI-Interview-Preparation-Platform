@@ -82,21 +82,35 @@ import { PageHeader } from "@/components/common/PageHeader";
 export const calculateReadinessScore = (
   student: MasterStudent
 ): { score: number; level: string; color: string; badgeVariant: "active" | "accent" | "medium" | "blocked" } => {
+  const activity = student.activityScore || 0;
+  const interview = student.avgInterviewScore || 0;
+  const quiz = student.avgQuizScore || 0;
+  const ats = student.bestAtsScore || 0;
+  const problems = student.problemsSolved || 0;
+  const interviewsCount = student.interviewsCompleted || 0;
+
+  // If candidate has not engaged in tests, coding, or quizzes yet, score is 0%
+  if (activity === 0 && problems === 0 && interviewsCount === 0 && quiz === 0 && ats === 0) {
+    return { score: 0, level: "Not Started", color: "text-text-muted", badgeVariant: "blocked" };
+  }
+
   const score = Math.round(
-    student.activityScore * 0.4 +
-      student.avgInterviewScore * 0.3 +
-      student.avgQuizScore * 0.15 +
-      student.bestAtsScore * 0.15
+    activity * 0.4 +
+      interview * 0.3 +
+      quiz * 0.15 +
+      ats * 0.15
   );
   if (score >= 85) return { score, level: "Placement Ready", color: "text-emerald-400", badgeVariant: "active" };
   if (score >= 70) return { score, level: "Good Standing", color: "text-cyan-400", badgeVariant: "accent" };
-  if (score >= 50) return { score, level: "Needs Practice", color: "text-amber-400", badgeVariant: "medium" };
-  return { score, level: "High Risk", color: "text-rose-400", badgeVariant: "blocked" };
+  if (score >= 40) return { score, level: "Needs Practice", color: "text-amber-400", badgeVariant: "medium" };
+  if (score > 0) return { score, level: "Early Stage", color: "text-rose-400", badgeVariant: "blocked" };
+  return { score: 0, level: "Not Started", color: "text-text-muted", badgeVariant: "blocked" };
 };
 
 export type QuickFilterType =
   | "ALL"
   | "VERIFIED"
+  | "UNVERIFIED"
   | "PENDING"
   | "REJECTED"
   | "PLACEMENT_READY"
@@ -158,10 +172,10 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [courseFilter, setCourseFilter] = useState("ALL");
-  const [verificationFilter, setVerificationFilter] = useState("ALL");
+  const [verificationFilter, setVerificationFilter] = useState("VERIFIED");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [riskFilter, setRiskFilter] = useState("ALL");
-  const [quickFilter, setQuickFilter] = useState<QuickFilterType>("ALL");
+  const [quickFilter, setQuickFilter] = useState<QuickFilterType>("VERIFIED");
 
   // Sorting & Pagination
   const [sortField, setSortField] = useState<"name" | "activityScore" | "registeredAt" | "role" | "status">("activityScore");
@@ -390,7 +404,13 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
         const matchesRole = roleFilter === "ALL" || (s.role || "STUDENT").toUpperCase() === roleFilter.toUpperCase();
         const matchesCourse = matchesCourseFilter(s.course || "", courseFilter);
         const matchesVerification =
-          verificationFilter === "ALL" || (s.verificationStatus || "").toUpperCase() === verificationFilter.toUpperCase();
+          verificationFilter === "ALL"
+            ? true
+            : verificationFilter === "VERIFIED"
+            ? (s.verificationStatus || "").toUpperCase() === "VERIFIED"
+            : verificationFilter === "UNVERIFIED"
+            ? (s.verificationStatus || "").toUpperCase() !== "VERIFIED"
+            : (s.verificationStatus || "").toUpperCase() === verificationFilter.toUpperCase();
         const matchesStatus = statusFilter === "ALL" || (s.status || "ACTIVE").toUpperCase() === statusFilter.toUpperCase();
         const matchesRisk = riskFilter === "ALL" || (s.riskLevel || "ON TRACK").toUpperCase() === riskFilter.toUpperCase();
 
@@ -398,6 +418,8 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
         let matchesQuick = true;
         if (quickFilter === "VERIFIED") {
           matchesQuick = (s.verificationStatus || "").toUpperCase() === "VERIFIED";
+        } else if (quickFilter === "UNVERIFIED") {
+          matchesQuick = (s.verificationStatus || "").toUpperCase() !== "VERIFIED";
         } else if (quickFilter === "PENDING") {
           matchesQuick = (s.verificationStatus || "").toUpperCase().includes("PENDING");
         } else if (quickFilter === "REJECTED") {
@@ -413,14 +435,17 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
         return matchesSearch && matchesRole && matchesCourse && matchesVerification && matchesStatus && matchesRisk && matchesQuick;
       })
       .sort((a, b) => {
-        let valA: any = a[sortField] || "";
-        let valB: any = b[sortField] || "";
-        if (typeof valA === "string") {
-          valA = valA.toLowerCase();
-          valB = valB.toLowerCase();
+        let valA: any = a[sortField];
+        let valB: any = b[sortField];
+        if (typeof valA === "number" || typeof valB === "number") {
+          const numA = Number(valA) || 0;
+          const numB = Number(valB) || 0;
+          return sortOrder === "asc" ? numA - numB : numB - numA;
         }
-        if (sortOrder === "asc") return valA > valB ? 1 : -1;
-        return valA < valB ? 1 : -1;
+        valA = String(valA || "").toLowerCase();
+        valB = String(valB || "").toLowerCase();
+        if (sortOrder === "asc") return valA.localeCompare(valB);
+        return valB.localeCompare(valA);
       });
   }, [students, search, roleFilter, courseFilter, verificationFilter, statusFilter, riskFilter, quickFilter, sortField, sortOrder]);
 
@@ -747,14 +772,20 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
               {/* Verification Filter */}
               <CustomSelect
                 options={[
+                  { value: "VERIFIED", label: "Verified Only (Default)" },
+                  { value: "UNVERIFIED", label: "Unverified / Pending" },
                   { value: "ALL", label: "All Verifications" },
-                  { value: "VERIFIED", label: "Verified Only" },
                   { value: "PENDING VERIFICATION", label: "Pending Review" },
                   { value: "REJECTED", label: "Rejected Only" },
                 ]}
                 value={verificationFilter}
                 onChange={(v) => {
                   setVerificationFilter(v);
+                  if (v === "VERIFIED") setQuickFilter("VERIFIED");
+                  else if (v === "UNVERIFIED") setQuickFilter("UNVERIFIED");
+                  else if (v === "ALL") setQuickFilter("ALL");
+                  else if (v === "PENDING VERIFICATION") setQuickFilter("PENDING");
+                  else if (v === "REJECTED") setQuickFilter("REJECTED");
                   setCurrentPage(1);
                 }}
                 ariaLabel="Filter by verification status"
@@ -783,9 +814,10 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
               <span className="text-[11px] font-mono text-text-muted mr-1">Quick Filters:</span>
               {(
                 [
-                  { id: "ALL", label: "All Candidates" },
                   { id: "VERIFIED", label: "Verified Only" },
-                  { id: "PENDING", label: "Pending Verification" },
+                  { id: "UNVERIFIED", label: "Unverified / Pending" },
+                  { id: "ALL", label: "All Candidates" },
+                  { id: "PENDING", label: "Pending Review" },
                   { id: "REJECTED", label: "Rejected" },
                   { id: "PLACEMENT_READY", label: "Placement Ready (≥85%)" },
                   { id: "AT_RISK", label: "At-Risk" },
@@ -796,6 +828,12 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
                   key={tab.id}
                   onClick={() => {
                     setQuickFilter(tab.id);
+                    if (tab.id === "VERIFIED") setVerificationFilter("VERIFIED");
+                    else if (tab.id === "UNVERIFIED") setVerificationFilter("UNVERIFIED");
+                    else if (tab.id === "PENDING") setVerificationFilter("PENDING VERIFICATION");
+                    else if (tab.id === "REJECTED") setVerificationFilter("REJECTED");
+                    else if (tab.id === "ALL") setVerificationFilter("ALL");
+                    else setVerificationFilter("ALL");
                     setCurrentPage(1);
                   }}
                   className={cn(

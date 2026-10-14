@@ -84,25 +84,49 @@ public class VerificationService {
         String email = (request.getEmail() != null && !request.getEmail().isBlank())
                 ? request.getEmail().trim().toLowerCase() : (user != null ? user.getEmail() : "student@example.com");
 
-        int randomNum = 1000 + random.nextInt(9000);
-        String verificationId = "VER-2026-" + randomNum;
+        Verification verification = null;
+        if (userId != null && !userId.isBlank()) {
+            verification = verificationRepository.findTopByUserIdOrderBySubmittedAtDesc(userId).orElse(null);
+        }
+        if (verification == null && email != null && !email.isBlank()) {
+            verification = verificationRepository.findTopByEmailOrderBySubmittedAtDesc(email).orElse(null);
+        }
 
-        Verification verification = new Verification();
-        verification.setVerificationId(verificationId);
-        verification.setUserId(userId);
+        if (verification == null) {
+            verification = new Verification();
+            int randomNum = 1000 + random.nextInt(9000);
+            verification.setVerificationId("VER-2026-" + randomNum);
+            verification.setUserId(userId);
+        }
+
         verification.setStudentName(studentName);
         verification.setEmail(email);
-        verification.setCollegeName(request.getCollegeName() != null ? request.getCollegeName().trim() : "");
-        verification.setRollNumber(request.getRollNumber() != null ? request.getRollNumber().trim() : "");
-        verification.setCourseBranch(request.getCourseBranch() != null ? request.getCourseBranch().trim() : "");
-        verification.setYearSemester(request.getYearSemester() != null ? request.getYearSemester().trim() : "");
-        verification.setIdCardFrontUrl(request.getIdCardFrontUrl());
-        verification.setIdCardBackUrl(request.getIdCardBackUrl());
-        verification.setSelfieUrl(request.getSelfieUrl());
+        if (request.getCollegeName() != null && !request.getCollegeName().isBlank()) {
+            verification.setCollegeName(request.getCollegeName().trim());
+        }
+        if (request.getRollNumber() != null && !request.getRollNumber().isBlank()) {
+            verification.setRollNumber(request.getRollNumber().trim());
+        }
+        if (request.getCourseBranch() != null && !request.getCourseBranch().isBlank()) {
+            verification.setCourseBranch(request.getCourseBranch().trim());
+        }
+        if (request.getYearSemester() != null && !request.getYearSemester().isBlank()) {
+            verification.setYearSemester(request.getYearSemester().trim());
+        }
+        if (request.getIdCardFrontUrl() != null && !request.getIdCardFrontUrl().isBlank()) {
+            verification.setIdCardFrontUrl(request.getIdCardFrontUrl());
+        }
+        if (request.getIdCardBackUrl() != null) {
+            verification.setIdCardBackUrl(request.getIdCardBackUrl());
+        }
+        if (request.getSelfieUrl() != null && !request.getSelfieUrl().isBlank()) {
+            verification.setSelfieUrl(request.getSelfieUrl());
+        }
         verification.setSubmittedAt(LocalDateTime.now().toString());
         verification.setStatus("Pending Verification");
 
         Verification savedVerification = verificationRepository.save(verification);
+        String verificationId = savedVerification.getVerificationId();
 
         // Sync status to User
         if (user != null) {
@@ -119,14 +143,57 @@ public class VerificationService {
             });
         }
 
+        // Clean up any stale duplicate records for this student
+        try {
+            final String finalId = savedVerification.getId();
+            final String finalUserId = userId;
+            final String finalEmail = email;
+            List<Verification> stale = verificationRepository.findAll().stream()
+                    .filter(v -> v.getId() != null && !v.getId().equals(finalId) &&
+                            ((finalUserId != null && finalUserId.equalsIgnoreCase(v.getUserId())) ||
+                             (finalEmail != null && finalEmail.equalsIgnoreCase(v.getEmail()))))
+                    .toList();
+            if (!stale.isEmpty()) {
+                verificationRepository.deleteAll(stale);
+            }
+        } catch (Exception ignored) {}
+
         return savedVerification;
     }
 
     public List<Verification> getAllSubmissions(String statusFilter) {
+        List<Verification> list;
         if (statusFilter != null && !statusFilter.isBlank() && !statusFilter.equalsIgnoreCase("ALL")) {
-            return verificationRepository.findByStatusOrderBySubmittedAtDesc(statusFilter);
+            list = verificationRepository.findByStatusOrderBySubmittedAtDesc(statusFilter);
+        } else {
+            list = verificationRepository.findAllByOrderBySubmittedAtDesc();
         }
-        return verificationRepository.findAllByOrderBySubmittedAtDesc();
+
+        // Deduplicate records per student: keep the one with an uploaded ID card, or newest submittedAt
+        java.util.Map<String, Verification> map = new java.util.LinkedHashMap<>();
+        for (Verification v : list) {
+            String key = (v.getUserId() != null && !v.getUserId().isBlank())
+                    ? v.getUserId().trim().toLowerCase()
+                    : (v.getEmail() != null ? v.getEmail().trim().toLowerCase() : v.getId());
+            if (key == null) continue;
+
+            if (!map.containsKey(key)) {
+                map.put(key, v);
+            } else {
+                Verification existing = map.get(key);
+                boolean existingHasCard = existing.getIdCardFrontUrl() != null && !existing.getIdCardFrontUrl().isBlank();
+                boolean currentHasCard = v.getIdCardFrontUrl() != null && !v.getIdCardFrontUrl().isBlank();
+                boolean existingIsPendingUpload = "Pending ID upload".equalsIgnoreCase(existing.getCollegeName());
+                boolean currentIsPendingUpload = "Pending ID upload".equalsIgnoreCase(v.getCollegeName());
+
+                if (!existingHasCard && currentHasCard) {
+                    map.put(key, v);
+                } else if (existingIsPendingUpload && !currentIsPendingUpload) {
+                    map.put(key, v);
+                }
+            }
+        }
+        return new java.util.ArrayList<>(map.values());
     }
 
     public Verification reviewVerification(String verificationId, ReviewVerificationRequest request) {
@@ -159,8 +226,15 @@ public class VerificationService {
         String studentName = verification.getStudentName();
 
         if (verification.getUserId() != null) {
+            final String selfie = verification.getSelfieUrl();
+            final String idPhoto = verification.getIdCardFrontUrl();
+            final String photoToApply = (selfie != null && !selfie.isBlank()) ? selfie : idPhoto;
+
             userRepository.findById(verification.getUserId()).ifPresent(u -> {
                 u.setVerificationStatus(newStatus);
+                if ("Verified".equalsIgnoreCase(newStatus) && photoToApply != null && !photoToApply.isBlank()) {
+                    u.setAvatarUrl(photoToApply);
+                }
                 userRepository.save(u);
             });
 
@@ -168,6 +242,10 @@ public class VerificationService {
             userProfileRepository.findByUserId(verification.getUserId()).ifPresent(profile -> {
                 profile.setVerificationStatus(newStatus);
                 profile.setVerificationReason(updated.getRejectionNotes());
+                if ("Verified".equalsIgnoreCase(newStatus) && photoToApply != null && !photoToApply.isBlank()) {
+                    profile.setAvatar(photoToApply);
+                    profile.setCustomAvatar(true);
+                }
                 profile.setUpdatedAt(LocalDateTime.now().toString());
                 userProfileRepository.save(profile);
             });

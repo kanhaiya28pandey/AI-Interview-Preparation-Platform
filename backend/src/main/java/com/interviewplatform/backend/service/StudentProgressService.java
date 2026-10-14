@@ -175,31 +175,36 @@ public class StudentProgressService {
         if (vStatus == null || vStatus.isBlank()) vStatus = "UNVERIFIED";
         dto.setVerificationStatus(vStatus.toUpperCase());
 
-        int score = profile.getActivityScore() > 0 ? profile.getActivityScore() : 82;
+        int score = profile.getActivityScore();
         dto.setActivityScore(score);
 
         if (score >= 70) {
             dto.setRiskLevel("Active");
             dto.setRiskReason("High activity and regular submissions");
             dto.setDaysInactive(0);
-        } else if (score >= 45) {
+        } else if (score >= 40) {
+            dto.setRiskLevel("On Track");
+            dto.setRiskReason("Consistent practice frequency");
+            dto.setDaysInactive(2);
+        } else if (score > 0) {
             dto.setRiskLevel("At Risk");
-            dto.setRiskReason("Declining practice frequency over past 10 days");
-            dto.setDaysInactive(5);
+            dto.setRiskReason("Low practice frequency");
+            dto.setDaysInactive(7);
         } else {
-            dto.setRiskLevel("Inactive");
-            dto.setRiskReason("No submissions logged for more than 14 days");
-            dto.setDaysInactive(16);
+            dto.setRiskLevel("Not Started");
+            dto.setRiskReason("No submissions or practice tests completed yet");
+            dto.setDaysInactive(0);
         }
 
-        dto.setJoinedDate("2026-08-15");
-        dto.setLastActive(profile.getLastActive() != null ? profile.getLastActive() : "Just now");
-        dto.setStreakDays(profile.getStreakDays() > 0 ? profile.getStreakDays() : 7);
+        dto.setJoinedDate(profile.getUpdatedAt() != null ? profile.getUpdatedAt().split("T")[0] : "2026-08-15");
+        dto.setLastActive(profile.getLastActive() != null ? profile.getLastActive() : "Recently");
+        dto.setStreakDays(profile.getStreakDays());
 
         // Problem solving stats
-        dto.setProblemsSolved(profile.getStats() != null ? profile.getStats().getCodingProblemsSolved() : 24);
-        dto.setProblemsSolvedWithHelp(3);
-        dto.setProblemsAttempted(dto.getProblemsSolved() + 5);
+        int solved = profile.getStats() != null ? profile.getStats().getCodingProblemsSolved() : 0;
+        dto.setProblemsSolved(solved);
+        dto.setProblemsSolvedWithHelp(0);
+        dto.setProblemsAttempted(solved);
 
         // Interview stats
         List<InterviewSession> sessions = new ArrayList<>();
@@ -210,27 +215,28 @@ public class StudentProgressService {
         } catch (Exception ignored) {}
 
         int completedInterviews = (int) sessions.stream().filter(s -> "COMPLETED".equalsIgnoreCase(s.getStatus())).count();
-        dto.setInterviewsCompleted(completedInterviews > 0 ? completedInterviews : 4);
+        dto.setInterviewsCompleted(completedInterviews);
         double avgInterview = sessions.stream()
                 .filter(s -> "COMPLETED".equalsIgnoreCase(s.getStatus()))
                 .mapToInt(s -> s.getOverallScore())
                 .average()
-                .orElse(84.0);
+                .orElse(0.0);
         dto.setAvgInterviewScore((int) Math.round(avgInterview));
 
-        dto.setQuizzesTaken(profile.getQuizzesTaken() > 0 ? profile.getQuizzesTaken() : 6);
-        dto.setAvgQuizScore(88);
-        dto.setArticlesRead(profile.getArticlesRead() > 0 ? profile.getArticlesRead() : 12);
-        dto.setResumeAnalyses(2);
-        dto.setBestAtsScore(profile.getBestAtsScore() > 0 ? profile.getBestAtsScore() : 88);
+        int quizzes = profile.getQuizzesTaken();
+        dto.setQuizzesTaken(quizzes);
+        dto.setAvgQuizScore(quizzes > 0 ? 80 : 0);
+        dto.setArticlesRead(profile.getArticlesRead());
+        dto.setResumeAnalyses(profile.getBestAtsScore() > 0 ? 1 : 0);
+        dto.setBestAtsScore(profile.getBestAtsScore());
 
         // Topic breakdown
         dto.setTopicBreakdown(List.of(
-                Map.of("topic", "Data Structures", "score", 88, "questionsSolved", 18),
-                Map.of("topic", "Algorithms", "score", 82, "questionsSolved", 14),
-                Map.of("topic", "System Design", "score", 76, "questionsSolved", 6),
-                Map.of("topic", "SQL & Databases", "score", 90, "questionsSolved", 10),
-                Map.of("topic", "Behavioral", "score", 85, "questionsSolved", 8)
+                Map.of("topic", "Data Structures", "score", solved > 0 ? Math.min(100, solved * 10) : 0, "questionsSolved", solved),
+                Map.of("topic", "Algorithms", "score", solved > 0 ? Math.min(100, solved * 8) : 0, "questionsSolved", Math.max(0, solved - 1)),
+                Map.of("topic", "System Design", "score", completedInterviews > 0 ? (int) Math.round(avgInterview) : 0, "questionsSolved", completedInterviews),
+                Map.of("topic", "SQL & Databases", "score", quizzes > 0 ? 75 : 0, "questionsSolved", quizzes),
+                Map.of("topic", "Behavioral", "score", completedInterviews > 0 ? 80 : 0, "questionsSolved", completedInterviews)
         ));
 
         // Full 365-day (52 weeks) activity heatmap like LeetCode & GitHub

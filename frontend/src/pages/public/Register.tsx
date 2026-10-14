@@ -357,10 +357,11 @@ export const Register: React.FC = () => {
   };
 
   // Final Registration Execution
-  const executeRegistration = async () => {
+  const executeRegistration = async (activeStep3?: CollegeIdData) => {
     setServerError(null);
     setIsSubmitting(true);
     let createdAuthRes: AuthResponse | null = null;
+    const currentStep3 = activeStep3 || step3Data;
 
     try {
       // 1. Call Auth API register endpoint
@@ -373,16 +374,14 @@ export const Register: React.FC = () => {
       // 2. Submit Verification Request via POST /api/v1/verification/submit
       await verificationService.submitVerification({
         userId: createdAuthRes.userId,
-        studentName: step3Data.nameOnId || nameVal.trim(),
+        studentName: currentStep3.nameOnId || nameVal.trim(),
         email: emailVal.trim(),
-        collegeName: step3Data.collegeNameOnId || collegeNameVal.trim(),
-        rollNumber: step3Data.rollNumberOnId || rollNumberVal.trim(),
+        collegeName: currentStep3.collegeNameOnId || collegeNameVal.trim(),
+        rollNumber: currentStep3.rollNumberOnId || rollNumberVal.trim(),
         courseBranch: `${courseVal} - ${branchVal}`.trim(),
         yearSemester: watchStep2("yearSemester"),
-        idCardFrontUrl:
-          step3Data.idFrontPreview ||
-          "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
-        selfieUrl: step3Data.selfiePreview || undefined,
+        idCardFrontUrl: currentStep3.idFrontPreview || "",
+        selfieUrl: currentStep3.selfiePreview || undefined,
       });
 
       // 3. Save extended student profile details to profileService
@@ -390,6 +389,7 @@ export const Register: React.FC = () => {
         name: nameVal.trim(),
         email: emailVal.trim(),
         phone: phoneVal.trim(),
+        avatar: currentStep3.selfiePreview || undefined,
         dateOfBirth: dobVal,
         gender: watchStep1("gender"),
         location: `${cityVal.trim()}, ${watchStep1("state").trim()}`,
@@ -426,10 +426,8 @@ export const Register: React.FC = () => {
             yearSemester: watchStep2("yearSemester"),
             year: `${watchStep2("graduationYear")} Grad`,
             rollNumber: rollNumberVal.trim(),
-            idCardFrontUrl:
-              step3Data.idFrontPreview ||
-              "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
-            selfieUrl: step3Data.selfiePreview || undefined,
+            idCardFrontUrl: currentStep3.idFrontPreview || "",
+            selfieUrl: currentStep3.selfiePreview || undefined,
             registeredAt: new Date().toISOString(),
             verificationStatus: "Pending Verification",
             role: "STUDENT",
@@ -527,7 +525,7 @@ export const Register: React.FC = () => {
 
   const handleStep3Submit = (data: CollegeIdData) => {
     setStep3Data(data);
-    executeRegistration();
+    executeRegistration(data);
   };
 
   // Stepper Header Click Navigation

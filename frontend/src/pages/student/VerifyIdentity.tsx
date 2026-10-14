@@ -74,9 +74,7 @@ export const VerifyIdentity: React.FC = () => {
         rollNumber: data.rollNumberOnId || rollNumber.trim(),
         courseBranch: courseBranch.trim(),
         yearSemester,
-        idCardFrontUrl:
-          data.idFrontPreview ||
-          "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600",
+        idCardFrontUrl: data.idFrontPreview || "",
         selfieUrl: data.selfiePreview || undefined,
       });
 

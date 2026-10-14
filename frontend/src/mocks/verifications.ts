@@ -84,7 +84,7 @@ export const INITIAL_MOCK_VERIFICATIONS: VerificationSubmission[] = [
     rollNumber: "RA2111003010452",
     courseBranch: "B.Tech Computer Science and Engineering",
     yearSemester: "Year 4 / Semester 7",
-    idCardFrontUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
+    idCardFrontUrl: "",
     selfieUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
     submittedAt: "2026-09-26T10:15:00Z",
     status: "Verified",

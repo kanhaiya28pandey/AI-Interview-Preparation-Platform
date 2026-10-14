@@ -93,13 +93,18 @@ export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
   const animatedScore = useAnimatedScore(targetCompletion);
   const imageSrc = avatarUrl || profile?.avatar;
   const verdict = getProfileVerdict(animatedScore);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [imageSrc]);
 
   const showAvatarImage = Boolean(
     imageSrc &&
     imageSrc.trim() !== "" &&
-    (profile?.isCustomAvatar || imageSrc.startsWith("data:") || imageSrc.startsWith("blob:")) &&
+    !imageError &&
     !imageSrc.includes("default") &&
-    !imageSrc.includes("unsplash.com/photo-1534528741775-53994a69daeb")
+    (!imageSrc.includes("unsplash.com/photo-1534528741775-53994a69daeb") || profile?.isCustomAvatar)
   );
 
   // Geometry configuration per size variant
@@ -229,7 +234,12 @@ export const AvatarCompletionRing: React.FC<AvatarCompletionRingProps> = ({
           className={`${currentSize.photoSize} rounded-full overflow-hidden bg-surface-raised border border-border/80 flex items-center justify-center text-cyan-400 font-serif font-bold z-20 transition-transform duration-200 group-hover:scale-105 shadow-inner`}
         >
           {showAvatarImage ? (
-            <img src={imageSrc} alt={name} className="w-full h-full object-cover" />
+            <img
+              src={imageSrc}
+              alt={resolvedName || name || "Avatar"}
+              onError={() => setImageError(true)}
+              className="w-full h-full object-cover"
+            />
           ) : (
             <span className={currentSize.fontSize}>{initials}</span>
           )}

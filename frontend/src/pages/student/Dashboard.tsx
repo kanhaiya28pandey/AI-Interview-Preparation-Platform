@@ -84,6 +84,20 @@ export const StudentDashboard: React.FC = () => {
       .then((data) => setProfile(data))
       .catch((err) => console.warn("Failed to load profile:", err))
       .finally(() => setLoading(false));
+
+    const handleProfileUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<UserProfile>;
+      if (customEvent.detail) {
+        setProfile(customEvent.detail);
+      } else {
+        profileService.getProfile().then((data) => setProfile(data));
+      }
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
   }, [user]);
 
   // Greeting based on current hour
@@ -384,7 +398,12 @@ export const StudentDashboard: React.FC = () => {
           />
 
           <div className="flex items-center gap-5 z-10">
-            <AvatarCompletionRing profile={profile} size="xl" />
+            <AvatarCompletionRing
+              profile={profile}
+              avatarUrl={profile?.avatar || user?.avatarUrl}
+              name={user?.name || profile?.name}
+              size="xl"
+            />
             <div className="space-y-1.5">
               <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-400/30 text-orange-400 text-xs font-mono">
                 <Flame className="w-3.5 h-3.5 fill-orange-400" />

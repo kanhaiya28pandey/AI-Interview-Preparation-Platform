@@ -97,7 +97,7 @@ public class AuthService {
                     verification.setRollNumber("Pending ID upload");
                     verification.setCourseBranch("General");
                     verification.setYearSemester("Year 1");
-                    verification.setIdCardFrontUrl("https://images.unsplash.com/photo-1544717305-2782549b5136?w=600");
+                    verification.setIdCardFrontUrl(null);
                     verificationRepository.save(verification);
 
                     notificationService.notifyAdmins(
