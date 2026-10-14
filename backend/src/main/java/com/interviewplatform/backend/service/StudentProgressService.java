@@ -160,6 +160,8 @@ public class StudentProgressService {
     private StudentProgressDto mapToProgressDto(UserProfile profile) {
         StudentProgressDto dto = new StudentProgressDto();
         dto.setId(profile.getId() != null ? profile.getId() : profile.getUserId());
+        dto.setUserId(profile.getUserId() != null ? profile.getUserId() : profile.getId());
+        dto.setRole(profile.getRole() != null ? profile.getRole() : "STUDENT");
         dto.setName(profile.getName() != null ? profile.getName() : "Student");
         dto.setEmail(profile.getEmail());
         dto.setRollNumber(profile.getRollNumber() != null && !profile.getRollNumber().isBlank() ? profile.getRollNumber() : "RA2411003010" + (Math.abs(dto.getName().hashCode() % 899) + 100));

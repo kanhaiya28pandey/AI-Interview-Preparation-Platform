@@ -112,6 +112,8 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
   const { user } = useAuth();
   const {
     students,
+    isLoading,
+    refreshPlatformData,
     toggleBlockUser,
     deleteStudent,
     bulkDeleteStudents,
@@ -123,6 +125,11 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
   } = useAdminStore();
 
   const currentAdminEmail = user?.email || "admin@aiprep.com";
+
+  // Auto-fetch data on component mount
+  useEffect(() => {
+    refreshPlatformData();
+  }, [refreshPlatformData]);
 
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<"directory" | "progress" | "analytics">(defaultTab);
@@ -138,7 +145,7 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
   const handleSyncData = async () => {
     setIsSyncing(true);
     try {
-      await verificationService.getAllSubmissions().catch(() => {});
+      await refreshPlatformData();
       toast.success("Synchronized student directory and verification status.");
     } catch {
       toast.error("Could not sync live records from backend.");
@@ -375,26 +382,26 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
       .filter((s) => {
         const query = search.toLowerCase();
         const matchesSearch =
-          s.name.toLowerCase().includes(query) ||
-          s.rollNumber.toLowerCase().includes(query) ||
-          s.email.toLowerCase().includes(query) ||
-          s.college.toLowerCase().includes(query);
+          (s.name || "").toLowerCase().includes(query) ||
+          (s.rollNumber || "").toLowerCase().includes(query) ||
+          (s.email || "").toLowerCase().includes(query) ||
+          (s.college || "").toLowerCase().includes(query);
 
-        const matchesRole = roleFilter === "ALL" || s.role.toUpperCase() === roleFilter.toUpperCase();
-        const matchesCourse = matchesCourseFilter(s.course, courseFilter);
+        const matchesRole = roleFilter === "ALL" || (s.role || "STUDENT").toUpperCase() === roleFilter.toUpperCase();
+        const matchesCourse = matchesCourseFilter(s.course || "", courseFilter);
         const matchesVerification =
-          verificationFilter === "ALL" || s.verificationStatus.toUpperCase() === verificationFilter.toUpperCase();
-        const matchesStatus = statusFilter === "ALL" || s.status.toUpperCase() === statusFilter.toUpperCase();
-        const matchesRisk = riskFilter === "ALL" || s.riskLevel.toUpperCase() === riskFilter.toUpperCase();
+          verificationFilter === "ALL" || (s.verificationStatus || "").toUpperCase() === verificationFilter.toUpperCase();
+        const matchesStatus = statusFilter === "ALL" || (s.status || "ACTIVE").toUpperCase() === statusFilter.toUpperCase();
+        const matchesRisk = riskFilter === "ALL" || (s.riskLevel || "ON TRACK").toUpperCase() === riskFilter.toUpperCase();
 
         // Quick filter conditions
         let matchesQuick = true;
         if (quickFilter === "VERIFIED") {
-          matchesQuick = s.verificationStatus.toUpperCase() === "VERIFIED";
+          matchesQuick = (s.verificationStatus || "").toUpperCase() === "VERIFIED";
         } else if (quickFilter === "PENDING") {
-          matchesQuick = s.verificationStatus.toUpperCase().includes("PENDING");
+          matchesQuick = (s.verificationStatus || "").toUpperCase().includes("PENDING");
         } else if (quickFilter === "REJECTED") {
-          matchesQuick = s.verificationStatus.toUpperCase() === "REJECTED";
+          matchesQuick = (s.verificationStatus || "").toUpperCase() === "REJECTED";
         } else if (quickFilter === "PLACEMENT_READY") {
           matchesQuick = calculateReadinessScore(s).score >= 85;
         } else if (quickFilter === "AT_RISK") {
@@ -406,8 +413,8 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
         return matchesSearch && matchesRole && matchesCourse && matchesVerification && matchesStatus && matchesRisk && matchesQuick;
       })
       .sort((a, b) => {
-        let valA: any = a[sortField];
-        let valB: any = b[sortField];
+        let valA: any = a[sortField] || "";
+        let valB: any = b[sortField] || "";
         if (typeof valA === "string") {
           valA = valA.toLowerCase();
           valB = valB.toLowerCase();
@@ -820,7 +827,12 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
       {/* TAB 1: USER DIRECTORY & ACCOUNT GOVERNANCE */}
       {activeTab === "directory" && (
         <Card className="bg-surface border-border overflow-hidden shadow-soft">
-          {filteredStudents.length === 0 ? (
+          {isLoading && students.length === 0 ? (
+            <div className="p-12 text-center text-text-muted space-y-3 font-mono text-xs">
+              <RotateCw className="w-8 h-8 mx-auto text-cyan-400 animate-spin" />
+              <p>Loading candidate directory and account profiles...</p>
+            </div>
+          ) : filteredStudents.length === 0 ? (
             <div className="p-12 text-center text-text-muted space-y-3 font-mono text-xs">
               <Users className="w-10 h-10 mx-auto text-text-muted/50" />
               <p>No user accounts found matching current query or filters.</p>
@@ -1081,7 +1093,12 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
       {/* TAB 2: PROGRESS & READINESS BENCHMARKS */}
       {activeTab === "progress" && (
         <Card className="bg-surface border-border overflow-hidden shadow-soft">
-          {filteredStudents.length === 0 ? (
+          {isLoading && students.length === 0 ? (
+            <div className="p-12 text-center text-text-muted space-y-3 font-mono text-xs">
+              <RotateCw className="w-8 h-8 mx-auto text-cyan-400 animate-spin" />
+              <p>Loading candidate readiness and progress records...</p>
+            </div>
+          ) : filteredStudents.length === 0 ? (
             <div className="p-12 text-center text-text-muted space-y-3 font-mono text-xs">
               <GraduationCap className="w-10 h-10 mx-auto text-text-muted/50" />
               <p>No student progress records match the active criteria.</p>
