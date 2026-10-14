@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,11 +8,14 @@ import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import { AlertCircle, CheckCircle2, Sparkles, Eye, EyeOff, ShieldCheck, ArrowRight } from "lucide-react";
+import { Callout } from "@/components/common/Callout";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowRight, ShieldCheck, UserCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import { checkBackendHealth } from "@/lib/api";
+import { getEffectiveApiBaseUrl } from "@/lib/apiError";
 
 export const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, loginDemoStudent, loginDemoAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/dashboard";
@@ -21,14 +24,43 @@ export const Login: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [backendStatus, setBackendStatus] = useState<"checking" | "reachable" | "unreachable">("checking");
+
+  const effectiveApiUrl = getEffectiveApiBaseUrl();
 
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  // Clear server error whenever any form field is edited
+  useEffect(() => {
+    const subscription = watch(() => {
+      if (serverError) {
+        setServerError(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, serverError]);
+
+  // DEV-only: check backend reachability
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    let isMounted = true;
+    checkBackendHealth().then((res) => {
+      if (isMounted) {
+        setBackendStatus(res.ok ? "reachable" : "unreachable");
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
@@ -54,15 +86,21 @@ export const Login: React.FC = () => {
           navigate(isAllowedStudentPath ? from : "/dashboard", { replace: true });
         }
       }, 700);
-    } catch (err: any) {
-      const msg = err.message || "Sign in failed. Check your credentials.";
-      setServerError(
-        msg.toLowerCase().includes("network") || msg.toLowerCase().includes("failed to fetch")
-          ? "Unable to reach the platform server. Please check your internet connection."
-          : msg
-      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Sign in failed. Check your credentials.";
+      setServerError(msg);
       setIsSubmitting(false);
     }
+  };
+
+  const handleDemoStudent = () => {
+    loginDemoStudent();
+    navigate("/dashboard", { replace: true });
+  };
+
+  const handleDemoAdmin = () => {
+    loginDemoAdmin();
+    navigate("/admin", { replace: true });
   };
 
   return (
@@ -76,21 +114,23 @@ export const Login: React.FC = () => {
 
         {/* Error Banner with Retry */}
         {serverError && (
-          <div className="flex items-start justify-between gap-2.5 p-3.5 rounded-lg bg-danger-bg border border-danger/40 text-danger text-xs">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{serverError}</span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleSubmit(onSubmit)()}
-              className="text-[11px] py-1 px-2.5 shrink-0 border-danger/40 text-danger hover:bg-danger/10"
-            >
-              Retry
-            </Button>
-          </div>
+          <Callout
+            variant="danger"
+            icon={AlertCircle}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleSubmit(onSubmit)()}
+                className="text-[11px] py-1 px-2.5 shrink-0 border-red-500/40 text-red-600 dark:text-red-300 hover:bg-red-500/10"
+              >
+                Retry
+              </Button>
+            }
+          >
+            <span className="leading-relaxed">{serverError}</span>
+          </Callout>
         )}
 
         {isSuccess ? (
@@ -128,16 +168,78 @@ export const Login: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center justify-end text-xs">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="text-text-muted font-mono text-[11px]">Quick Fill:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue("email", "ananya.admin@aiinterviewprep.com");
+                    setValue("password", "admin123");
+                    setServerError(null);
+                  }}
+                  className="text-[11px] px-1.5 py-0.5 rounded bg-surface/80 border border-border hover:border-accent text-accent font-mono transition-colors"
+                >
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setValue("email", "kanhaiya.student@srmist.edu.in");
+                    setValue("password", "student123");
+                    setServerError(null);
+                  }}
+                  className="text-[11px] px-1.5 py-0.5 rounded bg-surface/80 border border-border hover:border-accent text-text-secondary hover:text-text-primary font-mono transition-colors"
+                >
+                  Student
+                </button>
+              </div>
               <Link to="/forgot-password" className="text-accent hover:underline font-mono">
                 Forgot password?
               </Link>
             </div>
 
-            <Button type="submit" variant="primary" className="w-full" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              isLoading={isSubmitting}
+              disabled={isSubmitting}
+            >
               <span>Sign in to AI Interview Prep</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
+
+            {/* DEV backend reachability hint */}
+            {import.meta.env.DEV && backendStatus === "unreachable" && (
+              <div className="flex items-center justify-center gap-2 text-[11px] text-amber-500/90 font-mono bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span>Backend not reachable at {effectiveApiUrl}</span>
+              </div>
+            )}
+
+            {/* Offline / Demo Logins */}
+            <div className="pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-text-muted">
+              <span>Try without backend:</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDemoStudent}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface border border-border hover:border-text-secondary text-text-secondary hover:text-text-primary font-mono transition-colors"
+                >
+                  <UserCheck className="w-3 h-3 text-cyan-400" />
+                  <span>Demo Student</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDemoAdmin}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface border border-border hover:border-text-secondary text-text-secondary hover:text-text-primary font-mono transition-colors"
+                >
+                  <ShieldCheck className="w-3 h-3 text-purple-400" />
+                  <span>Demo Admin</span>
+                </button>
+              </div>
+            </div>
           </form>
         )}
 

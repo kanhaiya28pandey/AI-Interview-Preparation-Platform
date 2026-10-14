@@ -40,6 +40,7 @@ import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
 import { FAQ_CATEGORIES } from "@/mocks/faqs";
+import { TopbarTitle } from "./topbar/TopbarTitle";
 
 export interface TopbarProps {
   onOpenMobileSidebar?: () => void;
@@ -202,7 +203,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {onOpenMobileSidebar && (
               <Button variant="ghost" size="sm" onClick={onOpenMobileSidebar} className="lg:hidden p-2 h-auto text-text-secondary shrink-0">
                 <Menu className="w-5 h-5" />
@@ -224,9 +225,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                 )}
               </Button>
             )}
-            <h1 className="font-serif text-lg sm:text-xl font-medium text-text-primary tracking-tight truncate">
-              {title || "Dashboard Overview"}
-            </h1>
+            <TopbarTitle title={title} />
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">

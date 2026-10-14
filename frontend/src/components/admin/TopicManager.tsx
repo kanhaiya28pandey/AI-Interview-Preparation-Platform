@@ -3,6 +3,7 @@ import { TopicConfig } from "@/mocks/adminData";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Plus, X, ArrowUp, ArrowDown, Tag, AlertCircle, Sparkles } from "lucide-react";
+import { Callout } from "@/components/common/Callout";
 import { toast } from "sonner";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { TAXONOMY_DOMAINS } from "@/lib/taxonomy";
@@ -172,25 +173,27 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
 
       {/* Add Custom Topic Input */}
       <div className="flex items-center gap-2">
-        <Input
-          type="text"
-          placeholder="Add custom topic (e.g. Streams & Lambdas)..."
-          value={customTopicInput}
-          onChange={(e) => setCustomTopicInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAddTopic(customTopicInput);
-            }
-          }}
-          className="text-xs font-mono py-1.5"
-        />
+        <div className="flex-1 min-w-0">
+          <Input
+            type="text"
+            placeholder="Add custom topic (e.g. Streams & Lambdas)..."
+            value={customTopicInput}
+            onChange={(e) => setCustomTopicInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddTopic(customTopicInput);
+              }
+            }}
+            className="text-xs font-mono h-10 py-0"
+          />
+        </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() => handleAddTopic(customTopicInput)}
-          className="text-xs shrink-0 font-mono text-cyan-400 border-cyan-400/40"
+          className="text-xs shrink-0 font-mono text-cyan-400 border-cyan-400/40 h-10 px-4"
         >
           <Plus className="w-3.5 h-3.5" /> Add
         </Button>
@@ -286,10 +289,9 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
           </div>
         </div>
       ) : (
-        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>At least one topic must be selected for this test.</span>
-        </div>
+        <Callout variant="warning" icon={AlertCircle}>
+          At least one topic must be selected for this test.
+        </Callout>
       )}
 
       {error && <p className="text-xs text-danger font-mono mt-1">{error}</p>}

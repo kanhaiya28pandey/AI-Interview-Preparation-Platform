@@ -277,6 +277,67 @@ html.light .header-backdrop {
     --sky-300: #7dd3fc;
     --sky-400: #38bdf8;
     --sky-500: #0ea5e9;
+
+    /* Callout tokens - Dark Mode */
+    --callout-info-bg: rgba(6, 182, 212, 0.12);
+    --callout-info-border: rgba(34, 211, 238, 0.32);
+    --callout-info-accent: #22d3ee;
+    --callout-info-title: #a5f3fc;
+    --callout-info-text: #cffafe;
+    --callout-info-icon-bg: rgba(6, 182, 212, 0.22);
+    --callout-info-icon-border: rgba(34, 211, 238, 0.45);
+    --callout-info-icon-text: #67e8f9;
+    --callout-info-code-bg: rgba(8, 145, 178, 0.3);
+    --callout-info-code-border: rgba(34, 211, 238, 0.35);
+    --callout-info-code-text: #ecfeff;
+
+    --callout-success-bg: rgba(16, 185, 129, 0.12);
+    --callout-success-border: rgba(52, 211, 153, 0.32);
+    --callout-success-accent: #34d399;
+    --callout-success-title: #a7f3d0;
+    --callout-success-text: #d1fae5;
+    --callout-success-icon-bg: rgba(16, 185, 129, 0.22);
+    --callout-success-icon-border: rgba(52, 211, 153, 0.45);
+    --callout-success-icon-text: #6ee7b7;
+    --callout-success-code-bg: rgba(16, 185, 129, 0.3);
+    --callout-success-code-border: rgba(52, 211, 153, 0.35);
+    --callout-success-code-text: #ecfdf5;
+
+    --callout-warning-bg: rgba(245, 158, 11, 0.12);
+    --callout-warning-border: rgba(251, 191, 36, 0.32);
+    --callout-warning-accent: #fbbf24;
+    --callout-warning-title: #fde68a;
+    --callout-warning-text: #fef3c7;
+    --callout-warning-icon-bg: rgba(245, 158, 11, 0.22);
+    --callout-warning-icon-border: rgba(251, 191, 36, 0.45);
+    --callout-warning-icon-text: #fcd34d;
+    --callout-warning-code-bg: rgba(245, 158, 11, 0.3);
+    --callout-warning-code-border: rgba(251, 191, 36, 0.35);
+    --callout-warning-code-text: #fffbeb;
+
+    --callout-danger-bg: rgba(239, 68, 68, 0.12);
+    --callout-danger-border: rgba(248, 113, 113, 0.32);
+    --callout-danger-accent: #f87171;
+    --callout-danger-title: #fecaca;
+    --callout-danger-text: #fee2e2;
+    --callout-danger-icon-bg: rgba(239, 68, 68, 0.22);
+    --callout-danger-icon-border: rgba(248, 113, 113, 0.45);
+    --callout-danger-icon-text: #fca5a5;
+    --callout-danger-code-bg: rgba(239, 68, 68, 0.3);
+    --callout-danger-code-border: rgba(248, 113, 113, 0.35);
+    --callout-danger-code-text: #fef2f2;
+
+    --callout-ai-bg: rgba(139, 92, 246, 0.12);
+    --callout-ai-border: rgba(167, 139, 250, 0.32);
+    --callout-ai-accent: #a78bfa;
+    --callout-ai-title: #ddd6fe;
+    --callout-ai-text: #ede9fe;
+    --callout-ai-icon-bg: rgba(139, 92, 246, 0.22);
+    --callout-ai-icon-border: rgba(167, 139, 250, 0.45);
+    --callout-ai-icon-text: #c4b5fd;
+    --callout-ai-code-bg: rgba(139, 92, 246, 0.3);
+    --callout-ai-code-border: rgba(167, 139, 250, 0.35);
+    --callout-ai-code-text: #f5f3ff;
   }
 
   html.light {
@@ -372,6 +433,67 @@ html.light .header-backdrop {
     --sky-300: #0369a1;
     --sky-400: #0284c7;
     --sky-500: #0369a1;
+
+    /* Callout tokens - Light Mode (SOLID, opaque, high-contrast) */
+    --callout-info-bg: #ecfeff;
+    --callout-info-border: #67e8f9;
+    --callout-info-accent: #0891b2;
+    --callout-info-title: #0e7490;
+    --callout-info-text: #164e63;
+    --callout-info-icon-bg: #cffafe;
+    --callout-info-icon-border: #a5f3fc;
+    --callout-info-icon-text: #0e7490;
+    --callout-info-code-bg: #cffafe;
+    --callout-info-code-border: #67e8f9;
+    --callout-info-code-text: #083344;
+
+    --callout-success-bg: #ecfdf5;
+    --callout-success-border: #6ee7b7;
+    --callout-success-accent: #059669;
+    --callout-success-title: #047857;
+    --callout-success-text: #064e3b;
+    --callout-success-icon-bg: #d1fae5;
+    --callout-success-icon-border: #a7f3d0;
+    --callout-success-icon-text: #047857;
+    --callout-success-code-bg: #d1fae5;
+    --callout-success-code-border: #6ee7b7;
+    --callout-success-code-text: #022c22;
+
+    --callout-warning-bg: #fffbeb;
+    --callout-warning-border: #fcd34d;
+    --callout-warning-accent: #d97706;
+    --callout-warning-title: #b45309;
+    --callout-warning-text: #78350f;
+    --callout-warning-icon-bg: #fef3c7;
+    --callout-warning-icon-border: #fde68a;
+    --callout-warning-icon-text: #b45309;
+    --callout-warning-code-bg: #fef3c7;
+    --callout-warning-code-border: #fcd34d;
+    --callout-warning-code-text: #451a03;
+
+    --callout-danger-bg: #fef2f2;
+    --callout-danger-border: #fca5a5;
+    --callout-danger-accent: #dc2626;
+    --callout-danger-title: #b91c1c;
+    --callout-danger-text: #7f1d1d;
+    --callout-danger-icon-bg: #fee2e2;
+    --callout-danger-icon-border: #fecaca;
+    --callout-danger-icon-text: #b91c1c;
+    --callout-danger-code-bg: #fee2e2;
+    --callout-danger-code-border: #fca5a5;
+    --callout-danger-code-text: #450a0a;
+
+    --callout-ai-bg: #f5f3ff;
+    --callout-ai-border: #c4b5fd;
+    --callout-ai-accent: #7c3aed;
+    --callout-ai-title: #6d28d9;
+    --callout-ai-text: #4c1d95;
+    --callout-ai-icon-bg: #ede9fe;
+    --callout-ai-icon-border: #ddd6fe;
+    --callout-ai-icon-text: #6d28d9;
+    --callout-ai-code-bg: #ede9fe;
+    --callout-ai-code-border: #c4b5fd;
+    --callout-ai-code-text: #2e1065;
   }
 
   * {
@@ -692,6 +814,7 @@ html.light[data-glass="true"] .bg-surface {
   background: linear-gradient(135deg, var(--accent-bright) 0%, #a78bfa 50%, #f472b6 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: gradient-shift 6s ease infinite;
 }
@@ -766,6 +889,7 @@ html.light .shimmer::after {
   background: conic-gradient(from 0deg, transparent 0deg 300deg, var(--accent-bright) 340deg, #a78bfa 360deg);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   animation: beam-spin 4s linear infinite;
   pointer-events: none;
@@ -913,3 +1037,174 @@ html[data-reduced-effects="true"] .hotspot-ring,
 html[data-reduced-effects="true"] .shine-hover::after {
   animation: none !important;
 }
+
+/* ── Unified Shared Callout Component Styles ─────────────────────────── */
+.callout-container {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+}
+
+.callout-code-base,
+.callout-container code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85em;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  border-width: 1px;
+  border-style: solid;
+  font-weight: 600;
+  display: inline-block;
+  line-height: 1.25;
+}
+
+/* Info Variant */
+.callout-info {
+  background-color: var(--callout-info-bg) !important;
+  border-color: var(--callout-info-border) !important;
+  border-left-color: var(--callout-info-accent) !important;
+  color: var(--callout-info-text) !important;
+}
+.callout-info .callout-icon-chip {
+  background-color: var(--callout-info-icon-bg) !important;
+  border-color: var(--callout-info-icon-border) !important;
+  color: var(--callout-info-icon-text) !important;
+}
+.callout-info .callout-title {
+  color: var(--callout-info-title) !important;
+}
+.callout-info code,
+.callout-info .callout-code {
+  background-color: var(--callout-info-code-bg) !important;
+  border-color: var(--callout-info-code-border) !important;
+  color: var(--callout-info-code-text) !important;
+}
+
+/* Success Variant */
+.callout-success {
+  background-color: var(--callout-success-bg) !important;
+  border-color: var(--callout-success-border) !important;
+  border-left-color: var(--callout-success-accent) !important;
+  color: var(--callout-success-text) !important;
+}
+.callout-success .callout-icon-chip {
+  background-color: var(--callout-success-icon-bg) !important;
+  border-color: var(--callout-success-icon-border) !important;
+  color: var(--callout-success-icon-text) !important;
+}
+.callout-success .callout-title {
+  color: var(--callout-success-title) !important;
+}
+.callout-success code,
+.callout-success .callout-code {
+  background-color: var(--callout-success-code-bg) !important;
+  border-color: var(--callout-success-code-border) !important;
+  color: var(--callout-success-code-text) !important;
+}
+
+/* Warning Variant */
+.callout-warning {
+  background-color: var(--callout-warning-bg) !important;
+  border-color: var(--callout-warning-border) !important;
+  border-left-color: var(--callout-warning-accent) !important;
+  color: var(--callout-warning-text) !important;
+}
+.callout-warning .callout-icon-chip {
+  background-color: var(--callout-warning-icon-bg) !important;
+  border-color: var(--callout-warning-icon-border) !important;
+  color: var(--callout-warning-icon-text) !important;
+}
+.callout-warning .callout-title {
+  color: var(--callout-warning-title) !important;
+}
+.callout-warning code,
+.callout-warning .callout-code {
+  background-color: var(--callout-warning-code-bg) !important;
+  border-color: var(--callout-warning-code-border) !important;
+  color: var(--callout-warning-code-text) !important;
+}
+
+/* Danger Variant */
+.callout-danger {
+  background-color: var(--callout-danger-bg) !important;
+  border-color: var(--callout-danger-border) !important;
+  border-left-color: var(--callout-danger-accent) !important;
+  color: var(--callout-danger-text) !important;
+}
+.callout-danger .callout-icon-chip {
+  background-color: var(--callout-danger-icon-bg) !important;
+  border-color: var(--callout-danger-icon-border) !important;
+  color: var(--callout-danger-icon-text) !important;
+}
+.callout-danger .callout-title {
+  color: var(--callout-danger-title) !important;
+}
+.callout-danger code,
+.callout-danger .callout-code {
+  background-color: var(--callout-danger-code-bg) !important;
+  border-color: var(--callout-danger-code-border) !important;
+  color: var(--callout-danger-code-text) !important;
+}
+
+/* AI Variant */
+.callout-ai {
+  background-color: var(--callout-ai-bg) !important;
+  border-color: var(--callout-ai-border) !important;
+  border-left-color: var(--callout-ai-accent) !important;
+  color: var(--callout-ai-text) !important;
+}
+.callout-ai .callout-icon-chip {
+  background-color: var(--callout-ai-icon-bg) !important;
+  border-color: var(--callout-ai-icon-border) !important;
+  color: var(--callout-ai-icon-text) !important;
+}
+.callout-ai .callout-title {
+  color: var(--callout-ai-title) !important;
+}
+.callout-ai code,
+.callout-ai .callout-code {
+  background-color: var(--callout-ai-code-bg) !important;
+  border-color: var(--callout-ai-code-border) !important;
+  color: var(--callout-ai-code-text) !important;
+}
+
+/* ======================================================== */
+/* STANDARDIZED CONTROL SIZING SCALE & LAYOUT FOUNDATIONS   */
+/* ======================================================== */
+.control-sm {
+  height: 2.25rem !important; /* 36px / h-9 */
+  min-height: 2.25rem !important;
+  border-radius: 0.75rem !important; /* rounded-xl */
+  font-size: 0.75rem !important; /* text-xs */
+  line-height: 1rem !important;
+}
+
+.control-md {
+  height: 2.5rem !important; /* 40px / h-10 */
+  min-height: 2.5rem !important;
+  border-radius: 0.75rem !important; /* rounded-xl */
+  font-size: 0.875rem !important; /* text-sm */
+  line-height: 1.25rem !important;
+}
+
+.btn-control-inner {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  white-space: nowrap !important;
+}
+
+/* Tab bar container styling: equal heights, no wrapping, horizontal scroll on mobile */
+.tablist-scroll-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tablist-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+

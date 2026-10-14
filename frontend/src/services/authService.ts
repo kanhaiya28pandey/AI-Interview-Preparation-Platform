@@ -1,4 +1,6 @@
 import api from "@/lib/api";
+import { isMockMode } from "@/lib/dataMode";
+import { getApiErrorMessage } from "@/lib/apiError";
 
 export interface AuthResponse {
   message?: string;
@@ -23,16 +25,48 @@ export interface RegisterCredentials {
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    if (isMockMode()) {
+      const email = credentials.email.toLowerCase().trim();
+      const isAdmin = email.includes("admin");
+
+      return {
+        token: isAdmin ? "mock-admin-jwt-token" : "mock-student-jwt-token",
+        userId: isAdmin ? "demo-admin-01" : "demo-student-01",
+        name: isAdmin ? "Ananya Sharma (Admin)" : "Kanhaiya Verma",
+        email: credentials.email,
+        role: isAdmin ? "ADMIN" : "STUDENT",
+        verificationStatus: "Verified",
+        message: "Signed in successfully (Mock Mode)",
+      };
+    }
+
     try {
       const response = await api.post<AuthResponse>("/api/auth/login", credentials);
       return response.data;
-    } catch (error: any) {
-      const msg = error.response?.data?.message || error.response?.data || "Login failed. Please check your credentials.";
-      throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    } catch (error: unknown) {
+      throw new Error(getApiErrorMessage(error, "login"));
     }
   },
 
   async register(credentials: RegisterCredentials | FormData): Promise<AuthResponse> {
+    if (isMockMode()) {
+      let name = "Sample Student";
+      let email = "student@srmist.edu.in";
+      if (!(credentials instanceof FormData)) {
+        name = credentials.name;
+        email = credentials.email;
+      }
+      return {
+        token: "mock-student-jwt-token",
+        userId: "demo-student-new",
+        name,
+        email,
+        role: "STUDENT",
+        verificationStatus: "Unverified",
+        message: "Registration successful (Mock Mode)",
+      };
+    }
+
     const isFormData = typeof FormData !== "undefined" && credentials instanceof FormData;
     try {
       const response = await api.post<AuthResponse>("/api/auth/register", credentials, {
@@ -41,47 +75,15 @@ export const authService = {
           : { "Content-Type": "application/json" },
       });
       return response.data;
-    } catch (error: any) {
-      if (import.meta.env.DEV) {
-        console.error("[DEV LOG] Registration API Error:", error);
-      }
-
-      // Network / Server Unreachable Error
-      if (error.code === "ERR_NETWORK" || error.message === "Network Error" || !error.response) {
-        throw new Error("Cannot reach the server. Please make sure the backend is running.");
-      }
-
-      const status = error.response?.status;
-      const data = error.response?.data;
-
-      // Status Code specific messages
-      if (status === 409) {
-        const msg = typeof data === "string" ? data : data?.message || "An account with this email or roll number already exists.";
-        throw new Error(msg);
-      }
-      if (status === 413) {
-        throw new Error("Uploaded file is too large. Maximum allowed file size is 10MB.");
-      }
-      if (status === 422 || status === 400) {
-        if (data?.fieldErrors || data?.errors) {
-          const fieldMsgs = Object.entries(data.fieldErrors || data.errors)
-            .map(([field, msg]) => `${field}: ${msg}`)
-            .join(", ");
-          throw new Error(`Validation Error: ${fieldMsgs}`);
-        }
-        const msg = typeof data === "string" ? data : data?.message || "Invalid registration details. Please verify your entries.";
-        throw new Error(msg);
-      }
-      if (status === 500) {
-        throw new Error("Server error (500). Please try again later or contact support.");
-      }
-
-      const msg = typeof data === "string" ? data : data?.message || "Registration failed. Please try again.";
-      throw new Error(msg);
+    } catch (error: unknown) {
+      throw new Error(getApiErrorMessage(error, "register"));
     }
   },
 
   async checkEmail(email: string): Promise<boolean> {
+    if (isMockMode()) {
+      return false;
+    }
     try {
       const response = await api.get<{ exists: boolean }>(`/api/auth/check-email?email=${encodeURIComponent(email.trim())}`);
       return Boolean(response.data?.exists);
@@ -91,18 +93,26 @@ export const authService = {
   },
 
   async forgotPassword(email: string): Promise<string> {
+    if (isMockMode()) {
+      return "A 6-digit OTP has been sent to your email address.";
+    }
     try {
       const response = await api.post("/api/auth/forgot-password", { email: email.trim() });
       const data = response.data;
       if (typeof data === "string") return data;
-      return data.message || "A 6-digit OTP has been sent to your email address.";
-    } catch (error: any) {
-      const msg = error.response?.data?.message || error.response?.data || "Could not process password reset. Please verify your email.";
-      throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+      if (typeof data === "object" && data !== null && "message" in data) {
+        return String((data as { message: unknown }).message);
+      }
+      return "A 6-digit OTP has been sent to your email address.";
+    } catch (error: unknown) {
+      throw new Error(getApiErrorMessage(error, "forgot-password"));
     }
   },
 
   async resetPassword(otp: string, newPassword: string, email?: string): Promise<string> {
+    if (isMockMode()) {
+      return "Password reset successful";
+    }
     try {
       const response = await api.post("/api/auth/reset-password", {
         token: otp.trim(),
@@ -112,10 +122,12 @@ export const authService = {
       });
       const data = response.data;
       if (typeof data === "string") return data;
-      return data.message || "Password reset successful";
-    } catch (error: any) {
-      const msg = error.response?.data?.message || error.response?.data || "Failed to reset password. Please check your OTP.";
-      throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+      if (typeof data === "object" && data !== null && "message" in data) {
+        return String((data as { message: unknown }).message);
+      }
+      return "Password reset successful";
+    } catch (error: unknown) {
+      throw new Error(getApiErrorMessage(error, "reset-password"));
     }
   },
 };

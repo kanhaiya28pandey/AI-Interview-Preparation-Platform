@@ -138,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     validateAndInitSession();
   }, []);
 
-  const saveAuth = (authData: AuthResponse) => {
+  const saveAuth = (authData: AuthResponse, isDemo = false) => {
     const { token: authToken, userId, name, email, role, verificationStatus } = authData;
     const isExplicitAdmin = role?.toUpperCase().includes("ADMIN");
     const resolvedStatus = isExplicitAdmin
@@ -155,31 +155,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setToken(authToken);
     setUser(userData);
-    setIsDemoMode(false);
+    setIsDemoMode(isDemo);
 
     localStorage.setItem("ai_interview_prep_token", authToken);
     localStorage.setItem("ai_interview_prep_user", JSON.stringify(userData));
-    localStorage.removeItem("ai_interview_prep_demo");
+    if (isDemo) {
+      localStorage.setItem("ai_interview_prep_demo", "true");
+    } else {
+      localStorage.removeItem("ai_interview_prep_demo");
+    }
   };
 
   const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const res = await authService.login(credentials);
-    saveAuth(res);
+    saveAuth(res, isMockMode());
     return res;
   };
 
   const register = async (credentials: RegisterCredentials): Promise<AuthResponse> => {
     const res = await authService.register(credentials);
-    saveAuth({ ...res, verificationStatus: "Unverified" });
+    saveAuth({ ...res, verificationStatus: "Unverified" }, isMockMode());
     return res;
   };
 
   const loginDemoStudent = () => {
-    // No-op for backwards compatibility: demo mode disabled
+    const demoStudent: AuthResponse = {
+      token: "demo-student-token",
+      userId: "demo-student-01",
+      name: "Kanhaiya Verma",
+      email: "kanhaiya.student@srmist.edu.in",
+      role: "STUDENT",
+      verificationStatus: "Verified",
+      message: "Signed in as Demo Student",
+    };
+    saveAuth(demoStudent, true);
   };
 
   const loginDemoAdmin = () => {
-    // No-op for backwards compatibility: demo mode disabled
+    const demoAdmin: AuthResponse = {
+      token: "demo-admin-token",
+      userId: "demo-admin-01",
+      name: "Ananya Sharma (Admin)",
+      email: "ananya.admin@aiinterviewprep.com",
+      role: "ADMIN",
+      verificationStatus: "Verified",
+      message: "Signed in as Demo Admin",
+    };
+    saveAuth(demoAdmin, true);
   };
 
   const forgotPassword = async (email: string): Promise<string> => {

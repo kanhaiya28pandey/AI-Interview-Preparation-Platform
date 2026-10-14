@@ -59,6 +59,8 @@ import {
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Callout } from "@/components/common/Callout";
 
 type TestViewTab = "LIVE" | "UPCOMING" | "FINISHED" | "LEADERBOARD";
 
@@ -574,80 +576,70 @@ export const LiveTests: React.FC = () => {
 
   return (
     <div className="w-full space-y-6 pb-16 animate-fade-in">
-      {/* HEADER SECTION (Fluid width right after left navbar) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-semibold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> Live Placement Competitions & Proctored Arenas
-            </span>
-            <Badge variant="accent" className="text-[10px] font-mono">
-              National Placement League
-            </Badge>
+      {/* HEADER SECTION */}
+      <PageHeader
+        icon={Radio}
+        title="Live Tests & National Arenas"
+        subtitle="Real-time proctored campus placement tests with anti-cheating tab switch restriction, fullscreen enforcement, combined MCQ + coding question sections, and instant scorecards."
+        badge="NATIONAL LEAGUE"
+        accent="rose"
+        actionsPlacement="below"
+        actions={
+          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono tablist-scroll-container">
+            <button
+              onClick={() => setActiveTab("LIVE")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                activeTab === "LIVE"
+                  ? "bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+              Live Now ({liveTests.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab("UPCOMING")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                activeTab === "UPCOMING"
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Upcoming ({upcomingTests.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab("FINISHED")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                activeTab === "FINISHED"
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Finished Tests ({finishedTests.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab("LEADERBOARD")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                activeTab === "LEADERBOARD"
+                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              Live Leaderboard
+            </button>
           </div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-2.5 mt-1">
-            <Radio className="w-7 h-7 text-rose-500 animate-pulse" /> Live Tests & National Arenas
-          </h1>
-          <p className="text-xs text-text-secondary mt-0.5 max-w-3xl">
-            Real-time proctored campus placement tests with anti-cheating tab switch restriction, fullscreen enforcement, combined MCQ + coding question sections, and instant scorecards.
-          </p>
-        </div>
-
-        {/* TOP TAB SWITCHER: Live, Upcoming, Finished, Leaderboard */}
-        <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono shrink-0 flex-wrap gap-1">
-          <button
-            onClick={() => setActiveTab("LIVE")}
-            className={cn(
-              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-              activeTab === "LIVE"
-                ? "bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-sm"
-                : "text-text-muted hover:text-text-primary"
-            )}
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            Live Now ({liveTests.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("UPCOMING")}
-            className={cn(
-              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-              activeTab === "UPCOMING"
-                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm"
-                : "text-text-muted hover:text-text-primary"
-            )}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            Upcoming ({upcomingTests.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("FINISHED")}
-            className={cn(
-              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-              activeTab === "FINISHED"
-                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm"
-                : "text-text-muted hover:text-text-primary"
-            )}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Finished Tests ({finishedTests.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab("LEADERBOARD")}
-            className={cn(
-              "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-              activeTab === "LEADERBOARD"
-                ? "bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm"
-                : "text-text-muted hover:text-text-primary"
-            )}
-          >
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            Live Leaderboard
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* TAB 1: LIVE TESTS */}
       {activeTab === "LIVE" && (
@@ -724,10 +716,9 @@ export const LiveTests: React.FC = () => {
 
                     {/* Live Broadcast Notice */}
                     {contest.broadcasts?.length > 0 && (
-                      <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs font-mono text-cyan-300 flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span className="truncate">Admin Alert: {contest.broadcasts[0].message}</span>
-                      </div>
+                      <Callout variant="info" icon={Sparkles} title="Admin Alert:">
+                        <span className="truncate">{contest.broadcasts[0].message}</span>
+                      </Callout>
                     )}
                   </div>
 
@@ -997,14 +988,13 @@ export const LiveTests: React.FC = () => {
         maxWidthClass="max-w-2xl"
       >
         <div className="space-y-4 text-xs font-sans leading-relaxed text-text-secondary">
-          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 font-semibold space-y-1">
-            <div className="flex items-center gap-1.5 font-bold uppercase text-[11px]">
-              <AlertOctagon className="w-4 h-4" /> Strict Anti-Cheating Proctoring Enforced
-            </div>
-            <p className="text-[11px] font-normal leading-relaxed">
-              This test runs under automated monitoring. Any attempt to leave the test window, change tabs, or resize the screen is tracked directly by the system.
-            </p>
-          </div>
+          <Callout
+            variant="danger"
+            icon={AlertOctagon}
+            title="Strict Anti-Cheating Proctoring Enforced"
+          >
+            This test runs under automated monitoring. Any attempt to leave the test window, change tabs, or resize the screen is tracked directly by the system.
+          </Callout>
 
           <div className="space-y-3 font-mono text-xs">
             <div className="p-3 bg-surface-raised border border-border rounded-xl flex items-start gap-3">
@@ -1606,11 +1596,13 @@ export const LiveTests: React.FC = () => {
             <p className="text-xs font-mono text-text-secondary leading-relaxed">{warningMessage}</p>
           </div>
 
-          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-center font-mono text-xs text-rose-300">
-            Total Warnings: <strong>{warningType === "TAB_SWITCH" ? tabSwitchCount : resizeCount} of 2</strong>.
-            <br />
-            Next violation will trigger instant auto-submission!
-          </div>
+          <Callout variant="danger" icon={AlertTriangle}>
+            <div className="font-mono text-xs">
+              Total Warnings: <strong>{warningType === "TAB_SWITCH" ? tabSwitchCount : resizeCount} of 2</strong>.
+              <br />
+              Next violation will trigger instant auto-submission!
+            </div>
+          </Callout>
 
           <Button
             variant="teal-cyan"
@@ -1770,10 +1762,9 @@ export const LiveTests: React.FC = () => {
                           </div>
 
                           {q.explanation && (
-                            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-200 font-sans text-xs space-y-1">
-                              <strong className="font-mono text-[10px] uppercase text-cyan-300 block">Explanation:</strong>
+                            <Callout variant="info" icon={Sparkles} title="Explanation:">
                               <p className="leading-relaxed">{q.explanation}</p>
-                            </div>
+                            </Callout>
                           )}
                         </div>
                       ) : (

@@ -15,6 +15,7 @@ import {
   Award,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Callout } from "@/components/common/Callout";
 
 export function isAccountProtected(
   student?: Partial<MasterStudent> | null,
@@ -262,32 +263,36 @@ export const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({
       <div className="space-y-4">
         {/* Protected Account Warning */}
         {isSingleProtected && (
-          <div className="p-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-300 space-y-2">
-            <div className="flex items-center gap-2 font-bold text-sm text-red-400">
-              <ShieldAlert className="w-5 h-5 shrink-0" />
-              Protected Account
-            </div>
-            <p className="text-xs text-red-300/90 leading-relaxed">
-              {singleProtectionReason || "This account is protected by system security rules and cannot be deleted."}
-            </p>
-            <div className="pt-2 flex justify-end">
+          <Callout
+            variant="danger"
+            role="alert"
+            title="Protected Account"
+            icon={<ShieldAlert className="w-5 h-5 shrink-0" />}
+            actions={
               <Button variant="outline" size="sm" onClick={onClose} className="text-xs border-border">
                 Close
               </Button>
-            </div>
-          </div>
+            }
+          >
+            <p className="leading-relaxed">
+              {singleProtectionReason || "This account is protected by system security rules and cannot be deleted."}
+            </p>
+          </Callout>
         )}
 
         {!isSingleProtected && (
           <>
             {/* Multiple selection with skipped accounts note */}
             {isMultiple && protectedCount > 0 && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-200 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <Callout
+                variant="warning"
+                size="sm"
+                icon={<AlertTriangle className="w-4 h-4 shrink-0" />}
+              >
                 <span>
                   <strong>{protectedCount} protected account(s)</strong> were automatically skipped and will remain intact.
                 </span>
-              </div>
+              </Callout>
             )}
 
             {/* Target Summary Card */}
@@ -313,15 +318,15 @@ export const DeleteAccountDialog: React.FC<DeleteAccountDialogProps> = ({
 
             {/* Strong Warning for Active / Verified Data */}
             {hasActivity && (
-              <div className="p-3.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 text-xs space-y-2">
-                <div className="flex items-center gap-2 font-bold text-amber-300">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  Warning: Student Has Recorded Activity Data
-                </div>
-                <p className="text-[11px] text-amber-200/90 leading-relaxed">
+              <Callout
+                variant="warning"
+                title="Warning: Student Has Recorded Activity Data"
+                icon={<AlertTriangle className="w-4 h-4 shrink-0" />}
+              >
+                <p className="leading-relaxed">
                   This candidate has submissions, scores, and verified placement records. Permanently deleting will wipe out all interview recordings, coding solutions, resume analyses, and credentials.
                 </p>
-              </div>
+              </Callout>
             )}
 
             {/* What will be removed list */}

@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/context/AuthContext";
 
-const STORAGE_KEY = "favoriteQuotes";
+function getStorageKey(userId?: string): string {
+  return userId ? `favoriteQuotes_${userId}` : "favoriteQuotes";
+}
 
-function getStoredFavorites(): (number | string)[] {
+function getStoredFavorites(key: string): (number | string)[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key) || (key !== "favoriteQuotes" ? localStorage.getItem("favoriteQuotes") : null);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
@@ -18,28 +21,37 @@ function getStoredFavorites(): (number | string)[] {
   }
 }
 
-function persistFavorites(favs: (number | string)[]): void {
+function persistFavorites(key: string, favs: (number | string)[]): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(favs));
+    localStorage.setItem(key, JSON.stringify(favs));
   } catch (error) {
     console.warn("[useFavoriteQuotes] Failed to save favorites to storage:", error);
   }
 }
 
 export function useFavoriteQuotes() {
-  const [favorites, setFavorites] = useState<(number | string)[]>(() => getStoredFavorites());
+  const { user } = useAuth();
+  const userId = user?.userId || user?.email;
+  const storageKey = getStorageKey(userId);
+
+  const [favorites, setFavorites] = useState<(number | string)[]>(() => getStoredFavorites(storageKey));
+
+  // Sync state if user changes
+  useEffect(() => {
+    setFavorites(getStoredFavorites(storageKey));
+  }, [storageKey]);
 
   // Listen to window storage events to stay in sync across components/tabs
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) {
-        setFavorites(getStoredFavorites());
+      if (e.key === storageKey) {
+        setFavorites(getStoredFavorites(storageKey));
       }
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  }, [storageKey]);
 
   const isFavorite = useCallback(
     (id: number | string): boolean => {
@@ -52,11 +64,11 @@ export function useFavoriteQuotes() {
     (id: number | string) => {
       setFavorites((prev) => {
         const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
-        persistFavorites(next);
+        persistFavorites(storageKey, next);
         return next;
       });
     },
-    []
+    [storageKey]
   );
 
   return {

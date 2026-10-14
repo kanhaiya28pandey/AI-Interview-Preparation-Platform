@@ -12,6 +12,7 @@ import { CardSkeleton } from "@/components/common/Skeletons";
 import { EmptyState } from "@/components/common/EmptyState";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
 import { TaxonomySelect, TaxonomySelectOption } from "@/components/ui/TaxonomySelect";
+import { PageHeader, StatTile, Highlight } from "@/components/common/PageHeader";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { HelpCircle, CheckCircle2, XCircle, ArrowRight, RotateCcw, Award, Search } from "lucide-react";
 
@@ -171,24 +172,37 @@ export const Quiz: React.FC = () => {
   if (!activeTopic) {
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="font-serif text-2xl font-medium text-text-primary">MCQ Quizzes</h2>
-          <p className="text-xs text-text-secondary">
-            Quick 15-minute conceptual tests to evaluate multi-domain CS and engineering mastery.
-          </p>
-        </div>
+        <PageHeader
+          icon={HelpCircle}
+          title="Domain Quizzes & Practice Tests"
+          subtitle="Quick 15-minute conceptual tests to evaluate multi-domain CS and engineering mastery."
+          badge={`${topics.length} AVAILABLE`}
+          accent="cyan"
+          actions={
+            <StatTile
+              icon={HelpCircle}
+              label="TOTAL QUIZZES"
+              value={
+                <>
+                  <Highlight>{topics.length}</Highlight> Active Modules
+                </>
+              }
+              accent="cyan"
+            />
+          }
+        />
 
         {/* Filter Bar */}
         <Card className="p-4 bg-surface border-border">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search quizzes by title or topic..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+                className="w-full h-10 pl-10 pr-3.5 bg-surface-raised border border-border rounded-xl text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
               />
             </div>
 

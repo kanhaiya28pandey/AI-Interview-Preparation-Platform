@@ -48,6 +48,7 @@ import { supportService, SupportTicket, HelpArticle } from "@/services/supportSe
 import { profileService } from "@/services/profileService";
 import { UserProfile } from "@/mocks/profileData";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
+import { PageHeader } from "@/components/common/PageHeader";
 
 // Validation schema for Support Ticket form
 const ticketSchema = z.object({
@@ -338,38 +339,26 @@ export const HelpCenter: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto text-text-primary">
       {/* Top Banner Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-400">
-              <HelpCircle className="w-5 h-5" />
-            </span>
-            <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
-              Student Help & Support Center
-            </h1>
-            <Badge variant="accent" className="font-mono text-[10px] uppercase">
-              24/7 Knowledge Base
-            </Badge>
-          </div>
-          <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
-            Search placement prep FAQs, run diagnostic system checks, submit support tickets, and reference keyboard shortcuts.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
+      <PageHeader
+        icon={HelpCircle}
+        title="Student Help & Support Center"
+        subtitle="Search placement prep FAQs, run diagnostic system checks, submit support tickets, and reference keyboard shortcuts."
+        badge="24/7 SUPPORT"
+        accent="cyan"
+        actions={
           <Button
             variant="outline"
             size="sm"
             onClick={() => setActiveTab("contact")}
-            className="gap-1.5 text-xs font-mono"
+            className="gap-1.5 text-xs font-mono h-10 px-3.5 rounded-xl"
           >
             <Ticket className="w-3.5 h-3.5 text-cyan-400" /> My Support Tickets ({tickets.length})
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto font-mono text-xs">
+      <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto font-mono text-xs tablist-scroll-container">
         {[
           { id: "faq", label: "Knowledge Base FAQs", icon: Search },
           { id: "checklist", label: "Getting Started Guide", icon: CheckCircle2 },
@@ -385,7 +374,7 @@ export const HelpCenter: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all shrink-0 ${
+              className={`flex items-center gap-2 h-10 px-4 rounded-xl transition-all shrink-0 whitespace-nowrap ${
                 isActive
                   ? "bg-cyan-400/15 text-cyan-400 border border-cyan-400/40 font-semibold"
                   : "text-text-muted hover:text-text-primary hover:bg-surface-raised"
@@ -407,13 +396,13 @@ export const HelpCenter: React.FC = () => {
               How can we help you prepare today?
             </h2>
             <div className="relative">
-              <Search className="w-4 h-4 text-cyan-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-cyan-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search FAQs (e.g. 'ATS score', 'coding test', 'profile completion', 'dark mode')..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-surface border border-border rounded-xl text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                className="w-full h-11 pl-10 pr-4 bg-surface border border-border rounded-xl text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
               />
               {searchQuery && (
                 <button
@@ -427,11 +416,11 @@ export const HelpCenter: React.FC = () => {
             </div>
 
             {/* Category Filter Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono tablist-scroll-container">
               <button
                 type="button"
                 onClick={() => setSelectedCategory("all")}
-                className={`px-3 py-1 rounded-lg transition-colors shrink-0 ${
+                className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                   selectedCategory === "all"
                     ? "bg-cyan-400/20 text-cyan-300 border border-cyan-400/40 font-semibold"
                     : "bg-surface-raised text-text-muted hover:text-text-primary"
@@ -444,7 +433,7 @@ export const HelpCenter: React.FC = () => {
                   key={cat.slug}
                   type="button"
                   onClick={() => setSelectedCategory(cat.slug)}
-                  className={`px-3 py-1 rounded-lg transition-colors shrink-0 ${
+                  className={`px-3 py-1.5 rounded-lg transition-colors shrink-0 whitespace-nowrap ${
                     selectedCategory === cat.slug
                       ? "bg-cyan-400/20 text-cyan-300 border border-cyan-400/40 font-semibold"
                       : "bg-surface-raised text-text-muted hover:text-text-primary"
@@ -984,7 +973,7 @@ export const HelpCenter: React.FC = () => {
                 AI
               </span>
               <div>
-                <h2 className="font-serif text-2xl font-bold text-text-primary">
+                <h2 className="font-serif font-semibold text-lg sm:text-xl text-text-primary">
                   AI Interview Preparation & Placement Platform
                 </h2>
                 <span className="text-xs font-mono text-cyan-400">Version 1.0.0 (Production Release)</span>

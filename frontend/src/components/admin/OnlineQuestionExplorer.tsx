@@ -282,32 +282,32 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
   return (
     <div className="space-y-8">
       {/* Search & Fetch Header Banner */}
-      <Card className="p-6 bg-gradient-to-r from-surface-raised via-surface to-surface-raised border border-border/80 shadow-md">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+      <Card className="@container p-4 @md:p-6 bg-gradient-to-r from-surface-raised via-surface to-surface-raised border border-border/80 shadow-md">
+        <div className="flex flex-col @lg:flex-row @lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
                 <Globe className="w-5 h-5" />
               </span>
-              <h3 className="font-serif text-xl font-medium text-text-primary">
-                Live Online Question Fetcher (LeetCode, GFG, Codeforces, SQL)
+              <h3 className="font-serif text-lg @sm:text-xl font-medium text-text-primary leading-tight">
+                Live Online Question Fetcher
               </h3>
-              <Badge variant="active" className="font-mono text-[10px]">
+              <Badge variant="active" className="font-mono text-[10px] shrink-0 uppercase tracking-wider">
                 100% Free Questions
               </Badge>
             </div>
-            <p className="text-xs text-text-secondary max-w-2xl">
+            <p className="text-xs text-text-secondary max-w-2xl leading-relaxed">
               Search real-time coding and SQL database challenges from official online repositories.
               One-click publish to students with automated starter templates, examples, constraints, real hints, and test cases.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
             <Button
               variant="primary"
               size="sm"
               onClick={() => setShowCreateModal(true)}
-              className="shrink-0 font-medium gap-1.5 font-mono text-xs"
+              className="font-medium gap-1.5 font-mono text-xs h-10 px-3.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Create Custom Problem</span>
@@ -318,55 +318,57 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
               size="sm"
               onClick={() => handleSearch()}
               disabled={isSearching}
-              className="shrink-0 font-medium font-mono text-xs"
+              className="font-medium font-mono text-xs h-10 px-3.5 gap-1.5"
             >
-              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSearching ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isSearching ? "animate-spin" : ""}`} />
               Refresh Feed
             </Button>
           </div>
         </div>
 
         {/* Filters Grid */}
-        <form onSubmit={handleSearch} className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+        <form onSubmit={handleSearch} className="mt-5 grid grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-12 gap-3">
           {/* Keyword Search */}
-          <div className="lg:col-span-4 relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <div className="@2xl:col-span-4 relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by name (e.g. Subarray, Two Sum, Salary)..."
+              placeholder="Search problems by name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 font-mono transition-colors"
+              className="w-full h-10 pl-10 pr-3.5 bg-surface border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 font-mono transition-colors"
             />
           </div>
 
           {/* Source Selector */}
-          <div className="lg:col-span-3">
+          <div className="@2xl:col-span-3">
             <select
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              title="Platform source selector"
+              className="w-full h-10 px-3.5 bg-surface border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono truncate cursor-pointer"
             >
-              <option value="ALL">All Platforms (LeetCode, GFG, CF, SQL)</option>
-              <option value="LEETCODE">LeetCode (Coding Challenges)</option>
-              <option value="DATABASE_SQL">LeetCode Database (SQL Queries)</option>
-              <option value="GEEKSFORGEEKS">GeeksforGeeks Curated</option>
-              <option value="CODEFORCES">Codeforces (Official REST)</option>
+              <option value="ALL">All Platforms</option>
+              <option value="LEETCODE">LeetCode (Coding)</option>
+              <option value="DATABASE_SQL">LeetCode (SQL Queries)</option>
+              <option value="GEEKSFORGEEKS">GeeksforGeeks</option>
+              <option value="CODEFORCES">Codeforces (REST)</option>
             </select>
           </div>
 
           {/* Domain / Topic Category */}
-          <div className="lg:col-span-3">
+          <div className="@2xl:col-span-3">
             <select
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              title="Domain selector"
+              className="w-full h-10 px-3.5 bg-surface border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono truncate cursor-pointer"
             >
-              <option value="ALL">All Domains (DSA, Database...)</option>
+              <option value="ALL">All Domains</option>
               <option value="DSA">Data Structures & Algorithms</option>
               <option value="Database">Database & SQL Queries</option>
               <option value="Dynamic Programming">Dynamic Programming (DP)</option>
-              <option value="Trees">Trees & Binary Search Trees</option>
+              <option value="Trees">Trees & BST</option>
               <option value="Graphs">Graphs & BFS/DFS</option>
               <option value="Stacks">Stacks & Queues</option>
               <option value="Two Pointers">Two Pointers & Sliding Window</option>
@@ -374,11 +376,12 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
           </div>
 
           {/* Difficulty */}
-          <div className="lg:col-span-2">
+          <div className="@2xl:col-span-2">
             <select
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono"
+              title="Difficulty selector"
+              className="w-full h-10 px-3.5 bg-surface border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400 font-mono truncate cursor-pointer"
             >
               <option value="ALL">All Difficulties</option>
               <option value="Easy">Easy</option>

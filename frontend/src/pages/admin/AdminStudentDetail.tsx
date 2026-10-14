@@ -34,11 +34,14 @@ import {
   RotateCcw,
   ShieldAlert,
   Radio,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { cn } from "@/lib/utils";
 import { YearlyActivityHeatmap } from "@/components/student/YearlyActivityHeatmap";
+import { PageHeader, StatTile } from "@/components/common/PageHeader";
+import { Callout } from "@/components/common/Callout";
 
 export const AdminStudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -210,11 +213,11 @@ export const AdminStudentDetail: React.FC = () => {
         </Button>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handlePrint} className="text-xs font-mono gap-1.5">
+          <Button variant="outline" size="sm" onClick={handlePrint} className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl">
             <Printer className="w-3.5 h-3.5 text-cyan-400" /> Print / PDF Report
           </Button>
 
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs font-mono gap-1.5">
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl">
             <Download className="w-3.5 h-3.5 text-cyan-400" /> Export CSV
           </Button>
 
@@ -222,7 +225,7 @@ export const AdminStudentDetail: React.FC = () => {
             variant="primary"
             size="sm"
             onClick={() => navigate("/profile")}
-            className="text-xs font-mono gap-1.5"
+            className="text-xs font-mono gap-1.5 h-10 px-4 rounded-xl"
           >
             <ExternalLink className="w-3.5 h-3.5" /> View Public Recruiter Profile
           </Button>
@@ -230,66 +233,50 @@ export const AdminStudentDetail: React.FC = () => {
       </div>
 
       {/* Student Profile Header Banner */}
-      <Card className={cn("p-6 bg-surface border-border shadow-xl space-y-4 print-full-width", isAtRisk ? "border-l-4 border-l-amber-400" : "")}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-cyan-400/20 border-2 border-cyan-400/50 text-cyan-400 font-bold font-serif text-2xl flex items-center justify-center shrink-0 shadow-soft">
-              {student.name.slice(0, 2).toUpperCase()}
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="font-serif text-2xl font-bold text-text-primary">{student.name}</h1>
-                {student.verificationStatus === "VERIFIED" && (
-                  <Badge variant="active" className="flex items-center gap-1 font-mono text-[11px]">
-                    <ShieldCheck className="w-3.5 h-3.5" /> VERIFIED STUDENT
-                  </Badge>
-                )}
-                {isAtRisk && (
-                  <Badge variant="blocked" className="flex items-center gap-1 font-mono text-[11px]">
-                    <AlertTriangle className="w-3.5 h-3.5" /> AT RISK
-                  </Badge>
-                )}
-              </div>
-
-              <div className="text-xs font-mono text-text-secondary flex flex-wrap items-center gap-y-1 gap-x-3">
-                <span>Roll: <strong className="text-text-primary">{student.rollNumber}</strong></span>
-                <span>•</span>
-                <span>{student.course} ({student.year})</span>
-                <span>•</span>
-                <span>{student.branch}</span>
-              </div>
-
-              <p className="text-xs text-text-muted font-mono">{student.college} • Joined {student.joinedDate}</p>
-            </div>
+      <PageHeader
+        icon={Users}
+        title={student.name}
+        subtitle={`${student.college} • Roll: ${student.rollNumber} • ${student.course} (${student.year}) • ${student.branch} • Joined ${student.joinedDate}`}
+        badge={student.verificationStatus === "VERIFIED" ? "VERIFIED CANDIDATE" : isAtRisk ? "AT RISK" : "CANDIDATE"}
+        accent={isAtRisk ? "amber" : "cyan"}
+        meta={
+          <div className="flex items-center gap-2 flex-wrap">
+            {student.verificationStatus === "VERIFIED" && (
+              <Badge variant="active" className="flex items-center gap-1 font-mono text-[11px]">
+                <ShieldCheck className="w-3.5 h-3.5" /> Verified Account
+              </Badge>
+            )}
+            {isAtRisk && (
+              <Badge variant="blocked" className="flex items-center gap-1 font-mono text-[11px]">
+                <AlertTriangle className="w-3.5 h-3.5" /> At Risk
+              </Badge>
+            )}
+            <span className="font-mono text-xs text-text-muted">
+              Last active: {student.lastActive} • {student.streakDays} day practice streak
+            </span>
           </div>
-
-          <div className="p-4 bg-surface-raised border border-border rounded-2xl flex items-center gap-6 shrink-0">
-            <div>
-              <span className="text-[10px] font-mono text-text-muted uppercase tracking-wider block">Activity Score</span>
-              <span className="font-serif font-bold text-3xl text-cyan-400">{student.activityScore}<span className="text-base text-text-muted">/100</span></span>
-            </div>
-            <div className="border-l border-border pl-6 space-y-1 font-mono text-xs">
-              <div className="flex items-center gap-1 text-text-muted">
-                <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Last Active: <strong className="text-text-primary">{student.lastActive}</strong></span>
-              </div>
-              <div className="flex items-center gap-1 text-live font-semibold">
-                <Flame className="w-3.5 h-3.5 fill-live text-live" />
-                <span>{student.streakDays} Day Practice Streak</span>
-              </div>
-            </div>
+        }
+        actions={
+          <div className="flex items-center gap-3 flex-wrap">
+            <StatTile
+              label="Activity Score"
+              value={`${student.activityScore}/100`}
+              accent={isAtRisk ? "amber" : "cyan"}
+            />
           </div>
-        </div>
+        }
+      />
 
-        {/* Risk Reason Banner if At Risk */}
-        {isAtRisk && student.riskReason && (
-          <div className="p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl text-amber-300 font-mono text-xs flex items-center gap-2.5">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span><strong>Teacher Alert:</strong> {student.riskReason}</span>
-          </div>
-        )}
-      </Card>
+      {/* Risk Reason Banner if At Risk */}
+      {isAtRisk && student.riskReason && (
+        <Callout
+          variant="warning"
+          icon={AlertTriangle}
+          title="Teacher Alert"
+        >
+          <span className="font-mono">{student.riskReason}</span>
+        </Callout>
+      )}
 
       {/* Key Stat Cards Grid (Day streak, coding solved, mock interviews, live tests, MCQ quizzes, resume ATS) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

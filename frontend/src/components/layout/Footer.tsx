@@ -151,7 +151,7 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 pb-6 sm:pb-2 flex flex-col sm:flex-row justify-between items-center text-xs text-text-muted gap-4 sm:pr-24">
+        <div className="pt-6 pb-6 sm:pb-2 flex flex-col sm:flex-row justify-between items-center text-xs text-text-muted gap-4">
           <div className="font-mono text-[11px] text-center sm:text-left">
             © {new Date().getFullYear()} AI Interview Preparation Platform. Designed for campus placement drives.
           </div>

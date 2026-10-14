@@ -35,6 +35,7 @@ import {
   Send,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export const AdminHelp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"tickets" | "articles" | "guide">("tickets");
@@ -304,44 +305,34 @@ export const AdminHelp: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto text-text-primary">
       {/* Top Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-400">
-              <Shield className="w-5 h-5" />
-            </span>
-            <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
-              Help & Support Management
-            </h1>
-            <Badge variant="accent" className="font-mono text-[10px] uppercase">
-              Admin Control Center
-            </Badge>
-          </div>
-          <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
-            Monitor real-time student support tickets, draft resolution responses, and author Help Center articles.
-          </p>
-        </div>
-
-        {activeTab === "articles" ? (
-          <Button
-            variant="teal-cyan"
-            size="sm"
-            onClick={handleOpenCreateArticle}
-            className="gap-1.5 text-xs shadow-glow self-start md:self-auto"
-          >
-            <Plus className="w-4 h-4" /> Create New Help Article
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchTickets}
-            className="gap-1.5 text-xs font-mono self-start md:self-auto"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh Queue
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        icon={Shield}
+        title="Help & Support Management"
+        subtitle="Monitor real-time student support tickets, draft resolution responses, and author Help Center articles."
+        badge="SUPPORT QUEUE"
+        accent="cyan"
+        actions={
+          activeTab === "articles" ? (
+            <Button
+              variant="teal-cyan"
+              size="sm"
+              onClick={handleOpenCreateArticle}
+              className="gap-1.5 text-xs shadow-glow self-start md:self-auto"
+            >
+              <Plus className="w-4 h-4" /> Create New Help Article
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchTickets}
+              className="gap-1.5 text-xs font-mono self-start md:self-auto"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh Queue
+            </Button>
+          )
+        }
+      />
 
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto font-mono text-xs">

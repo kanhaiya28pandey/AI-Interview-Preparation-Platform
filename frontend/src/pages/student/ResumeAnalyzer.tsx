@@ -53,6 +53,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
+import { Callout } from "@/components/common/Callout";
+import { PageHeader, StatTile } from "@/components/common/PageHeader";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { resumeService } from "@/services/resumeService";
@@ -305,36 +307,33 @@ export const ResumeAnalyzer: React.FC = () => {
       `}</style>
 
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border pb-6 no-print">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-400">
-              <Brain className="w-5 h-5" />
-            </span>
-            <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight">
-              AI Resume Analyzer
-            </h1>
-            <Badge variant="accent" className="font-mono text-[10px] uppercase">
-              Phase 2 ATS
-            </Badge>
-          </div>
-          <p className="text-sm text-text-muted mt-1.5">
-            Evaluate ATS readiness, technical skill gaps, and role-fit benchmark metrics.
-          </p>
-        </div>
-
-        {analysisResult && (
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={handleReset} className="gap-2">
-              <RefreshCw className="w-3.5 h-3.5" />
-              Re-analyze
-            </Button>
-            <Button variant="primary" size="sm" onClick={handlePrint} className="gap-2">
-              <Printer className="w-3.5 h-3.5" />
-              Download Report
-            </Button>
-          </div>
-        )}
+      <div className="no-print">
+        <PageHeader
+          icon={FileText}
+          title="ATS Placement Resume Scanner"
+          subtitle="Evaluate ATS readiness, technical skill gaps, and role-fit benchmark metrics with instant AI extraction."
+          badge="ATS OPTIMIZER"
+          accent="violet"
+          actions={
+            analysisResult ? (
+              <div className="flex items-center gap-2.5">
+                <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5 text-xs h-10 px-3.5 rounded-xl">
+                  <RefreshCw className="w-3.5 h-3.5" /> Re-analyze
+                </Button>
+                <Button variant="primary" size="sm" onClick={handlePrint} className="gap-1.5 text-xs h-10 px-4 rounded-xl">
+                  <Printer className="w-3.5 h-3.5" /> Download Report
+                </Button>
+              </div>
+            ) : (
+              <StatTile
+                icon={Sparkles}
+                label="ATS ENGINE"
+                value="Smart Match AI"
+                accent="violet"
+              />
+            )
+          }
+        />
       </div>
 
       {/* Main Container */}
@@ -1307,10 +1306,11 @@ export const ResumeAnalyzer: React.FC = () => {
                   <motion.div
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-2 text-xs text-red-400 font-medium bg-red-400/10 border border-red-400/20 p-3 rounded-lg mt-2"
+                    className="mt-2"
                   >
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{fileError}</span>
+                    <Callout variant="danger" icon={AlertCircle}>
+                      <span>{fileError}</span>
+                    </Callout>
                   </motion.div>
                 )}
               </div>

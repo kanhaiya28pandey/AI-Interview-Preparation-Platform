@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useVerificationStatus } from "@/hooks/useVerificationStatus";
+import { Callout } from "@/components/common/Callout";
 
 export interface VerificationGateProps {
   featureName: string;
@@ -71,30 +72,44 @@ export const VerificationGate: React.FC<VerificationGateProps> = ({ featureName,
           </div>
 
           {status === "Pending Verification" && (
-            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-left space-y-1.5 text-xs text-amber-300">
-              <div className="font-semibold flex items-center justify-between">
-                <span>Application Under Review</span>
-                <span className="font-mono text-[10px] text-amber-400/80">{submission?.verificationId}</span>
-              </div>
-              <p className="text-[11px] text-amber-200/90 leading-relaxed">
+            <Callout
+              variant="warning"
+              title={
+                <div className="flex items-center justify-between w-full">
+                  <span>Application Under Review</span>
+                  <span className="font-mono text-[10px] opacity-80">{submission?.verificationId}</span>
+                </div>
+              }
+              className="text-left"
+            >
+              <p className="text-[11px] leading-relaxed">
                 Your ID submission is currently in the review queue. Submissions are processed within 24-48 hours.
               </p>
-            </div>
+            </Callout>
           )}
 
           {status === "Rejected" && (
-            <div className="p-3.5 bg-danger-bg border border-danger/40 rounded-xl text-left space-y-1.5 text-xs text-danger">
-              <span className="font-semibold block">Rejection Reason:</span>
+            <Callout
+              variant="danger"
+              role="alert"
+              title="Rejection Reason:"
+              className="text-left"
+            >
               <p className="text-[11px] leading-relaxed">
                 {submission?.rejectionNotes || "Your college ID image was unreadable or details mismatch."}
               </p>
-            </div>
+            </Callout>
           )}
 
           {status === "Unverified" && (
-            <p className="text-xs text-text-muted bg-surface-raised p-3 rounded-xl border border-border">
-              To ensure academic eligibility for AI mock interview sessions and leaderboard placements, please upload your College ID card.
-            </p>
+            <Callout
+              variant="info"
+              className="text-left"
+            >
+              <p className="text-[11px] leading-relaxed">
+                To ensure academic eligibility for AI mock interview sessions and leaderboard placements, please upload your College ID card.
+              </p>
+            </Callout>
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">

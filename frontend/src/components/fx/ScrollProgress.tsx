@@ -74,7 +74,7 @@ export const ScrollProgress: React.FC<ScrollProgressProps> = ({
               transition={{ duration: 0.2 }}
               onClick={scrollToTop}
               aria-label="Scroll to top"
-              className="fixed bottom-24 right-6 z-40 w-10 h-10 rounded-full flex items-center justify-center bg-surface-raised border border-border text-text-muted hover:text-accent hover:border-accent/50 shadow-soft-drop transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="fixed bottom-6 right-6 z-40 w-10 h-10 rounded-full flex items-center justify-center bg-surface-raised border border-border text-text-muted hover:text-accent hover:border-accent/50 shadow-soft-drop transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <ArrowUp className="w-4 h-4" />
             </motion.button>

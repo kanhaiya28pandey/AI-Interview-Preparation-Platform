@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { RoleBadge } from "@/components/common/RoleBadge";
+import { PageHeader } from "@/components/common/PageHeader";
 import {
   BarChart3,
   Calendar,
@@ -376,38 +377,29 @@ export const AdminReports: React.FC = () => {
   return (
     <div className="space-y-8 print:p-0">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4 print:hidden">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-semibold">
-              Live Campus Intelligence & Placement Metrics
-            </span>
-            <Badge variant="accent" className="text-[10px] font-mono">
-              100% Real Live Telemetry
-            </Badge>
+      <PageHeader
+        icon={BarChart3}
+        title="Analytics & Reports Suite"
+        subtitle="Aggregated entirely from live candidate submissions, proctored test attempts, and AI mock evaluations."
+        badge="CAMPUS METRICS"
+        accent="cyan"
+        className="print:hidden"
+        actions={
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl">
+              <Download className="w-3.5 h-3.5 text-cyan-400" /> Export CSV
+            </Button>
+
+            <Button variant="outline" size="sm" onClick={handlePrint} className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl">
+              <Printer className="w-3.5 h-3.5 text-cyan-400" /> Print Report
+            </Button>
+
+            <Button variant="ghost" size="sm" onClick={loadRealData} className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl text-text-muted hover:text-cyan-400">
+              <RotateCw className="w-3.5 h-3.5" /> Refresh
+            </Button>
           </div>
-          <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
-            Analytics & Reports Suite
-          </h2>
-          <p className="text-xs text-text-secondary">
-            Aggregated entirely from live candidate submissions, proctored test attempts, and AI mock evaluations.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs font-mono gap-1.5">
-            <Download className="w-3.5 h-3.5 text-cyan-400" /> Export CSV
-          </Button>
-
-          <Button variant="outline" size="sm" onClick={handlePrint} className="text-xs font-mono gap-1.5">
-            <Printer className="w-3.5 h-3.5 text-cyan-400" /> Print Report
-          </Button>
-
-          <Button variant="ghost" size="sm" onClick={loadRealData} className="text-xs font-mono gap-1.5 text-text-muted hover:text-cyan-400">
-            <RotateCw className="w-3.5 h-3.5" /> Refresh
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filter Ribbon */}
       <Card className="p-4 bg-surface border-border print:hidden">
@@ -417,7 +409,7 @@ export const AdminReports: React.FC = () => {
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="w-full bg-surface-raised border border-border rounded-lg p-2 text-text-primary focus:outline-none focus:border-cyan-400"
+              className="w-full h-10 bg-surface-raised border border-border rounded-xl px-3.5 text-text-primary focus:outline-none focus:border-cyan-400 cursor-pointer"
             >
               <option value="7">Last 7 Days</option>
               <option value="30">Last 30 Days</option>
@@ -431,7 +423,7 @@ export const AdminReports: React.FC = () => {
             <select
               value={courseFilter}
               onChange={(e) => setCourseFilter(e.target.value)}
-              className="w-full bg-surface-raised border border-border rounded-lg p-2 text-text-primary focus:outline-none focus:border-cyan-400"
+              className="w-full h-10 bg-surface-raised border border-border rounded-xl px-3.5 text-text-primary focus:outline-none focus:border-cyan-400 cursor-pointer"
             >
               <option value="ALL">All Enrolled Courses</option>
               {availableCourses.map((c) => (
@@ -445,7 +437,7 @@ export const AdminReports: React.FC = () => {
             <select
               value={collegeFilter}
               onChange={(e) => setCollegeFilter(e.target.value)}
-              className="w-full bg-surface-raised border border-border rounded-lg p-2 text-text-primary focus:outline-none focus:border-cyan-400 truncate"
+              className="w-full h-10 bg-surface-raised border border-border rounded-xl px-3.5 text-text-primary focus:outline-none focus:border-cyan-400 truncate cursor-pointer"
             >
               <option value="ALL">All Colleges</option>
               {availableColleges.map((col) => (
@@ -463,7 +455,7 @@ export const AdminReports: React.FC = () => {
                 setCourseFilter("ALL");
                 setCollegeFilter("ALL");
               }}
-              className="w-full text-xs font-mono"
+              className="w-full h-10 rounded-xl text-xs font-mono"
             >
               Reset Filters
             </Button>

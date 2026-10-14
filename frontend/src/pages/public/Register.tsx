@@ -38,7 +38,9 @@ import {
   Check,
   Building2,
   Lock,
+  Info,
 } from "lucide-react";
+import { Callout } from "@/components/common/Callout";
 import { authService, AuthResponse } from "@/services/authService";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -671,52 +673,52 @@ export const Register: React.FC = () => {
 
         {/* Duplicate Warning Notice */}
         {duplicateWarning && (
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <Callout variant="warning" icon={AlertCircle}>
             <div className="space-y-1">
               <span>{duplicateWarning}</span>
-              <Link to="/login" className="text-cyan-400 underline font-medium block">
+              <Link to="/login" className="text-cyan-600 dark:text-cyan-400 underline font-medium block">
                 Click here to sign in to existing account →
               </Link>
             </div>
-          </div>
+          </Callout>
         )}
 
         {/* Active Authenticated Session Notice */}
         {isAuthenticated && (
-          <div className="p-3.5 rounded-xl bg-cyan-400/10 border border-cyan-400/30 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <span className="font-semibold text-text-primary block">
-                You are currently signed in as <span className="text-cyan-400">{user?.name}</span> ({user?.email})
-              </span>
-              <span className="text-text-muted text-[11px] block">
-                To register a different account, please sign out first. Or return to your dashboard.
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button size="sm" variant="ghost" onClick={logout} className="text-xs">
-                Sign Out
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => navigate(user?.role === "ADMIN" ? "/admin" : "/dashboard")}
-                className="text-xs"
-              >
-                Go to Dashboard
-              </Button>
-            </div>
-          </div>
+          <Callout
+            variant="info"
+            icon={Info}
+            title={
+              <>
+                You are currently signed in as <span className="font-semibold text-cyan-700 dark:text-cyan-300">{user?.name}</span> ({user?.email})
+              </>
+            }
+            action={
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="ghost" onClick={logout} className="text-xs">
+                  Sign Out
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => navigate(user?.role === "ADMIN" ? "/admin" : "/dashboard")}
+                  className="text-xs"
+                >
+                  Go to Dashboard
+                </Button>
+              </div>
+            }
+          >
+            To register a different account, please sign out first. Or return to your dashboard.
+          </Callout>
         )}
 
         {/* Server Error Alert */}
         {serverError && (
-          <div className="p-3.5 rounded-xl bg-danger-bg border border-danger/40 text-danger text-xs space-y-2.5 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="leading-relaxed font-medium">{serverError}</span>
-              </div>
+          <Callout
+            variant="danger"
+            icon={AlertCircle}
+            action={
               <Button
                 variant="outline"
                 size="sm"
@@ -729,15 +731,17 @@ export const Register: React.FC = () => {
                   }
                 }}
                 isLoading={isSubmitting}
-                className="text-xs shrink-0 bg-surface border-danger/40 text-danger hover:bg-danger/10"
+                className="text-xs shrink-0 bg-surface border-red-500/40 text-red-600 dark:text-red-300 hover:bg-red-500/10"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Retry</span>
               </Button>
-            </div>
+            }
+          >
+            <span className="leading-relaxed font-medium block">{serverError}</span>
             {serverError.toLowerCase().includes("already exists") && (
-              <div className="flex items-center gap-3 pt-2 border-t border-danger/20 font-mono text-[11px]">
-                <Link to="/login" className="text-cyan-400 hover:underline font-semibold">
+              <div className="flex items-center gap-3 pt-2 font-mono text-[11px]">
+                <Link to="/login" className="text-cyan-600 dark:text-cyan-400 hover:underline font-semibold">
                   Sign in with this email →
                 </Link>
                 {currentStep > 1 && (
@@ -754,7 +758,7 @@ export const Register: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
+          </Callout>
         )}
 
         {/* SUCCESS SCREEN */}

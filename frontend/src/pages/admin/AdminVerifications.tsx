@@ -41,6 +41,8 @@ import {
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { isMockMode, getDataModeLabel } from "@/lib/dataMode";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Callout } from "@/components/common/Callout";
 
 export const AdminVerifications: React.FC = () => {
   const { user } = useAuth();
@@ -328,12 +330,14 @@ export const AdminVerifications: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <PageHeader
+        icon={ShieldCheck}
+        title="Student ID Verifications"
+        subtitle="Review submitted college identity cards, compare OCR data, approve verification access, or delete rejected records."
+        badge="VERIFICATIONS"
+        accent="amber"
+        meta={
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs uppercase tracking-widest text-purple-400 font-semibold">
-              Governance & Verification Queue
-            </span>
             <Badge variant="accent" className="text-[10px] font-mono">
               Live Sync
             </Badge>
@@ -344,92 +348,84 @@ export const AdminVerifications: React.FC = () => {
               {getDataModeLabel()}
             </Badge>
           </div>
-          <h1 className="font-serif text-3xl font-medium text-text-primary">
-            Student ID Verifications
-          </h1>
-          <p className="text-xs text-text-secondary">
-            Review submitted college identity cards, compare OCR data, approve verification access, or delete rejected records.
-          </p>
-        </div>
-
-        {/* Refresh button & Last Updated label */}
-        <div className="flex items-center gap-3 shrink-0">
-          {lastUpdated && (
-            <span className="text-[11px] font-mono text-text-muted">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </span>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={syncVerifications}
-            disabled={isRefreshing}
-            className="text-xs flex items-center gap-1.5 h-8 px-3"
-            title="Refresh verification queue"
-          >
-            <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-cyan-400" : ""}`} />
-            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
-          </Button>
-        </div>
-      </div>
+        }
+        actions={
+          <div className="flex items-center gap-3 shrink-0">
+            {lastUpdated && (
+              <span className="text-[11px] font-mono text-text-muted hidden sm:inline">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={syncVerifications}
+              disabled={isRefreshing}
+              className="text-xs flex items-center gap-1.5 h-10 px-3.5 rounded-xl"
+              title="Refresh verification queue"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-cyan-400" : ""}`} />
+              <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+            </Button>
+          </div>
+        }
+      />
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-200 animate-fade-in">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <div>
-              <p className="font-semibold text-sm text-red-300">
-                {error.isNetworkError
-                  ? "Could not reach the server. Make sure the backend is running."
-                  : error.is403
-                  ? "You do not have permission to view this page."
-                  : error.message}
-              </p>
-              <p className="text-xs text-red-400/80">
-                {error.isNetworkError
-                  ? "Unable to connect to the backend server. Please verify network connectivity and retry."
-                  : error.is403
-                  ? "Administrator privileges required to access verification queue."
-                  : "Please check your network connection and retry."}
-              </p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={syncVerifications}
-            className="border-red-500/40 text-red-300 hover:bg-red-500/20 text-xs shrink-0 flex items-center gap-1.5"
-          >
-            <RotateCw className="w-3.5 h-3.5" /> Retry
-          </Button>
-        </div>
+        <Callout
+          variant="danger"
+          icon={AlertCircle}
+          title={
+            error.isNetworkError
+              ? "Could not reach the server. Make sure the backend is running."
+              : error.is403
+              ? "You do not have permission to view this page."
+              : error.message
+          }
+          action={
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={syncVerifications}
+              className="border-red-500/40 text-red-600 dark:text-red-300 hover:bg-red-500/10 text-xs shrink-0 flex items-center gap-1.5 h-10 px-3.5 rounded-xl"
+            >
+              <RotateCw className="w-3.5 h-3.5" /> Retry
+            </Button>
+          }
+        >
+          {error.isNetworkError
+            ? "Unable to connect to the backend server. Please verify network connectivity and retry."
+            : error.is403
+            ? "Administrator privileges required to access verification queue."
+            : "Please check your network connection and retry."}
+        </Callout>
       )}
 
       {/* KPI STAT STRIP */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="p-4 bg-surface border border-amber-500/30 shadow-soft space-y-1">
+        <Card className="h-full p-4 bg-surface border border-amber-500/30 shadow-soft space-y-1">
           <span className="text-xs font-mono text-text-muted flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-amber-400" /> Pending Review
           </span>
           <p className="font-serif text-2xl font-semibold text-amber-400">{pendingCount}</p>
         </Card>
 
-        <Card className="p-4 bg-surface border border-live/30 shadow-soft space-y-1">
+        <Card className="h-full p-4 bg-surface border border-live/30 shadow-soft space-y-1">
           <span className="text-xs font-mono text-text-muted flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-live" /> Verified Accounts
           </span>
           <p className="font-serif text-2xl font-semibold text-live">{verifiedCount}</p>
         </Card>
 
-        <Card className="p-4 bg-surface border border-danger/30 shadow-soft space-y-1">
+        <Card className="h-full p-4 bg-surface border border-danger/30 shadow-soft space-y-1">
           <span className="text-xs font-mono text-text-muted flex items-center gap-1.5">
             <XCircle className="w-3.5 h-3.5 text-danger" /> Rejected
           </span>
           <p className="font-serif text-2xl font-semibold text-danger">{rejectedCount}</p>
         </Card>
 
-        <Card className="p-4 bg-surface border border-border shadow-soft space-y-1">
+        <Card className="h-full p-4 bg-surface border border-border shadow-soft space-y-1">
           <span className="text-xs font-mono text-text-muted flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" /> Total Submitted
           </span>
@@ -442,24 +438,24 @@ export const AdminVerifications: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Search Input */}
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-text-muted" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
             <Input
               placeholder="Search by student name, roll number, college, email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 text-xs"
+              className="pl-10 text-xs h-10 py-0 rounded-xl"
             />
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto tablist-scroll-container">
             {["ALL", "PENDING_VERIFICATION", "VERIFIED", "REJECTED"].map((st) => (
               <Button
                 key={st}
                 variant={selectedStatus === st ? "teal-cyan" : "ghost"}
                 size="sm"
                 onClick={() => setSelectedStatus(st)}
-                className="text-xs uppercase font-mono px-3 py-1"
+                className="text-xs uppercase font-mono px-3 py-2 rounded-lg whitespace-nowrap h-9"
               >
                 {st.replace(/_/g, " ")}
               </Button>
@@ -775,15 +771,13 @@ export const AdminVerifications: React.FC = () => {
 
                   {/* Rejection Notice Banner if already Rejected */}
                   {selectedStudent.verificationStatus === "Rejected" && selectedStudent.rejectionNotes && (
-                    <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3 text-xs">
-                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-semibold text-red-300 block">
-                          Current Status: Rejected ({selectedStudent.rejectionCategory || "Details Mismatch"})
-                        </span>
-                        <p className="text-red-200/90 font-mono mt-0.5">{selectedStudent.rejectionNotes}</p>
-                      </div>
-                    </div>
+                    <Callout
+                      variant="danger"
+                      icon={AlertCircle}
+                      title={`Current Status: Rejected (${selectedStudent.rejectionCategory || "Details Mismatch"})`}
+                    >
+                      <p className="font-mono mt-0.5">{selectedStudent.rejectionNotes}</p>
+                    </Callout>
                   )}
 
                   {/* DUAL VISUAL INSPECTION PANELS (ID CARD + STUDENT PHOTO) */}

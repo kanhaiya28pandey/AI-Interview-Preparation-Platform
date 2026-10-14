@@ -55,6 +55,9 @@ import {
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Toolbar } from "@/components/common/Toolbar";
+import { StatGrid, MetricTile } from "@/components/common/StatGrid";
 
 type AdminTab = "MONITOR" | "MANAGEMENT" | "LEADERBOARD" | "SUBMISSIONS" | "EXPORTS";
 
@@ -838,207 +841,198 @@ export const AdminLiveTests: React.FC = () => {
   return (
     <div className="w-full space-y-6 pb-16 animate-fade-in">
       {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-semibold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> Live Competitions Control Center
-            </span>
-            <Badge variant="accent" className="text-[10px] font-mono">
-              Admin Proctoring Suite
-            </Badge>
+      <PageHeader
+        icon={Radio}
+        title="Live Tests & Contest Management"
+        subtitle="Control live contests, enforce tab switch restrictions, create combined MCQ + coding assessments, import problems from LeetCode / GFG, and download verified candidate reports."
+        badge="PROCTORING SUITE"
+        accent="rose"
+        actionsPlacement="below"
+        actions={
+          <div className="w-full flex flex-col @md:flex-row @md:items-center justify-between gap-3">
+            <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono tablist-scroll-container">
+              <button
+                onClick={() => setActiveAdminTab("MONITOR")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap",
+                  activeAdminTab === "MONITOR"
+                    ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
+                    : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                <Radio className="w-3.5 h-3.5" /> Live Monitor
+              </button>
+
+              <button
+                onClick={() => setActiveAdminTab("MANAGEMENT")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap",
+                  activeAdminTab === "MANAGEMENT"
+                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
+                    : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                <Layers className="w-3.5 h-3.5" /> All Tests ({tests.length})
+              </button>
+
+              <button
+                onClick={() => setActiveAdminTab("LEADERBOARD")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap",
+                  activeAdminTab === "LEADERBOARD"
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                    : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                <Trophy className="w-3.5 h-3.5 text-amber-400" /> Leaderboard
+              </button>
+
+              <button
+                onClick={() => setActiveAdminTab("SUBMISSIONS")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap",
+                  activeAdminTab === "SUBMISSIONS"
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                    : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" /> Submissions ({submissions.length})
+              </button>
+
+              <button
+                onClick={() => setActiveAdminTab("EXPORTS")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap",
+                  activeAdminTab === "EXPORTS"
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                    : "text-text-muted hover:text-text-primary"
+                )}
+              >
+                <Download className="w-3.5 h-3.5" /> Export Reports
+              </button>
+            </div>
+
+            <Button
+              variant="teal-cyan"
+              size="sm"
+              onClick={openCreateContestModal}
+              className="text-xs font-bold gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white h-10 px-4 shrink-0"
+            >
+              <Plus className="w-4 h-4" /> Create Live Test
+            </Button>
           </div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-2.5 mt-1">
-            <Radio className="w-7 h-7 text-rose-500 animate-pulse" /> Live Tests & Contest Management
-          </h1>
-          <p className="text-xs text-text-secondary mt-0.5 max-w-3xl">
-            Control live contests, enforce tab switch restrictions, create combined MCQ + coding assessments, import problems from LeetCode / GFG, and download verified candidate reports.
-          </p>
-        </div>
-
-        {/* TOP TAB SWITCHER */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono">
-            <button
-              onClick={() => setActiveAdminTab("MONITOR")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-                activeAdminTab === "MONITOR"
-                  ? "bg-rose-500/20 text-rose-400 border border-rose-500/40"
-                  : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              <Radio className="w-3.5 h-3.5" /> Live Monitor
-            </button>
-
-            <button
-              onClick={() => setActiveAdminTab("MANAGEMENT")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-                activeAdminTab === "MANAGEMENT"
-                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
-                  : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              <Layers className="w-3.5 h-3.5" /> All Tests ({tests.length})
-            </button>
-
-            <button
-              onClick={() => setActiveAdminTab("LEADERBOARD")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-                activeAdminTab === "LEADERBOARD"
-                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                  : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              <Trophy className="w-3.5 h-3.5 text-amber-400" /> Leaderboard
-            </button>
-
-            <button
-              onClick={() => setActiveAdminTab("SUBMISSIONS")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-                activeAdminTab === "SUBMISSIONS"
-                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                  : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              <Users className="w-3.5 h-3.5" /> Submissions ({submissions.length})
-            </button>
-
-            <button
-              onClick={() => setActiveAdminTab("EXPORTS")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg transition-all font-semibold flex items-center gap-1.5",
-                activeAdminTab === "EXPORTS"
-                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                  : "text-text-muted hover:text-text-primary"
-              )}
-            >
-              <Download className="w-3.5 h-3.5" /> Export Reports
-            </button>
-          </div>
-
-          <Button
-            variant="teal-cyan"
-            size="sm"
-            onClick={openCreateContestModal}
-            className="text-xs font-bold gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
-          >
-            <Plus className="w-4 h-4" /> Create Live Test
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* TAB 1: LIVE MONITOR & REAL-TIME PROCTORING */}
       {activeAdminTab === "MONITOR" && (
         <div className="space-y-6">
           {/* Active Contest Selector & Controls Banner */}
-          <Card className="p-6 bg-surface border-border space-y-5">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-border">
-              <div className="flex items-center gap-3">
-                <select
-                  value={selectedContestId}
-                  onChange={(e) => setSelectedContestId(e.target.value)}
-                  className="bg-surface-raised border border-border rounded-xl px-3.5 py-2 text-sm font-serif font-bold text-text-primary focus:outline-none"
-                >
-                  {tests.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title} ({t.status})
-                    </option>
-                  ))}
-                </select>
+          <Card className="p-4 @md:p-6 bg-surface border-border space-y-5">
+            <Toolbar
+              align="between"
+              className="pb-4 border-b border-border"
+              left={
+                <div className="flex items-center gap-3 flex-wrap">
+                  <select
+                    value={selectedContestId}
+                    onChange={(e) => setSelectedContestId(e.target.value)}
+                    className="bg-surface-raised border border-border rounded-xl px-3.5 h-10 text-xs @md:text-sm font-serif font-bold text-text-primary focus:outline-none min-w-[200px]"
+                  >
+                    {tests.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title} ({t.status})
+                      </option>
+                    ))}
+                  </select>
 
-                <Badge
-                  variant={currentContest?.status === "Live" ? "blocked" : "medium"}
-                  className={cn(
-                    "text-[10px] font-mono uppercase flex items-center gap-1",
-                    currentContest?.status === "Live" && "bg-rose-500 text-white animate-pulse"
+                  <Badge
+                    variant={currentContest?.status === "Live" ? "blocked" : "medium"}
+                    className={cn(
+                      "text-[10px] font-mono uppercase flex items-center gap-1 h-7 px-2.5",
+                      currentContest?.status === "Live" && "bg-rose-500 text-white animate-pulse"
+                    )}
+                  >
+                    {currentContest?.status === "Live" && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                    {currentContest?.status || "Live"}
+                  </Badge>
+                </div>
+              }
+              right={
+                <div className="flex items-center gap-2 flex-wrap">
+                  {currentContest?.status === "Live" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePause(currentContest.id)}
+                      className="text-xs font-mono border-amber-500/40 text-amber-400 hover:bg-amber-500/10 h-10 px-3.5 gap-1.5"
+                    >
+                      <Pause className="w-3.5 h-3.5" /> Pause Contest
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="teal-cyan"
+                      size="sm"
+                      onClick={() => handleStartLive(currentContest.id)}
+                      className="text-xs font-mono bg-rose-600 hover:bg-rose-500 text-white h-10 px-3.5 gap-1.5"
+                    >
+                      <Play className="w-3.5 h-3.5" /> Resume / Start Live
+                    </Button>
                   )}
-                >
-                  {currentContest?.status === "Live" && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
-                  {currentContest?.status || "Live"}
-                </Badge>
-              </div>
 
-              {/* Action Buttons: Pause, Resume, Extend, Broadcast */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {currentContest?.status === "Live" ? (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handlePause(currentContest.id)}
-                    className="text-xs font-mono border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                    onClick={() => setExtendTimeModalOpen(true)}
+                    className="text-xs font-mono border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 h-10 px-3.5 gap-1.5"
                   >
-                    <Pause className="w-3.5 h-3.5 mr-1" /> Pause Contest
+                    <Clock className="w-3.5 h-3.5" /> Extend Time
                   </Button>
-                ) : (
+
                   <Button
-                    variant="teal-cyan"
+                    variant="outline"
                     size="sm"
-                    onClick={() => handleStartLive(currentContest.id)}
-                    className="text-xs font-mono bg-rose-600 hover:bg-rose-500 text-white"
+                    onClick={() => setBroadcastModalOpen(true)}
+                    className="text-xs font-mono border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 h-10 px-3.5 gap-1.5"
                   >
-                    <Play className="w-3.5 h-3.5 mr-1" /> Resume / Start Live
+                    <Send className="w-3.5 h-3.5" /> Broadcast Alert
                   </Button>
-                )}
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setExtendTimeModalOpen(true)}
-                  className="text-xs font-mono border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
-                >
-                  <Clock className="w-3.5 h-3.5 mr-1" /> Extend Time
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBroadcastModalOpen(true)}
-                  className="text-xs font-mono border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
-                >
-                  <Send className="w-3.5 h-3.5 mr-1" /> Broadcast Alert
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleComplete(currentContest.id)}
-                  className="text-xs font-mono border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                >
-                  <StopCircle className="w-3.5 h-3.5 mr-1" /> Finalize Results
-                </Button>
-              </div>
-            </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleComplete(currentContest.id)}
+                    className="text-xs font-mono border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 h-10 px-3.5 gap-1.5"
+                  >
+                    <StopCircle className="w-3.5 h-3.5" /> Finalize Results
+                  </Button>
+                </div>
+              }
+            />
 
             {/* Live Stats Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-center">
-              <div className="p-3 bg-surface-raised border border-border rounded-xl">
-                <span className="text-[10px] text-text-muted uppercase block">Clock Remaining</span>
-                <span className="text-xl font-bold text-rose-400">{formatTime(timerSeconds)}</span>
-              </div>
-
-              <div className="p-3 bg-surface-raised border border-border rounded-xl">
-                <span className="text-[10px] text-text-muted uppercase block">Registered</span>
-                <span className="text-xl font-bold text-cyan-400">{currentContest?.registeredParticipantsCount || 342}</span>
-              </div>
-
-              <div className="p-3 bg-surface-raised border border-border rounded-xl">
-                <span className="text-[10px] text-text-muted uppercase block">Active In Arena</span>
-                <span className="text-xl font-bold text-emerald-400">
-                  {participants.filter((p) => p.status === "Active" || p.status === "Warning").length}
-                </span>
-              </div>
-
-              <div className="p-3 bg-surface-raised border border-border rounded-xl">
-                <span className="text-[10px] text-text-muted uppercase block">Cheating Flags</span>
-                <span className="text-xl font-bold text-amber-400">
-                  {participants.filter((p) => p.tabSwitchCount >= 2).length}
-                </span>
-              </div>
-            </div>
+            <StatGrid columns={4}>
+              <MetricTile
+                label="Clock Remaining"
+                value={<span className="text-rose-400 font-mono">{formatTime(timerSeconds)}</span>}
+                accent="rose"
+              />
+              <MetricTile
+                label="Registered"
+                value={<span className="text-cyan-400 font-mono">{currentContest?.registeredParticipantsCount || 342}</span>}
+                accent="cyan"
+              />
+              <MetricTile
+                label="Active In Arena"
+                value={<span className="text-emerald-400 font-mono">{participants.filter((p) => p.status === "Active" || p.status === "Warning").length}</span>}
+                accent="emerald"
+              />
+              <MetricTile
+                label="Cheating Flags"
+                value={<span className="text-amber-400 font-mono">{participants.filter((p) => p.tabSwitchCount >= 2).length}</span>}
+                accent="amber"
+              />
+            </StatGrid>
           </Card>
 
           {/* Live Candidates Table */}

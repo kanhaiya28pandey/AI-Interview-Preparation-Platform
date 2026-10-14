@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { Dialog } from "@/components/ui/Dialog";
+import { PageHeader, StatTile, Highlight } from "@/components/common/PageHeader";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -439,50 +440,31 @@ export const Practice: React.FC = () => {
   return (
     <div className="space-y-8 animate-fade-in pb-16">
       {/* Top Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-              <GraduationCap className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-serif text-2xl font-bold text-text-primary tracking-tight">
-                  Practice Tracks & Assessment Arena
-                </h1>
-                <Badge variant="accent" className="font-mono text-xs">
-                  {tests.length} Available Tests
-                </Badge>
-              </div>
-              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
-                Take timed conceptual quizzes, mock tests, and AI domain interviews. Submit anytime, receive immediate score reports, and review correct answers and relative class ranks.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Global summary badge */}
-        <div className="flex items-center gap-3 bg-surface-raised/60 border border-border px-4 py-2.5 rounded-2xl self-start md:self-auto">
-          <Trophy className="w-5 h-5 text-amber-400 shrink-0" />
-          <div className="text-left">
-            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider">
-              Tests Attended
-            </div>
-            <div className="text-xs font-bold text-text-primary">
-              <span className="text-cyan-400 font-mono font-bold">
-                {submissions.length}
-              </span>{" "}
-              Completed Evaluations
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={BookOpen}
+        title="Practice Tracks & Assessment Arena"
+        subtitle="Take timed conceptual quizzes, mock tests, and AI domain interviews. Submit anytime, receive immediate score reports, and review correct answers and relative class ranks."
+        badge={`${tests.length} AVAILABLE TESTS`}
+        accent="cyan"
+        actions={
+          <StatTile
+            icon={Trophy}
+            label="TESTS ATTENDED"
+            value={
+              <>
+                <Highlight>{submissions.length}</Highlight> Completed Evaluations
+              </>
+            }
+            accent="cyan"
+          />
+        }
+      />
 
       {/* DOMAIN SELECTION GRID - High Clear Visibility (No Horizontal Strip) */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-text-muted font-mono flex items-center gap-1.5">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-text-primary font-mono flex items-center gap-1.5">
               <Target className="w-4 h-4 text-cyan-400" /> Explore Tests by Domain
             </h2>
           </div>
@@ -508,7 +490,7 @@ export const Practice: React.FC = () => {
               <div
                 key={dom.id}
                 onClick={() => handleSelectDomain(isSelected ? "ALL" : dom.slug)}
-                className={`relative p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 group ${
+                className={`h-full relative p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 group flex flex-col justify-between ${
                   isSelected
                     ? "bg-surface-raised border-cyan-400/80 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400/50"
                     : "bg-surface border-border hover:border-cyan-500/40 hover:bg-surface-raised/50"
@@ -566,7 +548,7 @@ export const Practice: React.FC = () => {
       {/* FILTER & CONTROLS BAR */}
       <div className="space-y-3">
         {/* Type Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs tablist-scroll-container">
           {[
             { id: "ALL", label: "All Tests" },
             { id: "QUIZ", label: "MCQ Quizzes", icon: HelpCircle },
@@ -581,7 +563,7 @@ export const Practice: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setTypeFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1.5 shrink-0 ${
+                className={`h-9 px-3.5 rounded-xl font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                   isSelected
                     ? "bg-cyan-500 text-black font-semibold shadow-sm"
                     : "bg-surface border border-border text-text-muted hover:text-text-primary hover:bg-surface-raised"
@@ -597,22 +579,22 @@ export const Practice: React.FC = () => {
         {/* Search & Difficulty */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3 rounded-2xl border border-border">
           <div className="relative w-full sm:w-72">
-            <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search tests, topics, keywords..."
-              className="w-full pl-9 pr-3 py-1.5 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400"
+              className="w-full pl-10 pr-3.5 h-10 bg-surface-raised border border-border rounded-xl text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400"
             />
           </div>
 
-          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono self-start sm:self-auto">
+          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono self-start sm:self-auto h-10 items-center">
             {["ALL", "EASY", "MEDIUM", "HARD"].map((diff) => (
               <button
                 key={diff}
                 onClick={() => setDifficultyFilter(diff)}
-                className={`px-3 py-1 rounded-lg transition-colors ${
+                className={`h-8 px-3 rounded-lg transition-colors flex items-center justify-center ${
                   difficultyFilter === diff
                     ? "bg-gradient-to-r from-teal-500 to-cyan-400 text-[#0d1321] font-semibold shadow-sm"
                     : "text-text-muted hover:text-text-primary"

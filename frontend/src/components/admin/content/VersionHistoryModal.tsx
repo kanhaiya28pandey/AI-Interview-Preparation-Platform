@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { ContentItem } from "@/services/contentManagerService";
+import { Callout } from "@/components/common/Callout";
 
 interface VersionHistoryModalProps {
   item: ContentItem | null;
@@ -67,17 +68,20 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
         </div>
 
         {/* Current Active Version Banner */}
-        <div className="p-3.5 sm:p-4 bg-cyan-500/10 border-b border-cyan-500/20 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
-            <span className="font-semibold text-cyan-300">
-              Current Live Version: v{item.version}
+        <Callout
+          variant="info"
+          className="rounded-none border-x-0 border-t-0 border-b shrink-0"
+          icon={<CheckCircle2 className="w-4 h-4 shrink-0" />}
+          actions={
+            <span className="text-text-muted font-mono text-[11px]">
+              Last Updated: {new Date(item.updatedAt).toLocaleString()}
             </span>
-          </div>
-          <span className="text-text-muted font-mono text-[11px]">
-            Last Updated: {new Date(item.updatedAt).toLocaleString()}
+          }
+        >
+          <span className="font-semibold">
+            Current Live Version: v{item.version}
           </span>
-        </div>
+        </Callout>
 
         {/* Versions List */}
         <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-3 custom-scrollbar">
