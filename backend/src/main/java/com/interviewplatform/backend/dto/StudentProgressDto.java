@@ -8,9 +8,11 @@ import com.interviewplatform.backend.model.TeacherNote;
 
 public class StudentProgressDto {
     private String id;
+    private String userId;
     private String name;
     private String rollNumber;
     private String email;
+    private String role = "STUDENT";
     private String avatarUrl;
     private String college;
     private String course;
@@ -50,6 +52,12 @@ public class StudentProgressDto {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
