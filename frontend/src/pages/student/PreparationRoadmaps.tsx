@@ -37,6 +37,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getScopedItem, setScopedItem } from "@/lib/userScope";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { Domain, RoadmapWeek, RoadmapTask } from "@/lib/taxonomy";
+import { PageHeader, StatTile, Highlight } from "@/components/common/PageHeader";
 
 // Dynamic icon resolver
 const getDomainIcon = (iconName: string) => {
@@ -186,42 +187,26 @@ export const PreparationRoadmaps: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fade-in pb-16">
-      {/* Top Header Banner with Readable Backdrop */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-surface-raised/40 border border-border/40 backdrop-blur-sm shadow-xs">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-              <Compass className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-serif text-2xl font-bold text-text-primary tracking-tight">
-                  Placement Preparation Roadmaps
-                </h1>
-                <Badge variant="accent" className="font-mono text-xs font-semibold">
-                  {domains.length} Career Tracks
-                </Badge>
-              </div>
-              <p className="text-xs sm:text-sm text-text-secondary font-medium mt-0.5">
-                Comprehensive beginner-to-advanced placement curricula tailored for engineering roles and company recruitment rounds.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Progress pill */}
-        <div className="flex items-center gap-3 bg-surface-raised/80 border border-border px-4 py-2.5 rounded-2xl self-start md:self-auto shrink-0 shadow-xs">
-          <GraduationCap className="w-5 h-5 text-cyan-400 shrink-0" />
-          <div className="text-left">
-            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider font-semibold">
-              Total Milestones Solved
-            </div>
-            <div className="text-xs font-bold text-text-primary">
-              <span className="text-cyan-400">{completedTaskIds.length}</span> Tasks Completed Across Tracks
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Top Header Banner */}
+      <PageHeader
+        icon={Compass}
+        title="Placement Preparation Roadmaps"
+        subtitle="Comprehensive beginner-to-advanced placement curricula tailored for engineering roles and company recruitment rounds."
+        badge={`${domains.length} CAREER TRACKS`}
+        accent="cyan"
+        actions={
+          <StatTile
+            icon={GraduationCap}
+            label="TOTAL MILESTONES SOLVED"
+            value={
+              <>
+                <Highlight>{completedTaskIds.length}</Highlight> Tasks Completed Across Tracks
+              </>
+            }
+            accent="cyan"
+          />
+        }
+      />
 
       {/* DOMAIN SELECTION GRID - Full Clear Visibility with Readable Backdrop */}
       <div>
@@ -246,7 +231,7 @@ export const PreparationRoadmaps: React.FC = () => {
               <div
                 key={dom.id}
                 onClick={() => setSelectedSlug(dom.slug)}
-                className={`relative p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 group ${
+                className={`h-full relative p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 group flex flex-col justify-between ${
                   isSelected
                     ? "bg-surface-raised border-cyan-400/80 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400/50"
                     : "bg-surface border-border hover:border-cyan-500/40 hover:bg-surface-raised/60"
@@ -412,7 +397,7 @@ export const PreparationRoadmaps: React.FC = () => {
                 <button
                   key={f.id}
                   onClick={() => setTaskFilter(f.id)}
-                  className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors h-8 flex items-center justify-center ${
                     taskFilter === f.id
                       ? "bg-cyan-500 text-black font-semibold shadow-sm"
                       : "text-text-muted hover:text-text-primary hover:bg-surface-raised"
@@ -425,13 +410,13 @@ export const PreparationRoadmaps: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filter tasks..."
-                  className="pl-8 pr-3 py-1 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 w-36 sm:w-44"
+                  className="pl-8 pr-3 h-8 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 w-36 sm:w-44"
                 />
               </div>
 
@@ -439,7 +424,7 @@ export const PreparationRoadmaps: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={expandedWeeks.length === (activeDomain.weeks?.length || 0) ? collapseAll : expandAll}
-                className="text-xs h-7 border-border hover:bg-surface-raised"
+                className="text-xs h-8 px-3 border-border hover:bg-surface-raised rounded-xl"
               >
                 {expandedWeeks.length === (activeDomain.weeks?.length || 0) ? "Collapse All" : "Expand All"}
               </Button>

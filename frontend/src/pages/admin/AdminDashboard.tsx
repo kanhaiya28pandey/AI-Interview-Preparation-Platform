@@ -10,8 +10,9 @@ import { StatCard } from "@/components/common/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CardSkeleton } from "@/components/common/Skeletons";
-import { Users, Video, Code2, ShieldAlert, FileText, ExternalLink, Sparkles, Radio } from "lucide-react";
+import { Users, Video, Code2, ShieldAlert, FileText, ExternalLink, Sparkles, Radio, LayoutDashboard } from "lucide-react";
 import { Reveal } from "@/components/fx";
+import { PageHeader } from "@/components/common/PageHeader";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -143,15 +144,24 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 pb-24">
-      <Reveal direction="up" duration={0.5}>
-        <div>
-          <h2 className="font-serif text-2xl font-medium text-text-primary">Platform Admin Dashboard</h2>
-          <p className="text-xs text-text-secondary">
-            Live real-time operational overview. Metrics dynamically recalculate as candidate accounts, benchmarks, and interviews change.
-          </p>
-        </div>
-      </Reveal>
+    <div className="space-y-8 pb-8">
+      <PageHeader
+        icon={LayoutDashboard}
+        title="Platform Admin Dashboard"
+        subtitle="Live real-time operational overview. Metrics dynamically recalculate as candidate accounts, benchmarks, and interviews change."
+        badge="SYSTEM OVERVIEW"
+        accent="cyan"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/admin/reports")}
+            className="text-xs font-mono font-semibold gap-1.5 h-10 px-4 rounded-xl border border-border hover:border-cyan-400/50 hover:bg-surface-raised"
+          >
+            <FileText className="w-3.5 h-3.5 text-cyan-400" /> System Reports
+          </Button>
+        }
+      />
 
       {/* Dynamically Computed KPI Stat Cards */}
       <motion.div

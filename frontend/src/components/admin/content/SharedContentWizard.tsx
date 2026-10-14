@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { Callout } from "@/components/common/Callout";
 import { ContentItem, ContentType, ContentStatus, contentManagerService } from "@/services/contentManagerService";
 
 // Type specific editors
@@ -570,10 +571,9 @@ export const SharedContentWizard: React.FC<SharedContentWizardProps> = ({
                 </div>
 
                 {selectedTopics.length === 0 && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>Please pick or add at least 1 topic to proceed.</span>
-                  </div>
+                  <Callout variant="warning" icon={AlertCircle}>
+                    Please pick or add at least 1 topic to proceed.
+                  </Callout>
                 )}
               </div>
             )}

@@ -42,6 +42,10 @@ import {
   contentManagerService,
 } from "@/services/contentManagerService";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Callout } from "@/components/common/Callout";
+import { StatGrid, MetricTile } from "@/components/common/StatGrid";
+import { FilterBar, FilterSearch, FilterSelect } from "@/components/common/FilterBar";
 
 export const ContentManagerHub: React.FC = () => {
   const { domains } = useTaxonomy();
@@ -422,94 +426,62 @@ export const ContentManagerHub: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in pb-16">
       {/* Top Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
-                  MCQ Quizzes & Assessments Manager
-                </h1>
-                <Badge variant="accent" className="font-mono text-xs">
-                  {items.length} Active Quizzes
-                </Badge>
-              </div>
-              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
-                AI-synthesize domain-strict quizzes, choose multiple topics, customize timers & difficulty, import questions, and inspect student performance analytics.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
+      <PageHeader
+        icon={Layers}
+        title="MCQ Quizzes & Assessments Manager"
+        subtitle="AI-synthesize domain-strict quizzes, choose multiple topics, customize timers & difficulty, import questions, and inspect student performance analytics."
+        badge={`${items.length} ACTIVE QUIZZES`}
+        accent="cyan"
+        actions={
           <Button
             onClick={() => {
               setCreateMode("AI");
               setShowCreateModal(true);
             }}
-            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-4 py-2 flex items-center gap-1.5 shadow-md shadow-cyan-500/20"
+            className="h-10 px-4 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-500 hover:from-teal-500 hover:to-cyan-400 text-white font-semibold text-xs flex items-center gap-2 shadow-md shadow-cyan-500/25 transition-all cursor-pointer border-none"
           >
-            <Sparkles className="w-3.5 h-3.5 fill-black" />
-            + Create / Synthesize MCQ Quiz
+            <Sparkles className="w-4 h-4 text-white fill-none" />
+            <span>Create / Synthesize MCQ Quiz</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary Telemetry Metrics Banner */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-          <div className="bg-surface p-4 rounded-2xl border border-border">
-            <span className="text-[11px] font-mono text-text-muted uppercase tracking-wider block">
-              Total MCQ Quizzes
-            </span>
-            <div className="text-xl font-bold text-text-primary font-mono mt-1">
-              {summary.totalItems}
-            </div>
-          </div>
-
-          <div className="bg-surface p-4 rounded-2xl border border-border">
-            <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider block">
-              Active / Published
-            </span>
-            <div className="text-xl font-bold text-emerald-400 font-mono mt-1">
-              {summary.totalPublished}
-            </div>
-          </div>
-
-          <div className="bg-surface p-4 rounded-2xl border border-border">
-            <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider block">
-              Paused / Draft
-            </span>
-            <div className="text-xl font-bold text-amber-400 font-mono mt-1">
-              {summary.totalDrafts}
-            </div>
-          </div>
-
-          <div className="bg-surface p-4 rounded-2xl border border-border">
-            <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider block">
-              Total Student Attempts
-            </span>
-            <div className="text-xl font-bold text-cyan-400 font-mono mt-1 flex items-center gap-1">
-              <Users className="w-4 h-4" /> {summary.totalAttendees}
-            </div>
-          </div>
-
-          <div className="bg-surface p-4 rounded-2xl border border-border col-span-2 sm:col-span-1">
-            <span className="text-[11px] font-mono text-purple-400 uppercase tracking-wider block">
-              Avg Pass Rate
-            </span>
-            <div className="text-xl font-bold text-purple-400 font-mono mt-1">
-              {summary.avgPlatformPassRate}%
-            </div>
-          </div>
-        </div>
+        <StatGrid columns={5}>
+          <MetricTile
+            label="Total MCQ Quizzes"
+            value={summary.totalItems}
+          />
+          <MetricTile
+            label="Active / Published"
+            value={summary.totalPublished}
+            accent="emerald"
+            icon={CheckCircle2}
+          />
+          <MetricTile
+            label="Paused / Draft"
+            value={summary.totalDrafts}
+            accent="amber"
+            icon={Clock}
+          />
+          <MetricTile
+            label="Total Student Attempts"
+            value={summary.totalAttendees}
+            accent="cyan"
+            icon={Users}
+          />
+          <MetricTile
+            label="Avg Pass Rate"
+            value={`${summary.avgPlatformPassRate}%`}
+            accent="violet"
+            icon={Percent}
+          />
+        </StatGrid>
       )}
 
       {/* Domain Quick Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border text-xs">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border text-xs tablist-scroll-container">
         <button
           onClick={() => setDomainFilter("ALL")}
           className={`pb-2.5 px-3 font-medium transition-colors shrink-0 border-b-2 ${
@@ -546,46 +518,30 @@ export const ContentManagerHub: React.FC = () => {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-surface p-3 rounded-2xl border border-border">
-        {/* Search */}
-        <div className="relative">
-          <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search quizzes by title, topics..."
-            className="w-full pl-9 pr-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400"
-          />
-        </div>
-
-        {/* Difficulty Filter */}
-        <div>
-          <select
-            value={difficultyFilter}
-            onChange={(e) => setDifficultyFilter(e.target.value)}
-            className="w-full px-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400"
-          >
-            <option value="ALL">All Difficulties</option>
-            <option value="Easy">Easy</option>
-            <option value="Medium">Medium</option>
-            <option value="Hard">Hard</option>
-          </select>
-        </div>
-
-        {/* Status Filter */}
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full px-3 py-2 bg-surface-raised border border-border rounded-xl text-xs text-text-primary focus:outline-none focus:border-cyan-400"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="PUBLISHED">Active / Published</option>
-            <option value="DRAFT">Paused / Draft</option>
-          </select>
-        </div>
-      </div>
+      <FilterBar>
+        <FilterSearch
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search quizzes by title, topics..."
+        />
+        <FilterSelect
+          value={difficultyFilter}
+          onChange={(e) => setDifficultyFilter(e.target.value)}
+        >
+          <option value="ALL">All Difficulties</option>
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </FilterSelect>
+        <FilterSelect
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="PUBLISHED">Active / Published</option>
+          <option value="DRAFT">Paused / Draft</option>
+        </FilterSelect>
+      </FilterBar>
 
       {/* Tests Grid */}
       {isLoading ? (
@@ -1271,10 +1227,9 @@ export const ContentManagerHub: React.FC = () => {
               />
 
               {importError && (
-                <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-400 text-xs font-mono flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  {importError}
-                </div>
+                <Callout variant="danger" icon={AlertTriangle}>
+                  <span className="font-mono">{importError}</span>
+                </Callout>
               )}
 
               <div className="flex justify-end gap-2 pt-2 border-t border-border">

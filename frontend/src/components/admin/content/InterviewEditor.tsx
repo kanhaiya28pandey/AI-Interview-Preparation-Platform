@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, Trash2, Sparkles, UserCheck, Sliders, MessageSquare, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { contentManagerService } from "@/services/contentManagerService";
+import { Callout } from "@/components/common/Callout";
 
 export interface InterviewQuestionItem {
   id: string;
@@ -304,9 +305,12 @@ export const InterviewEditor: React.FC<InterviewEditorProps> = ({
           </div>
 
           {aiMsg && (
-            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs text-cyan-300">
-              {aiMsg}
-            </div>
+            <Callout
+              variant="ai"
+              size="sm"
+            >
+              <span>{aiMsg}</span>
+            </Callout>
           )}
 
           {/* Manual Question Form */}

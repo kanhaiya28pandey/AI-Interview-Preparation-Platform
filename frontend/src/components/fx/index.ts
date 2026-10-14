@@ -9,8 +9,6 @@ export * from "./Typewriter";
 export * from "./Confetti";
 export * from "./CursorGlow";
 export * from "./TopProgressBar";
-export * from "./QuickActions";
-export * from "./AIHelperBubble";
 // Step 3: Pointer intelligence
 export * from "./CursorSpotlight";
 export * from "./SpotlightCard";

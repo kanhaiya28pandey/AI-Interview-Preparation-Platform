@@ -28,6 +28,7 @@ import {
   Box,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Callout } from "@/components/common/Callout";
 
 export const AppearanceSettingsCard: React.FC = () => {
   const tourCtx = (() => {
@@ -284,10 +285,13 @@ export const AppearanceSettingsCard: React.FC = () => {
         </div>
 
         {osReducedMotion && (
-          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] flex items-center gap-2">
-            <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+          <Callout
+            variant="warning"
+            size="sm"
+            icon={<Info className="w-3.5 h-3.5 shrink-0" />}
+          >
             <span>Operating system reduced motion is active. Motion is minimized by default, but you can choose another style manually.</span>
-          </div>
+          </Callout>
         )}
 
         <div

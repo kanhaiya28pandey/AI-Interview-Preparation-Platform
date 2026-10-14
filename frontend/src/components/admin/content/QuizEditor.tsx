@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { QuizQuestionItem, contentManagerService } from "@/services/contentManagerService";
+import { Callout } from "@/components/common/Callout";
 
 interface QuizEditorProps {
   subject: string;
@@ -238,10 +239,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           </div>
 
           {duplicateWarning && (
-            <div className="flex items-center gap-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <Callout variant="warning" icon={AlertCircle}>
               <span>Duplicate Warning: A very similar question statement already exists in this quiz.</span>
-            </div>
+            </Callout>
           )}
 
           {showCode && (
@@ -424,10 +424,13 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           </div>
 
           {aiMessage && (
-            <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs text-cyan-300 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-cyan-400" />
+            <Callout
+              variant="success"
+              size="sm"
+              icon={<CheckCircle2 className="w-4 h-4 shrink-0" />}
+            >
               <span>{aiMessage}</span>
-            </div>
+            </Callout>
           )}
 
           <div className="flex gap-2">
@@ -562,14 +565,15 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
 
               {/* Error messages if any */}
               {importResult.errors?.length > 0 && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs space-y-1">
-                  <span className="font-semibold text-red-400">Row Validation Errors:</span>
-                  {importResult.errors.map((err: any, i: number) => (
-                    <div key={i} className="text-red-300">
-                      Row {err.row}: {err.error}
-                    </div>
-                  ))}
-                </div>
+                <Callout variant="danger" icon={AlertCircle} title="Row Validation Errors:">
+                  <div className="space-y-0.5">
+                    {importResult.errors.map((err: any, i: number) => (
+                      <div key={i}>
+                        Row {err.row}: {err.error}
+                      </div>
+                    ))}
+                  </div>
+                </Callout>
               )}
             </div>
           )}

@@ -5,10 +5,19 @@ export function isDemoSession(): boolean {
   return isMockMode();
 }
 
-const API_BASE_URL =
+/**
+ * In development, if VITE_API_BASE_URL (or VITE_API_URL) is not explicitly configured,
+ * default to "" (relative) so requests hit the Vite proxy (`/api`) and avoid CORS entirely.
+ * In production or when explicitly set, use the configured URL.
+ */
+const configuredApiUrl = (
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
-  "";
+  ""
+).trim();
+
+export const API_BASE_URL =
+  import.meta.env.DEV && !configuredApiUrl ? "" : configuredApiUrl;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -62,5 +71,24 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+/**
+ * Health check helper for development / status diagnostics.
+ * Uses a short timeout (2.5s) so the UI never hangs.
+ */
+export async function checkBackendHealth(): Promise<{ ok: boolean; status?: number; error?: string }> {
+  try {
+    const res = await api.get("/api/health", { timeout: 2500 });
+    return { ok: res.status >= 200 && res.status < 400, status: res.status };
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      // If we received an HTTP response (even 404, 401, or 403), the server is UP and reachable!
+      if (err.response) {
+        return { ok: true, status: err.response.status };
+      }
+      return { ok: false, error: err.message || "Network Error" };
+    }
+    return { ok: false, error: "Network Error" };
+  }
+}
 
+export default api;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { CardSkeleton } from "@/components/common/Skeletons";
+import { Callout } from "@/components/common/Callout";
 import {
   Video,
   Code2,
@@ -321,57 +322,52 @@ export const StudentDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 w-full max-w-[1600px] mx-auto select-none pb-24">
+    <div className="space-y-6 w-full max-w-[1600px] mx-auto select-none pb-8">
       {/* 0. Identity Verification Notice Banner (If not Verified) */}
       {verifStatus !== "Verified" && (
-        <div
-          className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-md transition-all ${
-            verifStatus === "Pending Verification"
-              ? "bg-amber-500/10 border-amber-500/40 text-amber-200"
-              : verifStatus === "Rejected"
-              ? "bg-danger-bg border-danger/40 text-danger"
-              : "bg-cyan-500/10 border-cyan-500/40 text-cyan-200"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            {verifStatus === "Pending Verification" ? (
-              <Clock className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
-            ) : verifStatus === "Rejected" ? (
-              <AlertTriangle className="w-5 h-5 text-danger shrink-0" />
-            ) : (
-              <ShieldAlert className="w-5 h-5 text-cyan-400 shrink-0" />
-            )}
-            <div>
-              <span className="font-semibold text-sm block">
-                {verifStatus === "Pending Verification"
-                  ? "Identity Verification Under Campus Review"
-                  : verifStatus === "Rejected"
-                  ? "Identity Verification Action Required"
-                  : "College ID Verification Required"}
-              </span>
-              <p className="text-[11px] opacity-90 leading-relaxed font-sans">
-                {verifStatus === "Pending Verification"
-                  ? `Your College ID (Ref: ${verifSub?.verificationId || "VER-2026"}) is being reviewed. Platform modules will unlock automatically once verified.`
-                  : verifStatus === "Rejected"
-                  ? `Submission notes: ${verifSub?.rejectionNotes || "Document unreadable"}. Please upload a clearer copy.`
-                  : "Upload your valid College ID to unlock the Coding Arena, AI Mock Interviews, and Contests."}
-              </p>
-            </div>
-          </div>
-
-          <Button
-            variant={verifStatus === "Rejected" ? "danger" : "teal-cyan"}
-            size="sm"
-            onClick={() => navigate("/verify-identity")}
-            className="text-xs shrink-0 font-semibold"
-          >
-            {verifStatus === "Rejected"
-              ? "Resubmit ID Card"
+        <Callout
+          variant={
+            verifStatus === "Rejected"
+              ? "danger"
               : verifStatus === "Pending Verification"
-              ? "Check Status"
-              : "Verify College ID"}
-          </Button>
-        </div>
+              ? "warning"
+              : "info"
+          }
+          icon={
+            verifStatus === "Pending Verification"
+              ? Clock
+              : verifStatus === "Rejected"
+              ? AlertTriangle
+              : ShieldAlert
+          }
+          title={
+            verifStatus === "Pending Verification"
+              ? "Identity Verification Under Campus Review"
+              : verifStatus === "Rejected"
+              ? "Identity Verification Action Required"
+              : "College ID Verification Required"
+          }
+          action={
+            <Button
+              variant={verifStatus === "Rejected" ? "danger" : "teal-cyan"}
+              size="sm"
+              onClick={() => navigate("/verify-identity")}
+              className="text-xs shrink-0 font-semibold"
+            >
+              {verifStatus === "Rejected"
+                ? "Resubmit ID Card"
+                : verifStatus === "Pending Verification"
+                ? "Check Status"
+                : "Verify College ID"}
+            </Button>
+          }
+        >
+          {verifStatus === "Pending Verification"
+            ? `Your College ID (Ref: ${verifSub?.verificationId || "VER-2026"}) is being reviewed. Platform modules will unlock automatically once verified.`
+            : verifStatus === "Rejected"
+            ? `Submission notes: ${verifSub?.rejectionNotes || "Document unreadable"}. Please upload a clearer copy.`
+            : "Upload your valid College ID to unlock the Coding Arena, AI Mock Interviews, and Contests."}
+        </Callout>
       )}
 
       {/* SECTION 1: WELCOME BANNER (Personalized greeting by time of day + primary action) */}
@@ -395,14 +391,14 @@ export const StudentDashboard: React.FC = () => {
                 <span className="font-semibold">{currentStreak}</span>
                 <span>Day Streak · Placement Momentum</span>
               </div>
-              <h1 className="font-serif text-2xl sm:text-4xl font-medium text-text-primary tracking-tight">
+              <h1 className="font-serif font-bold tracking-tight text-text-primary text-2xl sm:text-3xl leading-tight">
                 {greeting.emoji} {greeting.text},{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-300">
                   {user?.name || "Student"}
                 </span>
                 !
               </h1>
-              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed font-sans max-w-xl">
+              <p className="mt-1.5 text-sm sm:text-[15px] leading-relaxed text-text-secondary max-w-xl">
                 {averageScore > 0
                   ? `Your placement readiness index is standing at ${averageScore}%. Ready for today's simulated mock round?`
                   : "Welcome to your placement preparation cockpit. Complete today's targets to climb the campus leaderboard."}
@@ -455,107 +451,114 @@ export const StudentDashboard: React.FC = () => {
         </div>
       </Reveal>
 
+      {/* DAILY MOTIVATION SECTION (Between Greeting Hero & KPI Stats) */}
+      <Reveal direction="up" delay={0.1}>
+        <QuoteCard />
+      </Reveal>
+
       {/* SECTION 2: STATS ROW (5 animated cards with distinct colors) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Card 1: Day Streak (Amber / Flame) */}
-        <Card className="p-5 bg-surface border border-amber-500/30 hover:border-amber-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider font-semibold">
-              Day Streak
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
-              <Flame className="w-4 h-4 fill-amber-400" />
+      <Reveal direction="up" delay={0.2}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Card 1: Day Streak (Amber / Flame) */}
+          <Card className="p-5 bg-surface border border-amber-500/30 hover:border-amber-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono text-amber-400 uppercase tracking-wider font-semibold">
+                Day Streak
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
+                <Flame className="w-4 h-4 fill-amber-400" />
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <b className="font-serif text-3xl font-semibold text-text-primary block">
-              <AnimatedCounter value={currentStreak} suffix=" Days" />
-            </b>
-            <p className="text-[11px] text-text-muted mt-0.5">Daily practice momentum</p>
-          </div>
-        </Card>
-
-        {/* Card 2: XP / Level with progress bar (Violet / Purple) */}
-        <Card className="p-5 bg-surface border border-purple-500/30 hover:border-purple-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono text-purple-300 uppercase tracking-wider font-semibold">
-              Level {currentLevel}
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-300 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 space-y-1.5">
-            <div className="flex justify-between items-baseline">
-              <b className="font-serif text-2xl font-semibold text-text-primary">
-                <AnimatedCounter value={currentXP} suffix=" XP" />
+            <div className="mt-3">
+              <b className="font-serif text-3xl font-semibold text-text-primary block">
+                <AnimatedCounter value={currentStreak} suffix=" Days" />
               </b>
-              <span className="text-[10px] font-mono text-purple-300">{levelProgress}%</span>
+              <p className="text-[11px] text-text-muted mt-0.5">Daily practice momentum</p>
             </div>
-            <Progress value={levelProgress} color="accent" className="h-1.5" />
-          </div>
-        </Card>
+          </Card>
 
-        {/* Card 3: Interviews Completed (Teal / Cyan) */}
-        <Card className="p-5 bg-surface border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
-              Interviews
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center">
-              <Video className="w-4 h-4" />
+          {/* Card 2: XP / Level with progress bar (Violet / Purple) */}
+          <Card className="p-5 bg-surface border border-purple-500/30 hover:border-purple-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono text-purple-300 uppercase tracking-wider font-semibold">
+                Level {currentLevel}
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-300 flex items-center justify-center">
+                <Sparkles className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <b className="font-serif text-3xl font-semibold text-text-primary block">
-              <AnimatedCounter value={totalMockInterviews} />
-            </b>
-            <p className="text-[11px] text-text-muted mt-0.5">AI mock rounds completed</p>
-          </div>
-        </Card>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <b className="font-serif text-2xl font-semibold text-text-primary">
+                  <AnimatedCounter value={currentXP} suffix=" XP" />
+                </b>
+                <span className="text-[10px] font-mono text-purple-300">{levelProgress}%</span>
+              </div>
+              <Progress value={levelProgress} color="accent" className="h-1.5" />
+            </div>
+          </Card>
 
-        {/* Card 4: Problems Solved (Indigo) */}
-        <Card className="p-5 bg-surface border border-indigo-500/30 hover:border-indigo-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono text-indigo-400 uppercase tracking-wider font-semibold">
-              Problems
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
-              <Code2 className="w-4 h-4" />
+          {/* Card 3: Interviews Completed (Teal / Cyan) */}
+          <Card className="p-5 bg-surface border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono text-cyan-400 uppercase tracking-wider font-semibold">
+                Interviews
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center">
+                <Video className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <b className="font-serif text-3xl font-semibold text-text-primary block">
-              <AnimatedCounter value={totalCodingSolved} />
-            </b>
-            <p className="text-[11px] text-text-muted mt-0.5">Algorithmic benchmarks</p>
-          </div>
-        </Card>
+            <div className="mt-3">
+              <b className="font-serif text-3xl font-semibold text-text-primary block">
+                <AnimatedCounter value={totalMockInterviews} />
+              </b>
+              <p className="text-[11px] text-text-muted mt-0.5">AI mock rounds completed</p>
+            </div>
+          </Card>
 
-        {/* Card 5: Average Score (Emerald / Green) */}
-        <Card className="p-5 bg-surface border border-emerald-500/30 hover:border-emerald-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
-              Average Score
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
-              <Award className="w-4 h-4" />
+          {/* Card 4: Problems Solved (Indigo) */}
+          <Card className="p-5 bg-surface border border-indigo-500/30 hover:border-indigo-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono text-indigo-400 uppercase tracking-wider font-semibold">
+                Problems
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+                <Code2 className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div className="mt-3">
-            <b className="font-serif text-3xl font-semibold text-text-primary block">
-              {averageScore > 0 ? (
-                <AnimatedCounter value={averageScore} suffix="%" />
-              ) : (
-                <span className="text-xl text-text-muted">No data</span>
-              )}
-            </b>
-            <p className="text-[11px] text-text-muted mt-0.5">
-              {averageScore > 0 ? "Placement percentile" : "Take mock to score"}
-            </p>
-          </div>
-        </Card>
-      </div>
+            <div className="mt-3">
+              <b className="font-serif text-3xl font-semibold text-text-primary block">
+                <AnimatedCounter value={totalCodingSolved} />
+              </b>
+              <p className="text-[11px] text-text-muted mt-0.5">Algorithmic benchmarks</p>
+            </div>
+          </Card>
+
+          {/* Card 5: Average Score (Emerald / Green) */}
+          <Card className="p-5 bg-surface border border-emerald-500/30 hover:border-emerald-400/60 shadow-sm transition-[border-color,box-shadow] flex flex-col justify-between group">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
+                Average Score
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                <Award className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <b className="font-serif text-3xl font-semibold text-text-primary block">
+                {averageScore > 0 ? (
+                  <AnimatedCounter value={averageScore} suffix="%" />
+                ) : (
+                  <span className="text-xl text-text-muted">No data</span>
+                )}
+              </b>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                {averageScore > 0 ? "Placement percentile" : "Take mock to score"}
+              </p>
+            </div>
+          </Card>
+        </div>
+      </Reveal>
 
       {/* SECTION 3 & 4: DAILY GOAL RING + ANALYTICS (Weekly chart + Skill Radar) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -973,9 +976,9 @@ export const StudentDashboard: React.FC = () => {
             ))}
           </div>
 
-          <div className="mt-3.5 p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between text-xs font-mono">
+          <div className="mt-3.5 p-2.5 rounded-xl bg-surface-raised border border-border flex items-center justify-between text-xs font-mono">
             <span className="text-text-secondary">Your Current Standing:</span>
-            <span className="text-cyan-400 font-bold">Top 8% percentile</span>
+            <span className="text-accent-bright font-bold">Top 8% percentile</span>
           </div>
         </Card>
       </div>
@@ -1100,11 +1103,6 @@ export const StudentDashboard: React.FC = () => {
           Completed rounds sync automatically with your placement profile
         </p>
       </Card>
-
-      {/* DAILY MOTIVATION SECTION (Bottom Position) */}
-      <Reveal direction="up" delay={0.1}>
-        <QuoteCard />
-      </Reveal>
     </div>
   );
 };

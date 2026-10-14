@@ -11,6 +11,7 @@ import { useVerificationStatus } from "@/hooks/useVerificationStatus";
 import { ShieldAlert, Clock, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { getRouteMeta } from "@/lib/routeMeta";
 
 const STORAGE_KEY = "sidebar_collapsed_student";
 
@@ -79,25 +80,7 @@ export const StudentLayout: React.FC = () => {
     };
   }, []);
 
-  const getTitle = () => {
-    switch (location.pathname) {
-      case "/dashboard": return "Student Dashboard";
-      case "/preparation": return "Prep Roadmaps";
-      case "/practice": return "Practice Tracks";
-      case "/articles": return "Articles & Guides";
-      case "/coding": return "Coding Arena";
-      case "/live-tests": return "Live Tests & Contests";
-      case "/mock-interview": return "AI Mock Interview";
-      case "/quiz": return "MCQ Quizzes";
-      case "/resume-analyzer": return "Resume Analyzer";
-      case "/leaderboard": return "Campus Leaderboard";
-      case "/profile": return "My Profile";
-      case "/settings": return "Settings";
-      case "/help": return "Help & Support";
-      default: return "Dashboard";
-    }
-  };
-
+  const routeMeta = getRouteMeta(location.pathname);
   const { backgroundStyle } = useAppearance();
 
   return (
@@ -121,7 +104,7 @@ export const StudentLayout: React.FC = () => {
         {/* Topbar: shrink-0 keeps it at its natural height, no sticky needed */}
         <Topbar
           onOpenMobileSidebar={() => setMobileOpen(true)}
-          title={getTitle()}
+          title={routeMeta.title}
           isSidebarCollapsed={isCollapsed}
           onToggleSidebarCollapse={toggleCollapsed}
         />
@@ -165,7 +148,7 @@ export const StudentLayout: React.FC = () => {
           ref={mainRef}
           tabIndex={-1}
           className={cn(
-            "app-scroll flex-1 min-h-0 relative z-10 outline-none pb-24",
+            "app-scroll flex-1 min-h-0 relative z-10 outline-none pb-10",
             location.pathname === "/live-tests" || location.pathname === "/coding"
               ? "p-2 sm:p-5"
               : "p-4 sm:p-8"

@@ -5,6 +5,7 @@ import { Topbar } from "./Topbar";
 import { PageTransition } from "./PageTransition";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { useAppearance } from "@/context/AppearanceContext";
+import { getRouteMeta } from "@/lib/routeMeta";
 import { FloatingOrbs, ParticleField, GradientMesh, CodeRain } from "@/components/fx";
 
 const STORAGE_KEY = "sidebar_collapsed_admin";
@@ -70,22 +71,7 @@ export const AdminLayout: React.FC = () => {
     };
   }, []);
 
-  const getTitle = () => {
-    switch (location.pathname) {
-      case "/admin": return "Admin Dashboard Overview";
-      case "/admin/content": return "Content Manager Hub";
-      case "/admin/students": return "Candidate Profiles & Performance";
-      case "/admin/users": return "Candidate Profiles & Performance";
-      case "/admin/coding-tests": return "Coding Tests Management";
-      case "/admin/taxonomy": return "Domains & Topics Taxonomy";
-      case "/admin/mock-interviews": return "Mock Interview Track Configs";
-      case "/admin/articles": return "Articles CMS";
-      case "/admin/reports": return "Analytics & Reports";
-      case "/admin/settings": return "Platform Settings";
-      default: return "Admin Portal";
-    }
-  };
-
+  const routeMeta = getRouteMeta(location.pathname);
   const { backgroundStyle } = useAppearance();
 
   return (
@@ -114,7 +100,7 @@ export const AdminLayout: React.FC = () => {
         {/* Topbar: shrink-0 keeps it at its natural height, no sticky needed */}
         <Topbar
           onOpenMobileSidebar={() => setMobileOpen(true)}
-          title={getTitle()}
+          title={routeMeta.title}
           isSidebarCollapsed={isCollapsed}
           onToggleSidebarCollapse={toggleCollapsed}
         />
@@ -128,7 +114,7 @@ export const AdminLayout: React.FC = () => {
         <main
           ref={mainRef}
           tabIndex={-1}
-          className="app-scroll flex-1 min-h-0 p-4 sm:p-8 pb-24 relative z-10 outline-none"
+          className="app-scroll flex-1 min-h-0 p-4 sm:p-8 pb-10 relative z-10 outline-none"
         >
           <div className="max-w-[1600px] w-full mx-auto">
             <ErrorBoundary fallbackTitle="Admin Section Error" fallbackMessage="An error occurred while rendering this admin view.">

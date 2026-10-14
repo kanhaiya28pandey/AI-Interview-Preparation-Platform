@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { Lock, Bell, Shield, KeyRound } from "lucide-react";
 import { AppearanceSettingsCard } from "@/components/common/AppearanceSettingsCard";
+import { PageHeader, StatTile } from "@/components/common/PageHeader";
 
 export const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -36,10 +37,21 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
-      <div>
-        <h2 className="font-serif text-2xl font-medium text-text-primary">Account Settings</h2>
-        <p className="text-xs text-text-secondary">Manage your password, security preferences, and notification triggers.</p>
-      </div>
+      <PageHeader
+        icon={KeyRound}
+        title="Account & Appearance Settings"
+        subtitle="Manage your password, security preferences, and UI appearance controls."
+        badge={user?.role || "STUDENT"}
+        accent="cyan"
+        actions={
+          <StatTile
+            icon={Shield}
+            label="ACCOUNT SECURITY"
+            value="Protected & Active"
+            accent="cyan"
+          />
+        }
+      />
 
       {/* Account Info */}
       <Card className="p-6 space-y-4 bg-surface border-border">

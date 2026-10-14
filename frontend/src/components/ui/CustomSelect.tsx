@@ -55,7 +55,7 @@ export function CustomSelect<T extends string = string>({
         onClick={() => setIsOpen(!isOpen)}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
-        className={`bg-surface-raised border border-border hover:border-border-strong text-text-primary font-mono text-xs px-3 py-1.5 rounded-lg flex items-center justify-between gap-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent/30 ${className}`}
+        className={`bg-surface-raised border border-border hover:border-border-strong text-text-primary font-mono text-xs h-10 px-3.5 rounded-xl flex items-center justify-between gap-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent/30 ${className}`}
       >
         <span className="truncate">{selectedOption?.label}</span>
         <ChevronDown

@@ -43,6 +43,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { Domain, RoadmapWeek, RoadmapTask } from "@/lib/taxonomy";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Callout, CalloutCode } from "@/components/common/Callout";
 import { mockCodingProblems } from "@/mocks/codingData";
 import { mockPracticeTopics } from "@/mocks/practiceData";
 import { mockQuizTopics } from "@/mocks/quizData";
@@ -344,76 +346,58 @@ export const AdminTaxonomy: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in pb-16">
       {/* Top Banner & Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-              <FolderTree className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
-                  Domains, Topics & Placement Roadmaps
-                </h1>
-                <Badge variant="accent" className="font-mono text-xs">
-                  {allDomains.length} Active Tracks
-                </Badge>
-              </div>
-              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
-                Dynamic curriculum control center: manage domains, assign topics to specific weekly timelines, and configure preparation roadmaps in real-time.
-              </p>
-            </div>
+      <PageHeader
+        icon={FolderTree}
+        title="Domains, Topics & Placement Roadmaps"
+        subtitle="Dynamic curriculum control center: manage domains, assign topics to specific weekly timelines, and configure preparation roadmaps in real-time."
+        badge={`${allDomains.length} ACTIVE TRACKS`}
+        accent="cyan"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (window.confirm("Reset all domains and roadmaps back to platform canonical defaults?")) {
+                  resetToDefaultTaxonomy();
+                }
+              }}
+              className="text-xs font-semibold h-10 px-3.5 rounded-xl border border-border hover:bg-surface-raised text-text-muted hover:text-text-primary flex items-center gap-1.5"
+              title="Reset to canonical defaults"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset Defaults
+            </Button>
+
+            <Button
+              onClick={() => setShowAddDomainModal(true)}
+              className="h-10 px-4 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-500 hover:from-teal-500 hover:to-cyan-400 text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/25 transition-all cursor-pointer border-none"
+            >
+              <Plus className="w-4 h-4 text-white" />
+              <span>Add New Domain</span>
+            </Button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (window.confirm("Reset all domains and roadmaps back to platform canonical defaults?")) {
-                resetToDefaultTaxonomy();
-              }
-            }}
-            className="text-xs py-2 border-border hover:bg-surface text-text-muted hover:text-text-primary flex items-center gap-1.5"
-            title="Reset to canonical defaults"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset Defaults
-          </Button>
-
-          <Button
-            onClick={() => setShowAddDomainModal(true)}
-            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs px-3.5 py-2 flex items-center gap-1.5 shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            Add New Domain
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Info Banner */}
-      <div className="p-4 bg-cyan-500/10 border border-cyan-500/25 rounded-2xl flex items-start gap-3 text-xs text-cyan-300">
-        <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <span className="font-semibold block text-cyan-200">
-            Real-Time Synchronization with Student Prep Roadmaps
-          </span>
-          <p className="text-[11px] text-cyan-300/80 leading-relaxed">
-            Any domain added, removed, or edited here immediately updates the Student Preparation Roadmaps view (`/preparation`) and assessment filters across the platform. You can assign topics directly to specific roadmap weeks (`Week 1`, `Week 2`, etc.).
-          </p>
-        </div>
-      </div>
+      <Callout
+        variant="info"
+        icon={Sparkles}
+        title="Real-Time Synchronization with Student Prep Roadmaps"
+      >
+        Any domain added, removed, or edited here immediately updates the Student Preparation Roadmaps view (<CalloutCode>/preparation</CalloutCode>) and assessment filters across the platform. You can assign topics directly to specific roadmap weeks (<CalloutCode>Week 1</CalloutCode>, <CalloutCode>Week 2</CalloutCode>, etc.).
+      </Callout>
 
       {/* Search Bar */}
       <div className="relative">
-        <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by domain, topic, subtopic, or week..."
-          className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-xl text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 shadow-sm"
+          className="w-full h-10 pl-10 pr-4 bg-surface border border-border rounded-xl text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 shadow-2xs transition-all"
         />
       </div>
 

@@ -76,6 +76,7 @@ import {
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/common/PageHeader";
 
 // Readiness Score calculation helper
 export const calculateReadinessScore = (
@@ -513,61 +514,50 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
   return (
     <div className="space-y-6 pb-12 animate-fade-in">
       {/* PAGE HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs uppercase tracking-widest text-cyan-400 font-semibold">
-              Platform Governance & Talent Management
-            </span>
-            <Badge variant="accent" className="text-[10px] font-mono">
-              Live Real-Time
-            </Badge>
-          </div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary flex items-center gap-2.5 mt-1">
-            <Users className="w-7 h-7 text-cyan-400" /> Candidate Profiles & Performance
-          </h1>
-          <p className="text-xs text-text-secondary mt-0.5">
-            Unified directory for candidate administration, verification controls, and placement readiness performance.
-          </p>
-        </div>
-
-        {/* Global Action Buttons */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncData}
-            disabled={isSyncing}
-            className="text-xs font-mono gap-1.5 h-9"
-            title="Sync latest records from database"
-          >
-            <RotateCw className={cn("w-3.5 h-3.5 text-cyan-400", isSyncing && "animate-spin")} />
-            <span>{isSyncing ? "Syncing..." : "Sync Records"}</span>
-          </Button>
-
-          {selectedIds.length >= 2 && selectedIds.length <= 4 && (
+      <PageHeader
+        icon={Users}
+        title="Candidate Profiles & Performance"
+        subtitle="Unified directory for candidate administration, verification controls, and placement readiness performance."
+        badge="CANDIDATES"
+        accent="cyan"
+        actions={
+          <div className="flex items-center gap-2.5 flex-wrap">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowCompareDialog(true)}
-              className="text-xs font-mono gap-1.5 h-9 border-purple-500/40 text-purple-400 hover:bg-purple-500/10"
+              onClick={handleSyncData}
+              disabled={isSyncing}
+              className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl"
+              title="Sync latest records from database"
             >
-              <Award className="w-3.5 h-3.5" /> Compare ({selectedIds.length})
+              <RotateCw className={cn("w-3.5 h-3.5 text-cyan-400", isSyncing && "animate-spin")} />
+              <span>{isSyncing ? "Syncing..." : "Sync Records"}</span>
             </Button>
-          )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExportCSV()}
-            className="text-xs font-mono gap-1.5 h-9 text-text-primary hover:text-cyan-400 hover:border-cyan-400"
-            title="Download CSV report for current records"
-          >
-            <Download className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Export CSV {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}</span>
-          </Button>
-        </div>
-      </div>
+            {selectedIds.length >= 2 && selectedIds.length <= 4 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCompareDialog(true)}
+                className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl border-purple-500/40 text-purple-400 hover:bg-purple-500/10"
+              >
+                <Award className="w-3.5 h-3.5" /> Compare ({selectedIds.length})
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExportCSV()}
+              className="text-xs font-mono gap-1.5 h-10 px-3.5 rounded-xl text-text-primary hover:text-cyan-400 hover:border-cyan-400"
+              title="Download CSV report for current records"
+            >
+              <Download className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Export CSV {selectedIds.length > 0 ? `(${selectedIds.length})` : ""}</span>
+            </Button>
+          </div>
+        }
+      />
 
       {/* TOP KPI OVERVIEW CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -646,14 +636,14 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
 
       {/* VIEW SWITCHER SUB-TABS */}
       <div className="flex items-center justify-between border-b border-border pb-3 flex-wrap gap-3">
-        <div className="flex items-center p-1 bg-surface-raised border border-border rounded-xl text-xs font-mono">
+        <div className="flex items-center p-1 bg-surface-raised border border-border rounded-xl text-xs font-mono tablist-scroll-container">
           <button
             onClick={() => {
               setActiveTab("directory");
               setCurrentPage(1);
             }}
             className={cn(
-              "px-3.5 py-2 rounded-lg transition-colors font-semibold flex items-center gap-2",
+              "px-3.5 py-2 rounded-lg transition-colors font-semibold flex items-center gap-2 whitespace-nowrap",
               activeTab === "directory"
                 ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm"
                 : "text-text-muted hover:text-text-primary"
@@ -669,7 +659,7 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
               setCurrentPage(1);
             }}
             className={cn(
-              "px-3.5 py-2 rounded-lg transition-colors font-semibold flex items-center gap-2",
+              "px-3.5 py-2 rounded-lg transition-colors font-semibold flex items-center gap-2 whitespace-nowrap",
               activeTab === "progress"
                 ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm"
                 : "text-text-muted hover:text-text-primary"
@@ -685,7 +675,7 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
               setCurrentPage(1);
             }}
             className={cn(
-              "px-3.5 py-2 rounded-lg transition-colors font-semibold flex items-center gap-2",
+              "px-3.5 py-2 rounded-lg transition-colors font-semibold flex items-center gap-2 whitespace-nowrap",
               activeTab === "analytics"
                 ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm"
                 : "text-text-muted hover:text-text-primary"
@@ -708,7 +698,7 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
             <div className="flex flex-wrap items-center gap-2.5 flex-1">
               {/* Search */}
               <div className="relative w-full sm:w-64">
-                <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <Input
                   type="text"
                   placeholder="Search name, roll #, email, college..."
@@ -717,7 +707,7 @@ export const AdminStudents: React.FC<AdminStudentsProps> = ({ defaultTab = "dire
                     setSearch(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="pl-9 text-xs"
+                  className="pl-10 text-xs h-10 py-0 rounded-xl"
                 />
               </div>
 

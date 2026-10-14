@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "lint": "tsc --noEmit",
+    "check:headers": "node scripts/check-page-headers.mjs",
+    "lint": "tsc --noEmit && npm run check:headers",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -124,7 +124,7 @@ export const TaxonomySelect: React.FC<TaxonomySelectProps> = ({
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
-        className={`w-full bg-surface-raised border border-border hover:border-cyan-500/40 text-text-primary text-xs px-3 py-2 rounded-xl flex items-center justify-between gap-2 transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 ${
+        className={`w-full h-10 bg-surface-raised border border-border hover:border-cyan-500/40 text-text-primary text-xs px-3.5 rounded-xl flex items-center justify-between gap-2 transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 ${
           disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
         }`}
       >

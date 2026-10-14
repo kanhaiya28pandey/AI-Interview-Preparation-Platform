@@ -21,6 +21,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Callout } from "@/components/common/Callout";
 
 export const VerifyIdentity: React.FC = () => {
   const { user } = useAuth();
@@ -110,12 +112,14 @@ export const VerifyIdentity: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12 animate-fade-in">
       {/* Header Banner */}
-      <div className="bg-surface border border-border p-6 rounded-2xl shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
+      <PageHeader
+        icon={ShieldCheck}
+        title="College ID Verification"
+        subtitle="Verify your student enrollment to unlock full access to AI Mock Interviews, Live Coding Arena, and Leaderboards."
+        badge={status.toUpperCase()}
+        accent="amber"
+        meta={
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs text-cyan-400 uppercase tracking-widest font-semibold">
-              Student Eligibility Check
-            </span>
             <Badge
               variant={
                 status === "Verified"
@@ -137,21 +141,16 @@ export const VerifyIdentity: React.FC = () => {
               {getDataModeLabel()}
             </Badge>
           </div>
-          <h1 className="font-serif text-3xl font-medium text-text-primary">
-            College ID Verification
-          </h1>
-          <p className="text-xs text-text-secondary leading-relaxed">
-            Verify your student enrollment to unlock full access to AI Mock Interviews, Live Coding Arena, and Leaderboards.
-          </p>
-        </div>
-
-        {status === "Verified" && (
-          <div className="px-4 py-2 bg-live/10 border border-live/30 text-live rounded-xl flex items-center gap-2 text-xs font-semibold shrink-0">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Verified Student Account</span>
-          </div>
-        )}
-      </div>
+        }
+        actions={
+          status === "Verified" ? (
+            <div className="px-4 py-2 bg-live/10 border border-live/30 text-live rounded-xl flex items-center gap-2 text-xs font-semibold shrink-0">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Verified Student Account</span>
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* STATUS OVERVIEW PANELS */}
       {status === "Verified" && (
@@ -259,18 +258,18 @@ export const VerifyIdentity: React.FC = () => {
 
       {status === "Rejected" && (
         <Card className="p-6 bg-surface border border-danger/40 shadow-soft space-y-4 rounded-2xl">
-          <div className="flex items-start gap-4 p-4 bg-danger-bg border border-danger/40 rounded-xl text-danger text-xs">
-            <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h3 className="font-semibold text-sm font-mono">Verification Request Rejected</h3>
-              <p className="leading-relaxed">
-                {currentSubmission?.rejectionNotes || "Your submitted ID photo was unclear or details did not match your account email."}
-              </p>
-              <span className="text-[11px] font-mono text-danger/80 block pt-1">
-                Category: {currentSubmission?.rejectionCategory || "Image unclear"}
-              </span>
-            </div>
-          </div>
+          <Callout
+            variant="danger"
+            icon={AlertCircle}
+            title="Verification Request Rejected"
+          >
+            <p className="leading-relaxed">
+              {currentSubmission?.rejectionNotes || "Your submitted ID photo was unclear or details did not match your account email."}
+            </p>
+            <span className="text-[11px] font-mono opacity-85 block pt-1">
+              Category: {currentSubmission?.rejectionCategory || "Image unclear"}
+            </span>
+          </Callout>
           <p className="text-xs text-text-secondary">
             Please upload a clear, high-resolution photo of your official college ID card below to resubmit.
           </p>

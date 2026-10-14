@@ -38,6 +38,8 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
+import { Callout } from "@/components/common/Callout";
+import { PageHeader, StatTile } from "@/components/common/PageHeader";
 
 const TARGET_ROLES_OPTIONS = [
   "Frontend Developer",
@@ -258,31 +260,32 @@ export const Onboarding: React.FC = () => {
     <div className="min-h-screen bg-surface py-8 px-4 sm:px-8 text-text-primary">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Top Header & Completion Progress */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-border pb-6">
-          <div className="flex items-center gap-4">
-            <AvatarCompletionRing profile={profile} size="lg" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-serif text-2xl font-bold">Complete Your Profile</h1>
-                <Badge variant="accent" className="font-mono text-[10px]">
-                  Placement Ready
-                </Badge>
-              </div>
-              <p className="text-xs text-text-muted mt-1">
-                Step {currentStep} of 6 &bull; {completion}% profile completion score
-              </p>
+        <PageHeader
+          icon={User}
+          title="Complete Your Profile"
+          subtitle={`Step ${currentStep} of 6 • ${completion}% profile completion score. Set up your academic background and career goals.`}
+          badge="PLACEMENT READY"
+          accent="cyan"
+          meta={
+            <div className="flex items-center gap-3 pt-1">
+              <AvatarCompletionRing profile={profile} size="sm" />
+              <span className="font-mono text-xs text-text-muted">{completion}% profile readiness score</span>
             </div>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSkipForNow}
-            className="text-xs text-text-muted hover:text-cyan-400 font-mono"
-          >
-            Skip for now &rarr;
-          </Button>
-        </div>
+          }
+          actions={
+            <div className="flex items-center gap-3">
+              <StatTile label="Step Progress" value={`${currentStep} / 6`} accent="cyan" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSkipForNow}
+                className="text-xs text-text-muted hover:text-cyan-400 font-mono"
+              >
+                Skip for now &rarr;
+              </Button>
+            </div>
+          }
+        />
 
         {/* Stepper Header */}
         <div className="flex items-center justify-between overflow-x-auto pb-2 scrollbar-none border-b border-border/60">
@@ -379,14 +382,13 @@ export const Onboarding: React.FC = () => {
 
                   {/* Self-Review Checklist */}
                   <div className="md:col-span-7 space-y-4">
-                    <div className="p-4 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-text-primary space-y-2">
-                      <h4 className="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold flex items-center gap-1.5">
-                        <Info className="w-4 h-4" /> Professional Self-Review Checklist
-                      </h4>
-                      <p className="text-xs text-text-secondary">
-                        Please self-verify your photo against recruiter compliance guidelines:
-                      </p>
-                    </div>
+                    <Callout
+                      variant="info"
+                      icon={Info}
+                      title="Professional Self-Review Checklist"
+                    >
+                      Please self-verify your photo against recruiter compliance guidelines:
+                    </Callout>
 
                     <div className="space-y-3 font-sans text-xs">
                       {[

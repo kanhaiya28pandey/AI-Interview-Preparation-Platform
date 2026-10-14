@@ -10,10 +10,12 @@ import { CardSkeleton } from "@/components/common/Skeletons";
 import { EmptyState } from "@/components/common/EmptyState";
 import { MarkdownRenderer } from "@/components/common/MarkdownRenderer";
 import { TaxonomySelect, TaxonomySelectOption } from "@/components/ui/TaxonomySelect";
+import { PageHeader, StatTile, Highlight } from "@/components/common/PageHeader";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { useAuth } from "@/context/AuthContext";
 import {
   Search,
+  BookOpen,
   FileText,
   ThumbsUp,
   Eye,
@@ -187,30 +189,25 @@ export const Articles: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-serif text-2xl font-medium text-text-primary">Articles & Placement Guides</h2>
-            <Badge variant="accent" className="text-[10px] font-mono">
-              {articles.length} Guides
-            </Badge>
+      <PageHeader
+        icon={BookOpen}
+        title="Placement Guides & Articles"
+        subtitle="Curated engineering interview breakdowns, system design case studies, speed math, and high-yield interview Q&As."
+        badge={`${articles.length} GUIDES`}
+        accent="cyan"
+        actions={
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder="Search guides, patterns, questions..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 text-xs"
+            />
           </div>
-          <p className="text-xs text-text-secondary mt-1">
-            Curated engineering interview breakdowns, system design case studies, speed math, and high-yield interview Q&As.
-          </p>
-        </div>
-
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input
-            type="text"
-            placeholder="Search guides, patterns, questions..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 text-xs"
-          />
-        </div>
-      </div>
+        }
+      />
 
       {/* Filter Bar */}
       <Card className="p-3 bg-surface border-border grid grid-cols-1 sm:grid-cols-2 gap-3">

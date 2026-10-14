@@ -13,6 +13,7 @@ import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { Callout } from "@/components/common/Callout";
 import { AlertCircle, CheckCircle2, KeyRound, ArrowLeft, Mail, RefreshCw } from "lucide-react";
 
 export const ForgotPassword: React.FC = () => {
@@ -102,20 +103,12 @@ export const ForgotPassword: React.FC = () => {
         </div>
 
         {banner && (
-          <div
-            className={`flex items-start gap-2.5 p-3 rounded-lg text-xs ${
-              banner.type === "ok"
-                ? "bg-[#4ade80]/15 border border-[#4ade80]/40 text-[#4ade80]"
-                : "bg-[#2b1a1d] border border-[#f2867b]/40 text-[#f2867b]"
-            }`}
+          <Callout
+            variant={banner.type === "ok" ? "success" : "danger"}
+            icon={banner.type === "ok" ? CheckCircle2 : AlertCircle}
           >
-            {banner.type === "ok" ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-[#4ade80]" />
-            ) : (
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#f2867b]" />
-            )}
-            <span className="leading-relaxed font-mono break-all">{banner.text}</span>
-          </div>
+            <span className="font-mono break-all">{banner.text}</span>
+          </Callout>
         )}
 
         {step === "request" ? (

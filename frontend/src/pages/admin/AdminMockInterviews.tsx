@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { interviewService } from "@/services/interviewService";
 import { InterviewRole, InterviewQuestion, InterviewFeedback } from "@/mocks/interviewData";
 import { Card } from "@/components/ui/Card";
@@ -24,6 +25,9 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Callout } from "@/components/common/Callout";
+import { Toolbar } from "@/components/common/Toolbar";
 
 export const AdminMockInterviews: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"tracks" | "questions" | "sessions">("tracks");
@@ -285,58 +289,73 @@ export const AdminMockInterviews: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary flex items-center gap-2.5">
-            <Video className="w-7 h-7 text-cyan-400" /> Mock Interview Control Center
-          </h2>
-          <p className="text-xs text-text-secondary mt-1">
-            Configure interview tracks, manage curricula questions, generate questions with AI, and review candidate speech audits.
-          </p>
-        </div>
-
-        {/* Tab Controls */}
-        <div className="flex items-center gap-1.5 p-1 bg-surface-raised border border-border rounded-xl">
-          <Button
-            variant={activeTab === "tracks" ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("tracks")}
-            className="text-xs font-semibold"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 mr-1" /> Tracks ({tracks.length})
-          </Button>
-          <Button
-            variant={activeTab === "questions" ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("questions")}
-            className="text-xs font-semibold"
-          >
-            <FileQuestion className="w-3.5 h-3.5 mr-1" /> Questions ({questions.length})
-          </Button>
-          <Button
-            variant={activeTab === "sessions" ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("sessions")}
-            className="text-xs font-semibold"
-          >
-            <Users className="w-3.5 h-3.5 mr-1" /> Submissions ({sessions.length})
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Video}
+        title="Mock Interview Control Center"
+        subtitle="Configure interview tracks, manage curricula questions, generate questions with AI, and review candidate speech audits."
+        badge={`${tracks.length} TRACKS CONFIGURED`}
+        accent="violet"
+        actionsPlacement="below"
+        actions={
+          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono tablist-scroll-container">
+            <button
+              onClick={() => setActiveTab("tracks")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                activeTab === "tracks"
+                  ? "bg-violet-500/20 text-violet-400 border border-violet-500/40 shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" /> Tracks ({tracks.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("questions")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                activeTab === "questions"
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <FileQuestion className="w-3.5 h-3.5" /> Questions ({questions.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("sessions")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                activeTab === "sessions"
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              <Users className="w-3.5 h-3.5" /> Submissions ({sessions.length})
+            </button>
+          </div>
+        }
+      />
 
       {/* ======================================================== */}
       {/* TAB 1: Interview Tracks Configurations */}
       {/* ======================================================== */}
       {activeTab === "tracks" && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-mono text-text-muted">
-              {tracks.length} Mock Interview Tracks Configured
-            </span>
-            <Button variant="primary" size="sm" onClick={handleCreateTrack} className="font-semibold">
-              <Plus className="w-4 h-4 mr-1" /> Create New Track
-            </Button>
-          </div>
+          <Toolbar
+            align="between"
+            left={
+              <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+                <SlidersHorizontal className="w-4 h-4 text-violet-400 shrink-0" />
+                <span>
+                  <strong className="text-text-primary font-semibold">{tracks.length}</strong> Mock Interview Tracks Configured
+                </span>
+              </div>
+            }
+            right={
+              <Button variant="primary" size="sm" onClick={handleCreateTrack} className="font-semibold h-10 gap-1.5 control-md">
+                <Plus className="w-4 h-4" /> Create New Track
+              </Button>
+            }
+          />
 
           <Card className="p-0 overflow-hidden bg-surface border-border">
             {loadingTracks ? (
@@ -448,43 +467,48 @@ export const AdminMockInterviews: React.FC = () => {
       {activeTab === "questions" && (
         <div className="space-y-4">
           {/* Track Selector & Action Bar */}
-          <Card className="p-4 bg-surface border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <label className="text-xs font-mono font-semibold text-text-secondary uppercase">
-                Select Track:
-              </label>
-              <select
-                value={selectedRoleId}
-                onChange={(e) => setSelectedRoleId(e.target.value)}
-                className="bg-surface-raised border border-border rounded-lg px-3 py-2 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400 min-w-[280px]"
-              >
-                {tracks.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title} ({t.difficulty})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenAiGenModal}
-                className="text-xs font-semibold border-cyan-400/40 text-cyan-400 hover:bg-cyan-500/10"
-              >
-                <Sparkles className="w-3.5 h-3.5 mr-1" /> AI Generate Questions
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleCreateQuestion}
-                className="text-xs font-semibold"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" /> Add Custom Question
-              </Button>
-            </div>
-          </Card>
+          <Toolbar
+            variant="card"
+            align="between"
+            left={
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+                <label className="text-xs font-mono font-semibold text-text-secondary uppercase whitespace-nowrap">
+                  Select Track:
+                </label>
+                <select
+                  value={selectedRoleId}
+                  onChange={(e) => setSelectedRoleId(e.target.value)}
+                  className="bg-surface-raised border border-border rounded-xl px-3.5 h-10 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400 min-w-[280px]"
+                >
+                  {tracks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title} ({t.difficulty})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            }
+            right={
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenAiGenModal}
+                  className="text-xs font-semibold border-cyan-400/40 text-cyan-400 hover:bg-cyan-500/10 h-10 gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> AI Generate Questions
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleCreateQuestion}
+                  className="text-xs font-semibold h-10 gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Custom Question
+                </Button>
+              </div>
+            }
+          />
 
           {/* Questions List */}
           <div className="space-y-3">
@@ -855,12 +879,9 @@ export const AdminMockInterviews: React.FC = () => {
           }
         >
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1 text-xs">
-            <div className="p-3.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-center gap-3">
-              <Brain className="w-5 h-5 text-cyan-400 shrink-0" />
-              <p className="text-text-secondary text-xs">
-                Gemini will craft structured technical placement questions complete with target rubric key points and senior engineer follow-ups.
-              </p>
-            </div>
+            <Callout variant="ai" icon={Brain}>
+              Gemini will craft structured technical placement questions complete with target rubric key points and senior engineer follow-ups.
+            </Callout>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -985,10 +1006,14 @@ export const AdminMockInterviews: React.FC = () => {
                       <span className="text-[10px] font-mono text-cyan-400 block font-semibold">Candidate Voice Transcript:</span>
                       <p className="text-text-secondary font-mono text-[11px]">"{qr.candidateAnswer}"</p>
                     </div>
-                    <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg space-y-1">
-                      <span className="text-[10px] font-mono text-cyan-300 block font-semibold">AI Critique:</span>
-                      <p className="text-text-secondary text-[11px]">{qr.aiFeedback}</p>
-                    </div>
+                    <Callout
+                      variant="ai"
+                      size="sm"
+                      title="AI Critique:"
+                      titleClassName="font-mono text-[10px] uppercase tracking-wider"
+                    >
+                      <p className="text-[11px] leading-relaxed">{qr.aiFeedback}</p>
+                    </Callout>
                   </div>
                 ))}
               </div>

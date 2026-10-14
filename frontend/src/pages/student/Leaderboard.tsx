@@ -5,8 +5,10 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { VerdictHeadline } from "@/components/common/VerdictHeadline";
+import { PageHeader } from "@/components/common/PageHeader";
 import { Trophy, Crown, Flame, Award } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 
 export const Leaderboard: React.FC = () => {
   const { user } = useAuth();
@@ -50,35 +52,51 @@ export const Leaderboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Header & Filter Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="font-serif text-2xl font-medium text-text-primary flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-cyan-400" /> Campus Placement Leaderboard
-          </h2>
-          <p className="text-xs text-text-secondary">Compare practice scores, coding benchmarks, and daily streaks across engineering campuses.</p>
-        </div>
-
-        <div className="flex bg-surface-raised border border-border p-1 rounded-lg text-xs font-mono">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-3 py-1.5 rounded transition-colors ${filter === "all" ? "bg-gradient-to-r from-teal-500 to-cyan-400 text-[#0d1321] font-semibold" : "text-text-muted hover:text-text-primary"}`}
-          >
-            All Campuses
-          </button>
-          <button
-            onClick={() => setFilter("weekly")}
-            className={`px-3 py-1.5 rounded transition-colors ${filter === "weekly" ? "bg-gradient-to-r from-teal-500 to-cyan-400 text-[#0d1321] font-semibold" : "text-text-muted hover:text-text-primary"}`}
-          >
-            Highest Streak
-          </button>
-          <button
-            onClick={() => setFilter("college")}
-            className={`px-3 py-1.5 rounded transition-colors ${filter === "college" ? "bg-gradient-to-r from-teal-500 to-cyan-400 text-[#0d1321] font-semibold" : "text-text-muted hover:text-text-primary"}`}
-          >
-            My Campus ({collegeDisplay})
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={Trophy}
+        title="Campus Placement Leaderboard"
+        subtitle="Compare practice scores, coding benchmarks, and daily streaks across engineering campuses."
+        badge={`${data.length} CANDIDATES`}
+        accent="emerald"
+        actionsPlacement="below"
+        actions={
+          <div className="flex bg-surface-raised border border-border p-1 rounded-xl text-xs font-mono tablist-scroll-container">
+            <button
+              onClick={() => setFilter("all")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                filter === "all"
+                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              All Campuses
+            </button>
+            <button
+              onClick={() => setFilter("weekly")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                filter === "weekly"
+                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              Highest Streak
+            </button>
+            <button
+              onClick={() => setFilter("college")}
+              className={cn(
+                "px-3.5 py-2 rounded-lg transition-all font-semibold flex items-center gap-1.5 whitespace-nowrap control-sm",
+                filter === "college"
+                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold shadow-xs"
+                  : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              My Campus ({collegeDisplay})
+            </button>
+          </div>
+        }
+      />
 
       {/* Current Student Rank Banner */}
       {(() => {

@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { EmptyState } from "@/components/common/EmptyState";
 import { TaxonomySelect, TaxonomySelectOption } from "@/components/ui/TaxonomySelect";
+import { PageHeader, StatTile } from "@/components/common/PageHeader";
+import { Callout } from "@/components/common/Callout";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import {
   Video,
@@ -463,28 +465,33 @@ export const MockInterview: React.FC = () => {
   if (flowState === "select") {
     return (
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary flex items-center gap-2.5">
-              <Video className="w-7 h-7 text-cyan-400" /> AI Voice Mock Interview Rooms
-            </h2>
-            <p className="text-xs text-text-secondary mt-1">
-              Real-time voice-interactive interview simulations. Answer verbally into your mic and receive instant AI recognition, multi-dimensional scorecards, and senior engineer benchmark feedback.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          icon={Video}
+          title="AI Voice Mock Interview Arena"
+          subtitle="Real-time voice-interactive interview simulations with instant AI recognition, multi-dimensional scorecards, and senior engineer benchmark feedback."
+          badge={`${roles.length} TRACKS`}
+          accent="violet"
+          actions={
+            <StatTile
+              icon={Sparkles}
+              label="SIMULATION ENGINE"
+              value="Voice & Speech AI"
+              accent="violet"
+            />
+          }
+        />
 
         {/* Filter Bar */}
         <Card className="p-4 bg-surface border-border">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search interview roles..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-surface-raised border border-border rounded-lg text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+                className="w-full h-10 pl-10 pr-3.5 bg-surface-raised border border-border rounded-xl text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
               />
             </div>
 
@@ -513,7 +520,7 @@ export const MockInterview: React.FC = () => {
               <select
                 value={selectedDifficulty}
                 onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="w-full bg-surface-raised border border-border rounded-lg p-2 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+                className="w-full h-10 bg-surface-raised border border-border rounded-xl px-3.5 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
                 <option value="ALL">All Levels</option>
                 <option value="Junior">Junior</option>
@@ -527,7 +534,7 @@ export const MockInterview: React.FC = () => {
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full bg-surface-raised border border-border rounded-lg p-2 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400"
+                className="w-full h-10 bg-surface-raised border border-border rounded-xl px-3.5 text-xs text-text-primary font-mono focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
                 <option value="ALL">All Categories</option>
                 <option value="Technical">Technical</option>
@@ -1016,27 +1023,19 @@ export const MockInterview: React.FC = () => {
                       </div>
 
                       {/* AI Evaluation */}
-                      <div className="p-3.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl space-y-1.5">
-                        <div className="flex items-center gap-1.5 font-mono font-semibold text-cyan-300">
-                          <Brain className="w-3.5 h-3.5" />
-                          <span>AI Feedback & Critique:</span>
-                        </div>
-                        <p className="text-text-secondary leading-relaxed pl-5">
+                      <Callout variant="ai" icon={Brain} title="AI Feedback & Critique:">
+                        <p className="leading-relaxed">
                           {item.aiFeedback}
                         </p>
-                      </div>
+                      </Callout>
 
                       {/* Model / Benchmark Answer */}
                       {item.sampleAnswer && (
-                        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-1.5">
-                          <div className="flex items-center gap-1.5 font-mono font-semibold text-emerald-400">
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>Senior Benchmark Model Answer:</span>
-                          </div>
-                          <p className="text-text-secondary leading-relaxed font-sans pl-5">
+                        <Callout variant="success" icon={Sparkles} title="Senior Benchmark Model Answer:">
+                          <p className="leading-relaxed">
                             {item.sampleAnswer}
                           </p>
-                        </div>
+                        </Callout>
                       )}
                     </div>
                   )}

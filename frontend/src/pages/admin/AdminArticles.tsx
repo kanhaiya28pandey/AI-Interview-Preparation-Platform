@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export const AdminArticles: React.FC = () => {
   const { domains } = useTaxonomy();
@@ -241,57 +242,52 @@ export const AdminArticles: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-serif text-2xl font-medium text-text-primary">Articles & Placement Guides CMS</h2>
-            <Badge variant="accent" className="text-[10px] font-mono">
-              Editorial Studio
-            </Badge>
+      <PageHeader
+        icon={BookOpen}
+        title="Articles & Placement Guides CMS"
+        subtitle="Create, edit, draft, publish, and AI-generate comprehensive placement guides and interview Q&As for students."
+        badge={`${articles.length} GUIDES`}
+        accent="cyan"
+        actions={
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAiModalOpen(true)}
+              className="border-purple-500/40 text-purple-600 dark:text-purple-300 hover:bg-purple-500/10 text-xs font-semibold h-10 px-4 rounded-xl"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400 mr-1.5" />
+              AI Generate with Gemini
+            </Button>
+
+            <Button variant="primary" size="sm" onClick={handleCreate} className="text-xs font-semibold h-10 px-4 rounded-xl">
+              <Plus className="w-3.5 h-3.5 mr-1" /> Publish New Guide
+            </Button>
           </div>
-          <p className="text-xs text-text-secondary mt-1">
-            Create, edit, draft, publish, and AI-generate comprehensive placement guides and interview Q&As for students.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAiModalOpen(true)}
-            className="border-purple-500/40 text-purple-300 hover:bg-purple-500/10 text-xs"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400 mr-1.5" />
-            AI Generate with Gemini
-          </Button>
-
-          <Button variant="primary" size="sm" onClick={handleCreate} className="text-xs">
-            <Plus className="w-3.5 h-3.5 mr-1" /> Publish New Guide
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* KPI Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Card className="p-3.5 bg-surface border-border">
+        <Card className="h-full p-3.5 bg-surface border-border flex flex-col justify-between">
           <span className="text-[10px] font-mono text-text-muted uppercase block">Total Articles</span>
           <span className="font-serif font-bold text-xl text-text-primary block mt-0.5">{articles.length}</span>
         </Card>
-        <Card className="p-3.5 bg-surface border-border">
+        <Card className="h-full p-3.5 bg-surface border-border flex flex-col justify-between">
           <span className="text-[10px] font-mono text-emerald-400 uppercase block">Published Live</span>
           <span className="font-serif font-bold text-xl text-emerald-400 block mt-0.5">{publishedCount}</span>
         </Card>
-        <Card className="p-3.5 bg-surface border-border">
+        <Card className="h-full p-3.5 bg-surface border-border flex flex-col justify-between">
           <span className="text-[10px] font-mono text-amber-400 uppercase block">Drafts</span>
           <span className="font-serif font-bold text-xl text-amber-400 block mt-0.5">{draftCount}</span>
         </Card>
-        <Card className="p-3.5 bg-surface border-border">
+        <Card className="h-full p-3.5 bg-surface border-border flex flex-col justify-between">
           <span className="text-[10px] font-mono text-cyan-400 uppercase block flex items-center gap-1">
             <Eye className="w-3 h-3 text-cyan-400" /> Real Views
           </span>
           <span className="font-serif font-bold text-xl text-cyan-400 block mt-0.5">{totalViews}</span>
         </Card>
-        <Card className="p-3.5 bg-surface border-border">
+        <Card className="h-full p-3.5 bg-surface border-border flex flex-col justify-between">
           <span className="text-[10px] font-mono text-live uppercase block flex items-center gap-1">
             <ThumbsUp className="w-3 h-3 text-live" /> Student Likes
           </span>
@@ -302,13 +298,13 @@ export const AdminArticles: React.FC = () => {
       {/* Filters Bar */}
       <Card className="p-3.5 bg-surface border-border flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <Input
             type="text"
             placeholder="Search by title, topic, or tags..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 text-xs"
+            className="pl-10 text-xs h-10 py-0 rounded-xl"
           />
         </div>
 
@@ -316,7 +312,7 @@ export const AdminArticles: React.FC = () => {
           <select
             value={domainFilter}
             onChange={(e) => setDomainFilter(e.target.value)}
-            className="bg-surface-raised border border-border rounded-lg text-xs font-mono px-3 py-1.5 text-text-primary focus:outline-none focus:border-cyan-400"
+            className="bg-surface-raised border border-border rounded-xl text-xs font-mono h-10 px-3.5 text-text-primary focus:outline-none focus:border-cyan-400 transition-all cursor-pointer"
           >
             <option value="ALL">All Domains ({articles.length})</option>
             <option value="dsa">DSA</option>

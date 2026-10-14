@@ -8,11 +8,9 @@ import { NotificationProvider } from "@/context/NotificationContext";
 import { AppRoutes } from "@/routes/AppRoutes";
 import { Toaster } from "sonner";
 import { ErrorBoundary, setupGlobalErrorListeners } from "@/components/common/ErrorBoundary";
-import { AICopilot } from "@/components/common/AICopilot";
 import {
   TopProgressBar,
   CursorGlow,
-  QuickActions,
   ScrollProgress,
   CoachMark,
   AppBackground,
@@ -46,8 +44,6 @@ export const App: React.FC = () => {
                   <AppRoutes />
                   {/* Guided tour coach marks (portal-rendered) */}
                   <CoachMark />
-                  {/* Single Working AI Copilot assistant */}
-                  <AICopilot />
                   <Toaster position="top-right" theme="dark" richColors />
                 </TourProvider>
               </AdminStoreProvider>

@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { CustomSelect, CustomSelectOption } from "@/components/ui/CustomSelect";
 import { Dialog } from "@/components/ui/Dialog";
+import { PageHeader, StatTile, Highlight } from "@/components/common/PageHeader";
 import { useAuth } from "@/context/AuthContext";
 import { getScopedItem, setScopedItem } from "@/lib/userScope";
 import {
@@ -618,45 +619,36 @@ export const Coding: React.FC = () => {
     return (
       <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in">
         {/* Header Banner */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                <Code2 className="w-6 h-6" />
-              </span>
-              <h1 className="font-serif text-2xl sm:text-3xl font-medium text-text-primary">
-                Coding Arena
-              </h1>
-            </div>
-            <p className="text-xs text-text-secondary mt-1 max-w-2xl">
-              Solve curated technical challenges from official repositories in{" "}
-              <span className="text-cyan-400 font-semibold font-mono">JavaScript, Python, Java, C++, C</span> and{" "}
-              <span className="text-blue-400 font-semibold font-mono">MySQL, PostgreSQL & SQL</span>.
-            </p>
-          </div>
+        <PageHeader
+          icon={Code2}
+          title="Interactive Coding Arena"
+          subtitle="Solve curated technical challenges from official repositories in JavaScript, Python, Java, C++, C and SQL."
+          badge={`${totalCount} PROBLEMS`}
+          accent="cyan"
+          actions={
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {isAdmin() && (
+                <Link to="/admin/coding-tests">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs font-mono border-cyan-500/40 text-cyan-400 h-10 px-3.5 rounded-xl">
+                    <Database className="w-3.5 h-3.5" />
+                    <span>Admin Question Manager</span>
+                  </Button>
+                </Link>
+              )}
 
-          <div className="flex items-center gap-3">
-            {isAdmin() && (
-              <Link to="/admin/coding-tests">
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs font-mono border-cyan-500/40 text-cyan-400">
-                  <Database className="w-3.5 h-3.5" />
-                  <span>Admin Question Manager</span>
+              {selectedProblem && (
+                <Button
+                  variant="primary"
+                  onClick={() => setViewMode("editor")}
+                  className="gap-2 text-xs font-mono h-10 px-4 rounded-xl"
+                >
+                  <Code2 className="w-4 h-4" />
+                  <span>Resume ({selectedProblem.title})</span>
                 </Button>
-              </Link>
-            )}
-
-            {selectedProblem && (
-              <Button
-                variant="primary"
-                onClick={() => setViewMode("editor")}
-                className="gap-2 text-xs font-mono"
-              >
-                <Code2 className="w-4 h-4" />
-                <span>Resume ({selectedProblem.title})</span>
-              </Button>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
+          }
+        />
 
         {/* Top KPI Metrics Banner */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -750,13 +742,13 @@ export const Coding: React.FC = () => {
         <Card className="p-4 bg-surface border-border shadow-sm space-y-3">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search questions by title, domain, or keyword..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface-raised border border-border rounded-xl pl-9 pr-4 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400 font-sans"
+                className="w-full bg-surface-raised border border-border rounded-xl pl-10 pr-8 h-10 text-xs font-mono text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan-400"
               />
               {searchQuery && (
                 <button
@@ -772,7 +764,7 @@ export const Coding: React.FC = () => {
               <select
                 value={selectedDifficulty}
                 onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="bg-surface-raised border border-border rounded-xl px-3 py-2 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400"
+                className="bg-surface-raised border border-border rounded-xl px-3.5 h-10 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
                 <option value="ALL">All Difficulties</option>
                 <option value="Easy">Easy</option>
@@ -783,7 +775,7 @@ export const Coding: React.FC = () => {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-surface-raised border border-border rounded-xl px-3 py-2 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 max-w-[180px] truncate"
+                className="bg-surface-raised border border-border rounded-xl px-3.5 h-10 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 max-w-[180px] truncate cursor-pointer"
               >
                 <option value="ALL">All Categories</option>
                 <option value="Database & SQL">Database & SQL</option>
@@ -799,7 +791,7 @@ export const Coding: React.FC = () => {
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-surface-raised border border-border rounded-xl px-3 py-2 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400"
+                className="bg-surface-raised border border-border rounded-xl px-3.5 h-10 text-xs font-mono text-text-primary focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
                 <option value="ALL">All Status</option>
                 <option value="Solved">Solved</option>
@@ -817,7 +809,7 @@ export const Coding: React.FC = () => {
                     setSelectedStatus("ALL");
                     setSearchQuery("");
                   }}
-                  className="text-xs font-mono text-text-muted hover:text-text-primary"
+                  className="text-xs font-mono text-text-muted hover:text-text-primary h-10 px-3.5 rounded-xl"
                 >
                   Reset Filters
                 </Button>

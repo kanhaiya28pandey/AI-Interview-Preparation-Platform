@@ -221,9 +221,9 @@ export const Profile: React.FC = () => {
           {/* Row 1: Name + Role Badge on left, Recruiter View button on right */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 justify-center md:justify-start flex-wrap">
-              <h2 className="font-serif text-2xl md:text-3xl font-bold text-text-primary">
+              <h1 className="font-serif font-bold tracking-tight text-text-primary text-2xl sm:text-3xl leading-tight">
                 {profile.name}
-              </h2>
+              </h1>
               <Badge variant="accent" className="uppercase tracking-wider">
                 {profile.role}
               </Badge>
@@ -235,7 +235,7 @@ export const Profile: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowRecruiterPreview(true)}
-                className="gap-1.5 text-xs font-mono"
+                className="gap-1.5 text-xs font-mono h-10 px-3.5 rounded-xl"
               >
                 <Eye className="w-3.5 h-3.5 text-cyan-400" /> Public Recruiter View
               </Button>
@@ -245,7 +245,7 @@ export const Profile: React.FC = () => {
                   variant="teal-cyan"
                   size="sm"
                   onClick={() => navigate("/onboarding")}
-                  className="gap-1.5 text-xs shadow-glow"
+                  className="gap-1.5 text-xs shadow-glow h-10 px-4 rounded-xl"
                 >
                   <Sparkles className="w-3.5 h-3.5" /> Resume Wizard ({completion}%)
                 </Button>
@@ -312,7 +312,7 @@ export const Profile: React.FC = () => {
       </Card>
 
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto font-mono text-xs">
+      <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto font-mono text-xs tablist-scroll-container">
         {[
           { id: "personal", label: "Personal Info", icon: User },
           { id: "education", label: "Education & Academics", icon: GraduationCap },
@@ -326,7 +326,7 @@ export const Profile: React.FC = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all shrink-0 ${
+              className={`flex items-center gap-2 h-10 px-4 rounded-xl transition-all shrink-0 whitespace-nowrap ${
                 isActive
                   ? "bg-cyan-400/15 text-cyan-400 border border-cyan-400/40 font-semibold"
                   : "text-text-muted hover:text-text-primary hover:bg-surface-raised"
@@ -345,7 +345,7 @@ export const Profile: React.FC = () => {
         {activeTab === "personal" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-border pb-4">
-              <h3 className="font-serif text-lg font-bold">Personal Information</h3>
+              <h2 className="font-serif font-semibold text-lg sm:text-xl text-text-primary">Personal Information</h2>
               {!personalSection.isEditing ? (
                 <Button variant="outline" size="sm" onClick={personalSection.startEdit} className="gap-1.5 text-xs">
                   <Edit3 className="w-3.5 h-3.5" /> Edit Personal Info
@@ -464,7 +464,7 @@ export const Profile: React.FC = () => {
         {activeTab === "education" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-border pb-4">
-              <h3 className="font-serif text-lg font-bold">Education & Academic Records</h3>
+              <h2 className="font-serif font-semibold text-lg sm:text-xl text-text-primary">Education & Academic Records</h2>
               {!educationSection.isEditing ? (
                 <Button variant="outline" size="sm" onClick={educationSection.startEdit} className="gap-1.5 text-xs">
                   <Edit3 className="w-3.5 h-3.5" /> Edit Education
@@ -768,7 +768,7 @@ export const Profile: React.FC = () => {
         {activeTab === "skills" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-border pb-4">
-              <h3 className="font-serif text-lg font-bold">Skills, Projects & Experience</h3>
+              <h2 className="font-serif font-semibold text-lg sm:text-xl text-text-primary">Skills, Projects & Experience</h2>
               {!skillsSection.isEditing ? (
                 <Button variant="outline" size="sm" onClick={skillsSection.startEdit} className="gap-1.5 text-xs">
                   <Edit3 className="w-3.5 h-3.5" /> Edit Skills & Projects
@@ -1022,7 +1022,7 @@ export const Profile: React.FC = () => {
         {activeTab === "preferences" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-border pb-4">
-              <h3 className="font-serif text-lg font-bold">Career Preferences & Links</h3>
+              <h2 className="font-serif font-semibold text-lg sm:text-xl text-text-primary">Career Preferences & Links</h2>
               {!preferencesSection.isEditing ? (
                 <Button variant="outline" size="sm" onClick={preferencesSection.startEdit} className="gap-1.5 text-xs">
                   <Edit3 className="w-3.5 h-3.5" /> Edit Preferences
