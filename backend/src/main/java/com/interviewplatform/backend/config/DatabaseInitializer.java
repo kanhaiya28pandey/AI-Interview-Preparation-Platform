@@ -135,7 +135,7 @@ public class DatabaseInitializer {
                     v1.setRollNumber("RA2111003010452");
                     v1.setCourseBranch("B.Tech CSE");
                     v1.setYearSemester("Year 4 / Semester 7");
-                    v1.setIdCardFrontUrl("https://images.unsplash.com/photo-1544717305-2782549b5136?w=600");
+                    v1.setIdCardFrontUrl(null);
                     v1.setSubmittedAt(LocalDateTime.now().minusDays(3).toString());
                     v1.setStatus("Verified");
                     v1.setReviewedAt(LocalDateTime.now().minusDays(2).toString());
@@ -149,7 +149,7 @@ public class DatabaseInitializer {
                     v2.setRollNumber("20BCE1042");
                     v2.setCourseBranch("B.Tech IT");
                     v2.setYearSemester("Year 3 / Semester 5");
-                    v2.setIdCardFrontUrl("https://images.unsplash.com/photo-1544717305-2782549b5136?w=600");
+                    v2.setIdCardFrontUrl(null);
                     v2.setSubmittedAt(LocalDateTime.now().minusHours(4).toString());
                     v2.setStatus("Pending Verification");
 

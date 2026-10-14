@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/Badge";
 import { AvatarCompletionRing } from "@/components/common/AvatarCompletionRing";
 import { Callout } from "@/components/common/Callout";
 import { PageHeader, StatTile } from "@/components/common/PageHeader";
+import { toast } from "sonner";
 
 const TARGET_ROLES_OPTIONS = [
   "Frontend Developer",
@@ -112,16 +113,28 @@ export const Onboarding: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile((prev) =>
-          prev
-            ? {
-                ...prev,
-                avatar: reader.result as string,
-                isCustomAvatar: true,
-              }
-            : null
-        );
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        try {
+          const updated = await profileService.updateProfile({
+            avatar: base64,
+            isCustomAvatar: true,
+          });
+          setProfile(updated);
+          toast.success("Profile photo updated successfully!");
+        } catch (err) {
+          console.error("Failed to update profile photo:", err);
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  avatar: base64,
+                  isCustomAvatar: true,
+                }
+              : null
+          );
+          toast.success("Profile photo set!");
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -268,7 +281,7 @@ export const Onboarding: React.FC = () => {
           accent="cyan"
           meta={
             <div className="flex items-center gap-3 pt-1">
-              <AvatarCompletionRing profile={profile} size="sm" />
+              <AvatarCompletionRing profile={profile} avatarUrl={profile?.avatar} name={profile?.name} size="sm" />
               <span className="font-mono text-xs text-text-muted">{completion}% profile readiness score</span>
             </div>
           }

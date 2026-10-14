@@ -14,10 +14,12 @@ const sanitizeRealUserProfile = (profile: UserProfile, activeUser?: any): UserPr
     ...profile,
   };
 
-  // 1. Avatar: if not a custom user-uploaded avatar or if it's the mock photo, reset to empty
-  if (!sanitized.isCustomAvatar || sanitized.avatar?.includes("photo-1534528741775-53994a69daeb") || sanitized.avatar?.includes("default")) {
+  // 1. Avatar: if it's the mock photo or default, reset to empty; if real custom image exists, keep it
+  if (sanitized.avatar?.includes("photo-1534528741775-53994a69daeb") || sanitized.avatar?.includes("default")) {
     sanitized.avatar = "";
     sanitized.isCustomAvatar = false;
+  } else if (sanitized.avatar && sanitized.avatar.trim() !== "") {
+    sanitized.isCustomAvatar = true;
   }
 
   // 2. Headline & Bio defaults

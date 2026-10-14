@@ -6,6 +6,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  avatarUrl?: string;
   verificationStatus?: "Pending Verification" | "Verified" | "Rejected" | "Resubmission Required" | "Unverified";
 }
 
@@ -89,7 +90,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Verify token against backend profile endpoint
           try {
-            await api.get("/api/v1/profile");
+            const profileRes = await api.get("/api/v1/profile");
+            if (profileRes?.data?.avatar) {
+              parsedUser.avatarUrl = profileRes.data.avatar;
+            }
             setToken(storedToken);
             setUser(parsedUser);
             setIsDemoMode(false);
@@ -138,6 +142,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     validateAndInitSession();
   }, []);
 
+  useEffect(() => {
+    const handleProfileUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<any>;
+      const avatar = customEvent.detail?.avatar;
+      if (avatar) {
+        setUser((prev) => (prev ? { ...prev, avatarUrl: avatar } : null));
+      }
+    };
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
+  }, []);
+
   const saveAuth = (authData: AuthResponse, isDemo = false) => {
     const { token: authToken, userId, name, email, role, verificationStatus } = authData;
     const isExplicitAdmin = role?.toUpperCase().includes("ADMIN");
@@ -150,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name,
       email,
       role,
+      avatarUrl: (authData as any).avatarUrl || (authData as any).avatar || undefined,
       verificationStatus: resolvedStatus,
     };
     

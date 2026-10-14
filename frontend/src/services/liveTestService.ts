@@ -120,8 +120,23 @@ export interface LiveTestContest {
   problems: LiveTestProblem[];
 }
 
+export interface LiveTestActiveSession {
+  id: string; // userId or submission session id
+  testId: string;
+  name: string;
+  role: "STUDENT" | "ADMIN";
+  college: string;
+  rollNumber: string;
+  progress: number;
+  timeLeftSeconds: number;
+  tabSwitchCount: number;
+  status: "Active" | "Warning" | "Submitted" | "Removed";
+  lastPing: string;
+}
+
 const STORAGE_KEY = "ai_interview_prep_live_tests_v4";
 const SUBMISSIONS_KEY = "ai_interview_prep_live_test_submissions_v4";
+const SESSIONS_KEY = "ai_interview_prep_live_test_sessions_v1";
 
 // Helper to convert rich sections into legacy flat problems array for backward compatibility
 function buildProblemsFromSections(sections: LiveTestSection[]): LiveTestProblem[] {
@@ -920,8 +935,42 @@ class LiveTestService {
     this.saveStorage(list);
   }
 
+  // --- Active Sessions & Proctoring Telemetry ---
+  public getActiveSessions(): LiveTestActiveSession[] {
+    try {
+      const raw = localStorage.getItem(SESSIONS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public getActiveSessionsForTest(testId: string): LiveTestActiveSession[] {
+    return this.getActiveSessions().filter((s) => s.testId === testId);
+  }
+
+  public recordActiveSession(session: LiveTestActiveSession): void {
+    const sessions = this.getActiveSessions();
+    const filtered = sessions.filter((s) => !(s.testId === session.testId && s.id === session.id));
+    const updated = [session, ...filtered];
+    try {
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("live_test_sessions_changed"));
+    } catch {}
+  }
+
+  public clearActiveSession(testId: string, userId: string): void {
+    const sessions = this.getActiveSessions();
+    const updated = sessions.filter((s) => !(s.testId === testId && s.id === userId));
+    try {
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("live_test_sessions_changed"));
+    } catch {}
+  }
+
   // --- Submissions & Results Management ---
   public saveSubmission(submission: LiveTestSubmission): void {
+    this.clearActiveSession(submission.testId, submission.userId);
     const current = this.getSubmissionsStorage();
     // Replace if existing or prepend
     const filtered = current.filter((s) => !(s.testId === submission.testId && (s.userId === submission.userId || s.email === submission.email)));

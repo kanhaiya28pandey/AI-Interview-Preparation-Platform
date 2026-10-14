@@ -189,27 +189,45 @@ export const AdminVerifications: React.FC = () => {
   const [bulkRejectCategory, setBulkRejectCategory] = useState("Unreadable ID Card");
   const [bulkRejectNotes, setBulkRejectNotes] = useState("Verification request rejected during bulk review.");
 
-  // Filter verification records
-  const filteredStudents = students.filter((s) => {
-    // Exclude plain admins from verification queue
-    if (s.role === "ADMIN" && !s.idCardFrontUrl) return false;
+  // Filter and sort verification records (pending first, newest on top)
+  const filteredStudents = students
+    .filter((s) => {
+      // Exclude plain admins from verification queue
+      if (s.role === "ADMIN" && !s.idCardFrontUrl) return false;
 
-    const query = searchQuery.toLowerCase();
-    const matchesQuery =
-      s.name.toLowerCase().includes(query) ||
-      s.email.toLowerCase().includes(query) ||
-      s.college.toLowerCase().includes(query) ||
-      s.rollNumber.toLowerCase().includes(query) ||
-      s.id.toLowerCase().includes(query);
+      const query = searchQuery.toLowerCase();
+      const matchesQuery =
+        s.name.toLowerCase().includes(query) ||
+        s.email.toLowerCase().includes(query) ||
+        s.college.toLowerCase().includes(query) ||
+        s.rollNumber.toLowerCase().includes(query) ||
+        s.id.toLowerCase().includes(query);
 
-    const statusClean = s.verificationStatus.toUpperCase().replace(/\s+/g, "_");
-    const matchesStatus =
-      selectedStatus === "ALL"
-        ? true
-        : statusClean === selectedStatus || (selectedStatus === "PENDING" && statusClean.includes("PENDING"));
+      const statusClean = s.verificationStatus.toUpperCase().replace(/\s+/g, "_");
+      const matchesStatus =
+        selectedStatus === "ALL"
+          ? true
+          : statusClean === selectedStatus || (selectedStatus === "PENDING" && statusClean.includes("PENDING"));
 
-    return matchesQuery && matchesStatus;
-  });
+      return matchesQuery && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Priority 1: Pending verification requests appear first
+      const aPending = a.verificationStatus.toUpperCase().includes("PENDING");
+      const bPending = b.verificationStatus.toUpperCase().includes("PENDING");
+      if (aPending && !bPending) return -1;
+      if (!aPending && bPending) return 1;
+
+      // Priority 2: Chronologically newest request on top
+      const parseTime = (dateStr?: string) => {
+        if (!dateStr) return 0;
+        const parsed = new Date(dateStr).getTime();
+        return isNaN(parsed) ? 0 : parsed;
+      };
+      const timeA = parseTime(a.submittedAt || a.registeredAt);
+      const timeB = parseTime(b.submittedAt || b.registeredAt);
+      return timeB - timeA;
+    });
 
   const pendingCount = students.filter((s) => s.verificationStatus === "Pending Verification").length;
   const verifiedCount = students.filter((s) => s.verificationStatus === "Verified").length;
@@ -219,14 +237,8 @@ export const AdminVerifications: React.FC = () => {
     try {
       await approveVerification(student.id);
       toast.success(`College ID for ${student.name} approved & verified!`);
-      setSelectedStudent((prev) =>
-        prev && prev.id === student.id
-          ? {
-              ...prev,
-              verificationStatus: "Verified",
-            }
-          : null
-      );
+      setSelectedStudent(null);
+      setIsRejecting(false);
       if (typeof syncVerifications === "function") {
         await syncVerifications();
       }
@@ -244,17 +256,9 @@ export const AdminVerifications: React.FC = () => {
     try {
       await rejectVerification(student.id, rejectionCategory, rejectionNotes.trim());
       toast.error(`Verification request for ${student.name} marked as Rejected.`);
-      setSelectedStudent((prev) =>
-        prev && prev.id === student.id
-          ? {
-              ...prev,
-              verificationStatus: "Rejected",
-              rejectionCategory,
-              rejectionNotes: rejectionNotes.trim(),
-            }
-          : prev
-      );
+      setSelectedStudent(null);
       setIsRejecting(false);
+      setRejectionNotes("");
       if (typeof syncVerifications === "function") {
         await syncVerifications();
       }
@@ -615,7 +619,7 @@ export const AdminVerifications: React.FC = () => {
                         </td>
 
                         <td className="p-3.5 whitespace-nowrap">
-                          {s.idCardFrontUrl ? (
+                          {s.idCardFrontUrl && !s.idCardFrontUrl.includes("photo-1544717305") ? (
                             <img
                               src={s.idCardFrontUrl}
                               alt="ID Thumbnail"
@@ -875,7 +879,7 @@ export const AdminVerifications: React.FC = () => {
 
                         {/* ID Card Image Canvas */}
                         <div className="border border-border/80 bg-black/90 rounded-lg overflow-hidden h-[260px] flex items-center justify-center p-2 relative">
-                          {selectedStudent.idCardFrontUrl ? (
+                          {selectedStudent.idCardFrontUrl && !selectedStudent.idCardFrontUrl.includes("photo-1544717305") ? (
                             <div className="w-full h-full overflow-auto flex items-center justify-center custom-scrollbar cursor-zoom-in">
                               <img
                                 src={

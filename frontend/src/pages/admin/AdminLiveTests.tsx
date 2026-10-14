@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -185,37 +185,73 @@ export const AdminLiveTests: React.FC = () => {
   const [removeModalOpen, setRemoveModalOpen] = useState(false);
   const [participantToRemove, setParticipantToRemove] = useState<LiveParticipant | null>(null);
 
-  // Simulated Live Participants for Monitoring
-  const [participants, setParticipants] = useState<LiveParticipant[]>(() => {
-    return students.slice(0, 8).map((s, idx) => ({
-      id: s.id,
-      name: s.name,
-      role: s.role,
-      college: s.college,
-      rollNumber: s.rollNumber,
-      progress: Math.min(100, (idx + 1) * 12 + 15),
-      timeLeftSeconds: 2700 - idx * 120,
-      tabSwitchCount: idx === 2 ? 3 : idx === 4 ? 2 : 0,
-      status: idx === 2 ? "Warning" : idx === 6 ? "Submitted" : "Active",
-      lastPing: "Just now",
-    }));
-  });
+  // Live Participants for Selected Contest - strictly only attendees / submissions
+  const refreshParticipants = useCallback(() => {
+    const activeSessions = liveTestService.getActiveSessionsForTest(selectedContestId);
+    const contestSubs = liveTestService.getSubmissionsForTest(selectedContestId);
+    const contestDuration = (currentContest?.durationMinutes || 60) * 60;
+
+    const map = new Map<string, LiveParticipant>();
+
+    // 1. First add completed submissions for this contest
+    contestSubs.forEach((s) => {
+      const key = (s.userId || s.email || s.id).toLowerCase();
+      // Cap time taken strictly to contest duration
+      const timeCapped = Math.min(contestDuration, Math.max(30, s.timeTakenSeconds || 0));
+      const remaining = Math.max(0, contestDuration - timeCapped);
+
+      map.set(key, {
+        id: s.userId || s.id,
+        name: s.studentName,
+        role: "STUDENT",
+        college: s.college,
+        rollNumber: s.rollNumber,
+        progress: 100,
+        timeLeftSeconds: remaining,
+        tabSwitchCount: s.tabSwitchCount || 0,
+        status: s.submissionType === "AUTO_TAB_SWITCH" || (s.tabSwitchCount >= 3) ? "Warning" : "Submitted",
+        lastPing: "Completed",
+      });
+    });
+
+    // 2. Add / update active in-progress sessions for this contest
+    activeSessions.forEach((sess) => {
+      const key = (sess.id || sess.name).toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, {
+          ...sess,
+          timeLeftSeconds: Math.min(contestDuration, Math.max(0, sess.timeLeftSeconds)),
+        });
+      }
+    });
+
+    setParticipants(Array.from(map.values()));
+  }, [selectedContestId, currentContest]);
+
+  const [participants, setParticipants] = useState<LiveParticipant[]>([]);
+
+  useEffect(() => {
+    refreshParticipants();
+  }, [refreshParticipants]);
 
   // Sync tests from service on mount and storage events
   useEffect(() => {
     const handleUpdate = () => {
       setTests(liveTestService.getAllTests());
       setSubmissions(liveTestService.getAllSubmissions());
+      refreshParticipants();
     };
     window.addEventListener("live_tests_changed", handleUpdate);
     window.addEventListener("live_test_submissions_changed", handleUpdate);
+    window.addEventListener("live_test_sessions_changed", handleUpdate);
     window.addEventListener("storage", handleUpdate);
     return () => {
       window.removeEventListener("live_tests_changed", handleUpdate);
       window.removeEventListener("live_test_submissions_changed", handleUpdate);
+      window.removeEventListener("live_test_sessions_changed", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
     };
-  }, []);
+  }, [refreshParticipants]);
 
   // Countdown timer for active monitoring contest
   useEffect(() => {
@@ -227,23 +263,12 @@ export const AdminLiveTests: React.FC = () => {
           prev.map((p) => {
             if (p.status === "Removed" || p.status === "Submitted") return p;
             const newTime = Math.max(0, p.timeLeftSeconds - 1);
-            const increment = Math.random() > 0.7 ? Math.floor(Math.random() * 2) + 1 : 0;
-            const newProg = Math.min(100, p.progress + increment);
-            const isSub = newProg >= 100 || newTime === 0;
-
-            const randomTab = Math.random() > 0.985;
-            const newTabs = randomTab ? p.tabSwitchCount + 1 : p.tabSwitchCount;
-
-            let st: LiveParticipant["status"] = p.status;
-            if (isSub) st = "Submitted";
-            else if (newTabs >= 3) st = "Warning";
-
+            const isSub = newTime === 0;
             return {
               ...p,
-              progress: newProg,
               timeLeftSeconds: newTime,
-              tabSwitchCount: newTabs,
-              status: st,
+              status: isSub ? "Submitted" : p.status,
+              progress: isSub ? 100 : p.progress,
               lastPing: "Just now",
             };
           })
@@ -1059,7 +1084,16 @@ export const AdminLiveTests: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {participants.map((p) => (
+                  {participants.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-text-muted space-y-2">
+                        <Users className="w-8 h-8 mx-auto text-text-muted/40" />
+                        <p className="text-sm font-sans font-medium text-text-secondary">No candidates have attended this live exam yet</p>
+                        <p className="text-[11px] font-mono text-text-muted">Proctoring records will appear here in real-time when students join and take this test.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    participants.map((p) => (
                     <tr key={p.id} className="hover:bg-surface-raised/50 transition-colors">
                       <td className="py-3 px-3">
                         <div className="font-sans font-semibold text-text-primary">{p.name}</div>
@@ -1119,7 +1153,7 @@ export const AdminLiveTests: React.FC = () => {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

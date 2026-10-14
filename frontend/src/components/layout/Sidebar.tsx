@@ -138,6 +138,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
     profileService.getProfile().then((data) => {
       setProfile(data);
     });
+
+    const handleProfileUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<UserProfile>;
+      if (customEvent.detail) {
+        setProfile(customEvent.detail);
+      } else {
+        profileService.getProfile().then((data) => setProfile(data));
+      }
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
   }, [user]);
 
   const isVerified = authIsAdmin() || isDemoMode || verifStatus === "Verified";
@@ -365,7 +379,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 collapsed ? "justify-center p-2 mx-auto w-11 h-11" : "p-2.5 gap-3 w-full"
               )}
             >
-              <AvatarCompletionRing profile={profile} name={user?.name || profile?.name} size="sm" showPill={false} />
+              <AvatarCompletionRing
+                profile={profile}
+                avatarUrl={profile?.avatar || user?.avatarUrl}
+                name={user?.name || profile?.name}
+                size="sm"
+                showPill={false}
+              />
               {!collapsed && (
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 justify-between">

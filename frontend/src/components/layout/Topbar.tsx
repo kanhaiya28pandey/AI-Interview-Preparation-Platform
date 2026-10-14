@@ -99,6 +99,20 @@ export const Topbar: React.FC<TopbarProps> = ({
 
   useEffect(() => {
     profileService.getProfile().then((data) => setProfile(data));
+
+    const handleProfileUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<UserProfile>;
+      if (customEvent.detail) {
+        setProfile(customEvent.detail);
+      } else {
+        profileService.getProfile().then((data) => setProfile(data));
+      }
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdated);
+    };
   }, [user]);
 
   const handleNotificationClick = async (item: AppNotification) => {
@@ -626,7 +640,13 @@ export const Topbar: React.FC<TopbarProps> = ({
           className="flex items-center gap-2 hover:opacity-80 transition-opacity pl-1"
           title={`Logged in as ${user?.name || "User"} (${user?.role || "STUDENT"})`}
         >
-          <AvatarCompletionRing profile={profile} name={user?.name} size="sm" showPill={false} />
+          <AvatarCompletionRing
+            profile={profile}
+            avatarUrl={profile?.avatar || user?.avatarUrl}
+            name={user?.name || profile?.name}
+            size="sm"
+            showPill={false}
+          />
           <span className="hidden xl:inline text-xs font-semibold text-text-primary max-w-[120px] truncate">
             {user?.name}
           </span>
