@@ -88,7 +88,7 @@ export const Callout: React.FC<CalloutProps> = ({
       id={id}
       role={role || defaultRole}
       className={cn(
-        "callout-container rounded-xl border border-l-4 shadow-sm relative transition-colors",
+        "callout-container rounded-xl border border-l-4 shadow-sm relative transition-colors min-w-0",
         isSm ? "p-3 sm:p-3.5" : "p-4 sm:p-5",
         hasRightSlot
           ? "flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4"
@@ -117,7 +117,7 @@ export const Callout: React.FC<CalloutProps> = ({
           )}
           <div
             className={cn(
-              "callout-body leading-relaxed max-w-4xl",
+              "callout-body leading-relaxed max-w-4xl break-words [overflow-wrap:anywhere]",
               isSm ? "text-xs" : "text-sm",
               title ? "mt-1" : ""
             )}
