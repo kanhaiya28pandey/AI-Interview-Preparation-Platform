@@ -16,7 +16,8 @@ import {
   LiveTestQuestion,
   LiveTestSubmission,
 } from "@/services/liveTestService";
-import { codingService } from "@/services/codingService";
+import { codingService, isStubCode } from "@/services/codingService";
+import { CodingProblem, TestCase } from "@/mocks/codingData";
 import { progressService } from "@/services/progressService";
 import { notificationService } from "@/services/notificationService";
 import { useAuth } from "@/context/AuthContext";
@@ -64,6 +65,129 @@ import { Callout } from "@/components/common/Callout";
 
 type TestViewTab = "LIVE" | "UPCOMING" | "FINISHED" | "LEADERBOARD";
 
+// Convert LiveTestQuestion to a full CodingProblem for execution and test case verification
+function liveQuestionToCodingProblem(q: LiveTestQuestion): CodingProblem {
+  let fnName = "solve";
+  const jsStarter = q.starterCode?.javascript || "";
+  const pyStarter = q.starterCode?.python || "";
+  const javaStarter = q.starterCode?.java || "";
+  const cppStarter = q.starterCode?.cpp || "";
+
+  const jsMatch = jsStarter.match(/function\s+([a-zA-Z0-9_]+)\s*\(/);
+  const pyMatch = pyStarter.match(/def\s+([a-zA-Z0-9_]+)\s*\(/);
+  const javaMatch = javaStarter.match(/(?:public|static|int|boolean|String|void|long|double|int\[\]|List<[^>]+>)\s+([a-zA-Z0-9_]+)\s*\(/);
+  const cppMatch = cppStarter.match(/(?:int|bool|string|void|vector<[^>]+>)\s+([a-zA-Z0-9_]+)\s*\(/);
+
+  if (jsMatch && jsMatch[1] && jsMatch[1] !== "function") fnName = jsMatch[1];
+  else if (pyMatch && pyMatch[1]) fnName = pyMatch[1];
+  else if (javaMatch && javaMatch[1] && javaMatch[1] !== "class") fnName = javaMatch[1];
+  else if (cppMatch && cppMatch[1]) fnName = cppMatch[1];
+  else if (q.title.toLowerCase().includes("two sum")) fnName = "twoSum";
+  else if (q.title.toLowerCase().includes("valid paren")) fnName = "isValid";
+  else if (q.title.toLowerCase().includes("palindrome")) fnName = "isPalindrome";
+  else if (q.title.toLowerCase().includes("subarray")) fnName = "subarraySum";
+
+  // Build test cases
+  const allTests: TestCase[] = [];
+  let testId = 1;
+
+  const rawCases = [
+    ...(q.sampleTestCases || []),
+    ...(q.hiddenTestCases || []),
+  ];
+
+  if (rawCases.length === 0) {
+    rawCases.push({ input: "1", output: "1" });
+  }
+
+  rawCases.forEach((tc) => {
+    let params: any[] = [];
+    let expectedVal: any = tc.output;
+
+    try {
+      if (tc.output === "true") expectedVal = true;
+      else if (tc.output === "false") expectedVal = false;
+      else if (!isNaN(Number(tc.output)) && tc.output.trim() !== "") expectedVal = Number(tc.output);
+      else if (tc.output.startsWith("[") || tc.output.startsWith("{")) expectedVal = JSON.parse(tc.output);
+    } catch {
+      expectedVal = tc.output;
+    }
+
+    try {
+      if (tc.input.includes("=")) {
+        const parts = tc.input.split(/,\s*(?=[a-zA-Z0-9_]+\s*=)/);
+        parts.forEach((part) => {
+          const valStr = part.split("=")[1]?.trim();
+          if (valStr) {
+            try {
+              if (valStr.startsWith('"') && valStr.endsWith('"')) {
+                params.push(valStr.slice(1, -1));
+              } else if (valStr === "true") params.push(true);
+              else if (valStr === "false") params.push(false);
+              else if (!isNaN(Number(valStr))) params.push(Number(valStr));
+              else if (valStr.startsWith("[") || valStr.startsWith("{")) params.push(JSON.parse(valStr));
+              else params.push(valStr);
+            } catch {
+              params.push(valStr);
+            }
+          }
+        });
+      } else {
+        params.push(tc.input);
+      }
+    } catch {
+      params = [tc.input];
+    }
+
+    allTests.push({
+      id: testId++,
+      inputStr: tc.input,
+      expectedStr: tc.output,
+      params,
+      expectedVal,
+    });
+  });
+
+  return {
+    id: q.id,
+    title: q.title,
+    difficulty: q.difficulty || "Medium",
+    category: q.category || "Algorithms",
+    acceptance: "75%",
+    description: q.questionText,
+    inputFormat: "Standard competitive programming input",
+    outputFormat: "Standard output",
+    constraints: q.constraints || [],
+    examples: (q.sampleTestCases || []).map((st) => ({
+      input: st.input,
+      output: st.output,
+      explanation: st.explanation,
+    })),
+    starterCode: {
+      javascript: q.starterCode?.javascript || `function ${fnName}() {\n  // Write solution\n}`,
+      python: q.starterCode?.python || `def ${fnName}():\n    pass`,
+      java: q.starterCode?.java || `class Solution {\n    public void ${fnName}() {\n    }\n}`,
+      cpp: q.starterCode?.cpp || `class Solution {\npublic:\n    void ${fnName}() {\n    }\n};`,
+      c: q.starterCode?.c,
+    },
+    fnName,
+    xpReward: q.marks || 30,
+    testCases: allTests,
+    hints: [],
+    solution: {
+      code: {
+        javascript: "",
+        python: "",
+        java: "",
+        cpp: "",
+      },
+      explanation: "",
+      timeComplexity: "O(N)",
+      spaceComplexity: "O(1)",
+    },
+  };
+}
+
 export const LiveTests: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -102,6 +226,10 @@ export const LiveTests: React.FC = () => {
   const [codeAnswers, setCodeAnswers] = useState<Record<string, string>>({}); // questionId -> code
   const [codingLanguages, setCodingLanguages] = useState<Record<string, string>>({}); // questionId -> lang
   const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
+  // Tracks coding questions that have been run and verified with all test cases passed
+  const [codingSubmittedMap, setCodingSubmittedMap] = useState<
+    Record<string, { code: string; passed: boolean }>
+  >({});
 
   // Coding execution output inside Arena
   const [runOutputs, setRunOutputs] = useState<
@@ -156,30 +284,57 @@ export const LiveTests: React.FC = () => {
     toast.success("Successfully registered for this live placement test! Countdown reminder active.");
   };
 
-  // Helper to check if current student has already attempted this contest
+  // Helper to check if current student has already attempted this contest (permanent lockout across sessions/logouts)
   const getExistingSubmission = (contestId: string): LiveTestSubmission | undefined => {
-    const currentEmail = user?.email || "karan.sharma@campus.edu";
-    const currentUserId = user?.userId || "student-user";
-    const currentName = user?.name || "Karan Sharma";
+    const currentEmail = user?.email || "";
+    const currentUserId = user?.userId || "";
+    const currentName = user?.name || "";
 
-    return (
-      liveTestService.getStudentSubmission(contestId, currentUserId) ||
-      liveTestService.getStudentSubmission(contestId, currentEmail) ||
-      allSubmissions.find(
-        (s) =>
-          s.testId === contestId &&
-          (s.userId === currentUserId ||
-            s.email?.toLowerCase() === currentEmail.toLowerCase() ||
-            s.studentName?.toLowerCase() === currentName.toLowerCase())
-      )
+    // 1. Check permanent localStorage lockout dictionary
+    try {
+      const permRaw = localStorage.getItem("ai_prep_completed_live_tests_v2");
+      if (permRaw) {
+        const permMap: Record<string, LiveTestSubmission> = JSON.parse(permRaw);
+        if (currentUserId && permMap[`${contestId}_${currentUserId}`]) {
+          return permMap[`${contestId}_${currentUserId}`];
+        }
+        if (currentEmail && permMap[`${contestId}_${currentEmail.toLowerCase()}`]) {
+          return permMap[`${contestId}_${currentEmail.toLowerCase()}`];
+        }
+        if (permMap[`${contestId}_completed`]) {
+          return permMap[`${contestId}_completed`];
+        }
+      }
+    } catch {}
+
+    // 2. Check liveTestService student submissions
+    const byUser = currentUserId ? liveTestService.getStudentSubmission(contestId, currentUserId) : undefined;
+    if (byUser) return byUser;
+
+    const byEmail = currentEmail ? liveTestService.getStudentSubmission(contestId, currentEmail) : undefined;
+    if (byEmail) return byEmail;
+
+    const byName = currentName ? liveTestService.getStudentSubmission(contestId, currentName) : undefined;
+    if (byName) return byName;
+
+    // 3. Check allSubmissions array
+    const found = allSubmissions.find(
+      (s) =>
+        s.testId === contestId &&
+        ((currentUserId && s.userId === currentUserId) ||
+          (currentEmail && s.email?.toLowerCase() === currentEmail.toLowerCase()) ||
+          (currentName && s.studentName?.toLowerCase() === currentName.toLowerCase()))
     );
+    if (found) return found;
+
+    return undefined;
   };
 
   // Click "Enter Arena" -> Open Pre-test Instruction Modal (with Single Attempt check)
   const promptEnterArena = (test: LiveTestContest) => {
     const existing = getExistingSubmission(test.id);
     if (existing) {
-      toast.error("Single Attempt Policy: You have already submitted this test. Re-attempts are strictly prohibited.");
+      toast.error("Single Attempt Policy: You have already completed this test. Re-attempts are strictly prohibited.");
       setSelectedSubmissionToReview(existing);
       setSelectedContestForReview(test);
       setReviewResultModalOpen(true);
@@ -196,8 +351,11 @@ export const LiveTests: React.FC = () => {
 
     const existing = getExistingSubmission(testToStart.id);
     if (existing) {
-      toast.error("Single Attempt Policy: You have already completed this test.");
+      toast.error("Single Attempt Policy: You have already completed this test. Re-attempts are strictly prohibited.");
       setPreTestModalOpen(false);
+      setSelectedSubmissionToReview(existing);
+      setSelectedContestForReview(testToStart);
+      setReviewResultModalOpen(true);
       return;
     }
 
@@ -235,6 +393,9 @@ export const LiveTests: React.FC = () => {
     setCodingLanguages(initLangs);
     setMcqAnswers({});
     setMarkedForReview({});
+    setCodingSubmittedMap({});
+    setRunOutputs({});
+
     liveTestService.recordActiveSession({
       id: user?.userId || "student-user",
       testId: testToStart.id,
@@ -270,7 +431,7 @@ export const LiveTests: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeArenaTest]);
 
-  // Anti-Cheating Proctoring Listeners: Tab Switch, Window Blur & Fullscreen Exit
+  // Anti-Cheating Proctoring Listeners: Tab Switch, Window Blur, Fullscreen Exit & Clipboard Lockdown
   useEffect(() => {
     if (!activeArenaTest) return;
 
@@ -298,16 +459,34 @@ export const LiveTests: React.FC = () => {
       }
     };
 
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      toast.warning("Right click context menu is prohibited during this live assessment.");
+    };
+
+    const handleCopyPaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      toast.warning("Copy, paste, and cut are prohibited during this live assessment.");
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("resize", handleResize);
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("copy", handleCopyPaste);
+    document.addEventListener("cut", handleCopyPaste);
+    document.addEventListener("paste", handleCopyPaste);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       window.removeEventListener("resize", handleResize);
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("copy", handleCopyPaste);
+      document.removeEventListener("cut", handleCopyPaste);
+      document.removeEventListener("paste", handleCopyPaste);
     };
   }, [activeArenaTest]);
 
@@ -366,33 +545,54 @@ export const LiveTests: React.FC = () => {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Run code inside Arena for current question
+  // Run sample test cases inside Arena for current question
   const handleRunCodeInArena = async (q: LiveTestQuestion) => {
     const code = codeAnswers[q.id] || "";
     const lang = codingLanguages[q.id] || "java";
 
+    const problem = liveQuestionToCodingProblem(q);
+    const starterForLang = ((problem.starterCode as any)?.[lang] || "").trim();
+
+    if (isStubCode(code, starterForLang)) {
+      setRunOutputs((prev) => ({
+        ...prev,
+        [q.id]: {
+          status: "error",
+          output: "Execution halted: No solution logic detected.\nYou must write your solution logic before running test cases. The unmodified starter template cannot pass.",
+          timeMs: 4,
+        },
+      }));
+      toast.error("Execution halted: Please implement your solution before running tests.");
+      return;
+    }
+
     setRunOutputs((prev) => ({
       ...prev,
-      [q.id]: { status: "running", output: "Compiling and executing test suite...", timeMs: 0 },
+      [q.id]: { status: "running", output: "Compiling and executing test cases...", timeMs: 0 },
     }));
 
     const startTime = performance.now();
     try {
-      const execRes = await codingService.runCode(q.id, lang, code, {
-        inputStr: q.sampleTestCases?.[0]?.input || "nums = [2,7,11,15], target = 9",
-        expectedStr: q.sampleTestCases?.[0]?.output || "[0,1]",
-      });
-
-      const elapsed = Math.round(performance.now() - startTime) + (execRes.runtimeMs || 12);
-      const isPassed = execRes.status === "ACCEPTED" || execRes.passedTests > 0;
+      const execRes = await codingService.runCode(problem, lang, code);
+      const elapsed = Math.round(performance.now() - startTime) + (execRes.runtimeMs || 10);
+      const isPassed = execRes.status === "ACCEPTED" || (execRes.totalTests > 0 && execRes.passedTests === execRes.totalTests);
 
       let logText = "";
-      if (execRes.outputLogs && execRes.outputLogs.length > 0) {
+      if (execRes.testCaseResults && execRes.testCaseResults.length > 0) {
+        logText = execRes.testCaseResults
+          .map(
+            (tc, idx) =>
+              `Test Case ${idx + 1}: ${tc.passed ? "PASSED ✓" : "FAILED ✗"}\n  Input:    ${tc.inputStr}\n  Expected: ${tc.expectedStr}\n  Actual:   ${tc.actualStr || "N/A"}`
+          )
+          .join("\n\n");
+        if (execRes.outputLogs && execRes.outputLogs.length > 0) {
+          logText += `\n\nLogs:\n${execRes.outputLogs.join("\n")}`;
+        }
+        logText += `\n\nResult: ${execRes.status} | Passed: ${execRes.passedTests} of ${execRes.totalTests} cases (${elapsed}ms)`;
+      } else if (execRes.outputLogs && execRes.outputLogs.length > 0) {
         logText = execRes.outputLogs.join("\n");
-      } else if (isPassed) {
-        logText = `Test Case 1: PASSED\nInput: ${q.sampleTestCases?.[0]?.input || "N/A"}\nOutput: ${q.sampleTestCases?.[0]?.output || "N/A"}\nExecution clean.`;
       } else {
-        logText = `Execution halted or output mismatch.\nStatus: ${execRes.status}\nPassed: ${execRes.passedTests} of ${execRes.totalTests}`;
+        logText = `Result: ${execRes.status}\nPassed: ${execRes.passedTests} of ${execRes.totalTests}`;
       }
 
       setRunOutputs((prev) => ({
@@ -404,17 +604,107 @@ export const LiveTests: React.FC = () => {
         },
       }));
 
-      if (isPassed) toast.success("Test case passed successfully!");
-      else toast.error("Sample test case failed. Verify your logic.");
+      if (isPassed) {
+        toast.success("Test cases executed: All test cases passed!");
+      } else {
+        toast.error(`Test cases failed: ${execRes.passedTests} of ${execRes.totalTests} passed.`);
+      }
     } catch {
       setRunOutputs((prev) => ({
         ...prev,
         [q.id]: {
           status: "error",
-          output: "Execution error: Solution did not return valid output or timed out.",
+          output: "Execution error: Solution failed to compile or timed out.",
           timeMs: 45,
         },
       }));
+      toast.error("Execution error occurred during compilation.");
+    }
+  };
+
+  // Save & Submit Code inside Arena: evaluates against full test suite, marks question answered ONLY if tests pass
+  const handleSaveAndSubmitCodeInArena = async (q: LiveTestQuestion) => {
+    const code = codeAnswers[q.id] || "";
+    const lang = codingLanguages[q.id] || "java";
+
+    const problem = liveQuestionToCodingProblem(q);
+    const starterForLang = ((problem.starterCode as any)?.[lang] || "").trim();
+
+    if (isStubCode(code, starterForLang)) {
+      setRunOutputs((prev) => ({
+        ...prev,
+        [q.id]: {
+          status: "error",
+          output: "Submission Rejected: Unmodified starter template or empty stub.\nYou must implement real algorithmic solution logic before submitting.",
+          timeMs: 5,
+        },
+      }));
+      toast.error("Submission rejected: Please implement your solution before submitting.");
+      return;
+    }
+
+    setRunOutputs((prev) => ({
+      ...prev,
+      [q.id]: { status: "running", output: "Evaluating code against all test cases...", timeMs: 0 },
+    }));
+
+    const startTime = performance.now();
+    try {
+      const execRes = await codingService.submitCode(problem, lang, code);
+      const elapsed = Math.round(performance.now() - startTime) + (execRes.runtimeMs || 15);
+      const isPassed = execRes.status === "ACCEPTED" || (execRes.totalTests > 0 && execRes.passedTests === execRes.totalTests);
+
+      let logText = "";
+      if (execRes.testCaseResults && execRes.testCaseResults.length > 0) {
+        logText = execRes.testCaseResults
+          .map(
+            (tc, idx) =>
+              `Test Case ${idx + 1}: ${tc.passed ? "PASSED ✓" : "FAILED ✗"}\n  Input:    ${tc.inputStr}\n  Expected: ${tc.expectedStr}\n  Actual:   ${tc.actualStr || "N/A"}`
+          )
+          .join("\n\n");
+        if (execRes.outputLogs && execRes.outputLogs.length > 0) {
+          logText += `\n\nLogs:\n${execRes.outputLogs.join("\n")}`;
+        }
+        logText += `\n\nFinal Status: ${execRes.status} | Passed: ${execRes.passedTests} of ${execRes.totalTests} cases (${elapsed}ms)`;
+      } else if (execRes.outputLogs && execRes.outputLogs.length > 0) {
+        logText = execRes.outputLogs.join("\n");
+      } else {
+        logText = `Final Status: ${execRes.status}\nPassed: ${execRes.passedTests} of ${execRes.totalTests}`;
+      }
+
+      setRunOutputs((prev) => ({
+        ...prev,
+        [q.id]: {
+          status: isPassed ? "success" : "error",
+          output: logText,
+          timeMs: elapsed,
+        },
+      }));
+
+      if (isPassed) {
+        setCodingSubmittedMap((prev) => ({
+          ...prev,
+          [q.id]: { code, passed: true },
+        }));
+        toast.success(`Code ACCEPTED! Q${activeQuestionIndex + 1} passed all test cases and is marked as answered!`);
+      } else {
+        setCodingSubmittedMap((prev) => {
+          const next = { ...prev };
+          delete next[q.id];
+          return next;
+        });
+        toast.error(`Code submission failed (${execRes.passedTests}/${execRes.totalTests} test cases passed). Question not marked as answered.`);
+      }
+    } catch {
+      setRunOutputs((prev) => ({
+        ...prev,
+        [q.id]: {
+          status: "error",
+          output: "Submission error: Solution failed to compile or evaluate.",
+          timeMs: 50,
+        },
+      }));
+      toast.error("Execution error during submission.");
     }
   };
 
@@ -456,12 +746,10 @@ export const LiveTests: React.FC = () => {
           marksEarned: Math.max(0, marksEarned),
         };
       } else {
+        const isCodingSolved = !!codingSubmittedMap[q.id]?.passed;
         const studentCode = codeAnswers[q.id] || "";
         const lang = codingLanguages[q.id] || "java";
-        // Verify if code has algorithmic logic
-        const hasLogic =
-          /\b(for|while|if|switch|map|HashMap|vector)\b/i.test(studentCode) && studentCode.length > 40;
-        const marksEarned = hasLogic ? q.marks : 0;
+        const marksEarned = isCodingSolved ? q.marks : 0;
         calculatedScore += marksEarned;
 
         answerRecords[q.id] = {
@@ -469,9 +757,9 @@ export const LiveTests: React.FC = () => {
           type: "CODING",
           code: studentCode,
           language: lang,
-          passedTestCases: hasLogic ? (q.sampleTestCases?.length || 2) : 0,
+          passedTestCases: isCodingSolved ? (q.sampleTestCases?.length || 2) : 0,
           totalTestCases: q.sampleTestCases?.length || 2,
-          isCorrect: hasLogic,
+          isCorrect: isCodingSolved,
           marksEarned,
         };
       }
@@ -507,6 +795,17 @@ export const LiveTests: React.FC = () => {
     };
 
     liveTestService.saveSubmission(submission);
+
+    // Save to permanent lockout dictionary (persists across logouts and page refreshes)
+    try {
+      const permRaw = localStorage.getItem("ai_prep_completed_live_tests_v2");
+      const permMap = permRaw ? JSON.parse(permRaw) : {};
+      if (submission.userId) permMap[`${submission.testId}_${submission.userId}`] = submission;
+      if (submission.email) permMap[`${submission.testId}_${submission.email.toLowerCase()}`] = submission;
+      permMap[`${submission.testId}_completed`] = submission;
+      localStorage.setItem("ai_prep_completed_live_tests_v2", JSON.stringify(permMap));
+    } catch {}
+
     setAllSubmissions(liveTestService.getAllSubmissions());
 
     // Award XP, touch streak, and sync master student record & backend
@@ -1456,10 +1755,7 @@ export const LiveTests: React.FC = () => {
                               <Button
                                 variant="teal-cyan"
                                 size="sm"
-                                onClick={() => {
-                                  handleRunCodeInArena(allQuestions[activeQuestionIndex]);
-                                  toast.success(`Code saved & test cases executed for Q${activeQuestionIndex + 1}!`);
-                                }}
+                                onClick={() => handleSaveAndSubmitCodeInArena(allQuestions[activeQuestionIndex])}
                                 className="h-6 text-xs font-mono px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                               >
                                 <Check className="w-3 h-3 mr-1" /> Save & Submit Code
@@ -1481,7 +1777,7 @@ export const LiveTests: React.FC = () => {
                               </div>
                             ) : (
                               <span className="text-text-muted italic">
-                                Click 'Run Test Cases' to verify code against test suite before submitting.
+                                Click 'Run Test Cases' to verify code against test suite or 'Save & Submit Code' to submit your verified solution.
                               </span>
                             )}
                           </div>
@@ -1500,15 +1796,15 @@ export const LiveTests: React.FC = () => {
                   <span className="text-xs font-mono uppercase font-bold text-text-primary">
                     Question Palette
                   </span>
-                  <span className="text-[11px] font-mono text-cyan-400">
-                    {Object.keys(mcqAnswers).length + Object.keys(codeAnswers).filter((k) => codeAnswers[k]?.length > 30).length} of {allQuestions.length} answered
+                  <span className="text-[11px] font-mono text-cyan-400 font-bold">
+                    {allQuestions.filter((q) => q.type === "MCQ" ? !!mcqAnswers[q.id] : !!codingSubmittedMap[q.id]?.passed).length} of {allQuestions.length} answered
                   </span>
                 </div>
 
                 {/* Question Numbers Grid */}
                 <div className="grid grid-cols-5 gap-2">
                   {allQuestions.map((q, idx) => {
-                    const isAnswered = q.type === "MCQ" ? !!mcqAnswers[q.id] : (codeAnswers[q.id]?.length || 0) > 30;
+                    const isAnswered = q.type === "MCQ" ? !!mcqAnswers[q.id] : !!codingSubmittedMap[q.id]?.passed;
                     const isReview = markedForReview[q.id];
                     const isCurrent = activeQuestionIndex === idx;
 
@@ -1658,12 +1954,20 @@ export const LiveTests: React.FC = () => {
               <span className="font-bold text-text-primary">{allQuestions.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-text-muted">MCQ Answered:</span>
-              <span className="font-bold text-cyan-400">{Object.keys(mcqAnswers).length}</span>
+              <span className="text-text-muted">MCQs Answered:</span>
+              <span className="font-bold text-cyan-400">
+                {allQuestions.filter((q) => q.type === "MCQ" && !!mcqAnswers[q.id]).length} of {allQuestions.filter((q) => q.type === "MCQ").length}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Coding Problems Solved:</span>
+              <span className="font-bold text-emerald-400">
+                {allQuestions.filter((q) => q.type === "CODING" && !!codingSubmittedMap[q.id]?.passed).length} of {allQuestions.filter((q) => q.type === "CODING").length}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-text-muted">Time Remaining:</span>
-              <span className="font-bold text-emerald-400">{formatTimer(arenaTimer)}</span>
+              <span className="font-bold text-amber-400">{formatTimer(arenaTimer)}</span>
             </div>
           </div>
 

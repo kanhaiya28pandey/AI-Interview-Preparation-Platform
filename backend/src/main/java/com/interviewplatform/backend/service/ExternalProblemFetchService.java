@@ -328,6 +328,24 @@ public class ExternalProblemFetchService {
         return list;
     }
 
+    private boolean hasRealStructuredContent(ExternalProblemImportRequest request) {
+        if (request.getDescription() == null || request.getDescription().isBlank()) {
+            return false;
+        }
+        String desc = request.getDescription().trim();
+        if (desc.startsWith("Problem statement for") || desc.equalsIgnoreCase("Problem statement")) {
+            return false;
+        }
+        if (request.getExamples() == null || request.getExamples().isEmpty()) {
+            return false;
+        }
+        ProblemExample first = request.getExamples().get(0);
+        if (first != null && "Sample input".equalsIgnoreCase(first.getInput()) && "Sample output".equalsIgnoreCase(first.getOutput())) {
+            return false;
+        }
+        return true;
+    }
+
     public CodingProblem importProblem(ExternalProblemImportRequest request) {
         String slug = request.getSlug() != null ? request.getSlug().trim() : "";
         String source = request.getSource() != null ? request.getSource().toUpperCase() : "LEETCODE";
@@ -335,7 +353,10 @@ public class ExternalProblemFetchService {
 
         CodingProblem problem = null;
 
-        if ("LEETCODE".equals(source) && !slug.isEmpty()) {
+        // If request already has genuine rich structured fields (from frontend rich problem bank or custom modal)
+        if (hasRealStructuredContent(request)) {
+            problem = buildProblemFromRequest(request);
+        } else if ("LEETCODE".equals(source) && !slug.isEmpty()) {
             problem = fetchLeetCodeProblemDetails(slug);
         }
 
@@ -344,7 +365,7 @@ public class ExternalProblemFetchService {
             problem = buildEnrichedProblem(request);
         }
 
-        // Ensure starter code exists for all 4 languages
+        // Ensure starter code exists for all languages
         ensureStarterCodes(problem);
 
         // Save to MongoDB Coding Problem collection
@@ -355,6 +376,37 @@ public class ExternalProblemFetchService {
 
         log.info("Successfully imported and published problem: [{}] - {}", saved.getId(), saved.getTitle());
         return saved;
+    }
+
+    private CodingProblem buildProblemFromRequest(ExternalProblemImportRequest request) {
+        CodingProblem p = new CodingProblem();
+        String id = request.getSlug() != null && !request.getSlug().isBlank()
+                ? request.getSlug().replace("/", "-").toLowerCase()
+                : "prob-" + System.currentTimeMillis();
+        p.setId(id);
+        p.setTitle(request.getTitle() != null ? request.getTitle() : formatSlugToTitle(id));
+        p.setDifficulty(normalizeDifficulty(request.getDifficulty()));
+        p.setCategory(request.getCategory() != null ? request.getCategory() : "Algorithms");
+        p.setAcceptance(request.getAcceptance() != null ? request.getAcceptance() : "75.0%");
+        p.setFnName(request.getFnName() != null ? request.getFnName() : sanitizeFnName(p.getTitle()));
+        p.setXpReward(request.getXpReward() != null ? request.getXpReward() : ("Hard".equalsIgnoreCase(p.getDifficulty()) ? 200 : ("Medium".equalsIgnoreCase(p.getDifficulty()) ? 100 : 50)));
+
+        p.setDescription(request.getDescription());
+        p.setInputFormat(request.getInputFormat() != null ? request.getInputFormat() : "Standard problem inputs");
+        p.setOutputFormat(request.getOutputFormat() != null ? request.getOutputFormat() : "Return expected output format");
+        p.setConstraints(request.getConstraints() != null && !request.getConstraints().isEmpty() ? request.getConstraints() : List.of("1 <= input length <= 10^5"));
+        p.setExamples(request.getExamples() != null && !request.getExamples().isEmpty() ? request.getExamples() : List.of(new ProblemExample("Sample input", "Sample output", "Standard example")));
+        p.setTestCases(request.getTestCases() != null && !request.getTestCases().isEmpty() ? request.getTestCases() : List.of(new TestCase(1, "Sample 1", "Sample 1", List.of("1"), "Sample 1")));
+        if (request.getStarterCode() != null && !request.getStarterCode().isEmpty()) {
+            p.setStarterCode(request.getStarterCode());
+        }
+        if (request.getHints() != null && !request.getHints().isEmpty()) {
+            p.setHints(request.getHints());
+        }
+        if (request.getSolution() != null) {
+            p.setSolution(request.getSolution());
+        }
+        return p;
     }
 
     private CodingProblem fetchLeetCodeProblemDetails(String titleSlug) {
@@ -430,8 +482,8 @@ public class ExternalProblemFetchService {
                     StructuredProblemData parsed = parseProblemHtml(rawHtml, exCases);
 
                     p.setDescription(parsed.getStatement());
-                    p.setInputFormat("Refer to problem statement and example inputs.");
-                    p.setOutputFormat("Return the expected data structure / value.");
+                    p.setInputFormat(!parsed.getInputFormat().isEmpty() ? parsed.getInputFormat() : "Refer to problem statement and example inputs.");
+                    p.setOutputFormat(!parsed.getOutputFormat().isEmpty() ? parsed.getOutputFormat() : "Return the expected data structure / value.");
                     p.setConstraints(parsed.getConstraints());
                     p.setExamples(parsed.getExamples());
                     p.setTestCases(parsed.getTestCases());
@@ -497,20 +549,198 @@ public class ExternalProblemFetchService {
         p.setAcceptance("75.0%");
         p.setFnName(sanitizeFnName(id));
         p.setXpReward("Hard".equalsIgnoreCase(p.getDifficulty()) ? 200 : ("Medium".equalsIgnoreCase(p.getDifficulty()) ? 100 : 50));
-        p.setDescription("Implement an optimal algorithmic solution for **" + title + "** from " + (request.getSource() != null ? request.getSource() : "Online Problem Bank") + ".\n\n"
-                + "Ensure your implementation manages boundary conditions, null inputs, and achieves linear time or space complexity where applicable.");
-        p.setInputFormat("Standard parameter or array input as described in problem specification.");
-        p.setOutputFormat("Return computed result matching the required output format.");
-        p.setConstraints(List.of("1 <= input.length <= 10^5", "Time limit: 2.0s per test case"));
 
-        p.setTestCases(List.of(
-                new TestCase(1, "Input Sample 1", "Output Sample 1", List.of("1"), "1"),
-                new TestCase(2, "Input Sample 2", "Output Sample 2", List.of("2"), "2")
-        ));
+        boolean isSql = p.getCategory().toLowerCase().contains("sql") || p.getCategory().toLowerCase().contains("database");
 
-        p.setExamples(List.of(
-                new ProblemExample("Sample input representation", "Expected algorithm output", "Standard algorithmic validation example")
-        ));
+        if (id.contains("watermelon") || title.toLowerCase().contains("watermelon")) {
+            p.setDescription("One hot summer day Pete and his friend Billy decided to buy a watermelon. They chose the biggest and the ripest one, in their opinion. After that the watermelon was weighed, and the scales showed **w** kilos.\n\nThey rushed home, dying of thirst, and decided to divide the berry, however they faced a hard problem.\n\nPete and Billy are great fans of even numbers, that's why they want to divide the watermelon in such a way that each of the two parts weighs **even** number of kilos, at the same time it is not obligatory that the parts are equal in weight.\n\nHelp them determine if they can divide the watermelon in the way they want. Print **YES**, if the boys can divide the watermelon into two parts, each of them weighing even number of kilos; and **NO** in the opposite case.");
+            p.setInputFormat("w = 8");
+            p.setOutputFormat("YES");
+            p.setConstraints(List.of("1 <= w <= 100", "Time limit: 1.0s"));
+            p.setExamples(List.of(
+                    new ProblemExample("8", "YES", "For example, the boys can divide the watermelon into two parts of 2 and 6 kilos respectively (another variant — two parts of 4 and 4 kilos)."),
+                    new ProblemExample("2", "NO", "Pete and Billy cannot divide a 2-kilo watermelon into two even parts (the only division is 1 and 1, which are odd numbers).")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "8", "YES", List.of("8"), "YES"),
+                    new TestCase(2, "2", "NO", List.of("2"), "NO"),
+                    new TestCase(3, "4", "YES", List.of("4"), "YES")
+            ));
+        } else if (id.contains("subarray-with-given-sum") || title.toLowerCase().contains("subarray with given sum")) {
+            p.setDescription("Given an unsorted array **arr** of non-negative integers and an integer **target**, find a continuous sub-array which adds to a given **target**.\n\nReturn 1-based indices of starting and ending positions of first such occurring subarray. If no such subarray exists, return [-1].");
+            p.setInputFormat("arr = [1, 2, 3, 7, 5], target = 12");
+            p.setOutputFormat("[2, 4]");
+            p.setConstraints(List.of("1 <= arr.length <= 10^5", "0 <= arr[i] <= 10^9", "1 <= target <= 10^9"));
+            p.setExamples(List.of(
+                    new ProblemExample("arr = [1, 2, 3, 7, 5], target = 12", "[2, 4]", "The sum of elements from 2nd position to 4th position is 2 + 3 + 7 = 12."),
+                    new ProblemExample("arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], target = 15", "[1, 5]", "The sum of elements from 1st to 5th position is 1 + 2 + 3 + 4 + 5 = 15.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "arr = [1, 2, 3, 7, 5], target = 12", "[2, 4]", List.of("[1, 2, 3, 7, 5]", "12"), "[2, 4]"),
+                    new TestCase(2, "arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], target = 15", "[1, 5]", List.of("[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]", "15"), "[1, 5]")
+            ));
+        } else if (id.contains("bfs-traversal-of-graph") || title.toLowerCase().contains("bfs traversal") || title.toLowerCase().contains("bfs of graph")) {
+            p.setDescription("Given a connected undirected graph represented by an adjacency list **adj**, perform a Breadth First Traversal (BFS) starting from vertex 0, visiting vertices in level-order from left to right.\n\nReturn a list of integers containing the BFS traversal of the graph.");
+            p.setInputFormat("adj = [[2, 3, 1], [0], [0, 4], [0], [2]]");
+            p.setOutputFormat("[0, 2, 3, 1, 4]");
+            p.setConstraints(List.of("1 <= V, E <= 10^4", "0 <= node values < V"));
+            p.setExamples(List.of(
+                    new ProblemExample("adj = [[2, 3, 1], [0], [0, 4], [0], [2]]", "[0, 2, 3, 1, 4]", "Starting from 0, the connected nodes 2, 3, 1 are traversed first, then node 4."),
+                    new ProblemExample("adj = [[1, 2], [0, 2], [0, 1, 3, 4], [2], [2]]", "[0, 1, 2, 3, 4]", "Starting from vertex 0.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "adj = [[2, 3, 1], [0], [0, 4], [0], [2]]", "[0, 2, 3, 1, 4]", List.of("[[2,3,1],[0],[0,4],[0],[2]]"), "[0, 2, 3, 1, 4]"),
+                    new TestCase(2, "adj = [[1, 2], [0, 2], [0, 1, 3, 4], [2], [2]]", "[0, 1, 2, 3, 4]", List.of("[[1,2],[0,2],[0,1,3,4],[2],[2]]"), "[0, 1, 2, 3, 4]")
+            ));
+        } else if (id.contains("dfs-traversal-of-graph") || title.toLowerCase().contains("dfs traversal") || title.toLowerCase().contains("dfs of graph")) {
+            p.setDescription("Given a connected undirected graph represented by an adjacency list **adj**, perform a Depth First Traversal (DFS) starting from vertex 0.\n\nVisit vertices depth-wise and return a list of integers containing the DFS traversal of the graph.");
+            p.setInputFormat("adj = [[1, 2], [0, 2], [0, 1, 3, 4], [2], [2]]");
+            p.setOutputFormat("[0, 1, 2, 3, 4]");
+            p.setConstraints(List.of("1 <= V, E <= 10^4", "0 <= node values < V"));
+            p.setExamples(List.of(
+                    new ProblemExample("adj = [[1, 2], [0, 2], [0, 1, 3, 4], [2], [2]]", "[0, 1, 2, 3, 4]", "Starting from 0, visit 1, then explore its neighbors, then 2, 3, 4.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "adj = [[1, 2], [0, 2], [0, 1, 3, 4], [2], [2]]", "[0, 1, 2, 3, 4]", List.of("[[1,2],[0,2],[0,1,3,4],[2],[2]]"), "[0, 1, 2, 3, 4]")
+            ));
+        } else if (id.contains("missing-number") || title.toLowerCase().contains("missing number")) {
+            p.setDescription("Given an array **nums** containing **n** distinct numbers in the range `[0, n]` (or `[1, n]`), return the only number in the range that is missing from the array.");
+            p.setInputFormat("nums = [3, 0, 1]");
+            p.setOutputFormat("2");
+            p.setConstraints(List.of("n == nums.length", "1 <= n <= 10^5", "All numbers in nums are unique."));
+            p.setExamples(List.of(
+                    new ProblemExample("nums = [3, 0, 1]", "2", "n = 3, so numbers are in [0, 3]. 2 is missing from nums."),
+                    new ProblemExample("nums = [0, 1]", "2", "n = 2, so numbers are in [0, 2]. 2 is missing.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "nums = [3, 0, 1]", "2", List.of("[3, 0, 1]"), 2),
+                    new TestCase(2, "nums = [0, 1]", "2", List.of("[0, 1]"), 2)
+            ));
+        } else if (id.contains("kadane") || title.toLowerCase().contains("kadane") || title.toLowerCase().contains("maximum subarray")) {
+            p.setDescription("Given an integer array **nums**, find the contiguous subarray with the largest sum, and return its sum.");
+            p.setInputFormat("nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]");
+            p.setOutputFormat("6");
+            p.setConstraints(List.of("1 <= nums.length <= 10^5", "-10^4 <= nums[i] <= 10^4"));
+            p.setExamples(List.of(
+                    new ProblemExample("nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]", "6", "The contiguous subarray [4, -1, 2, 1] has the largest sum 6."),
+                    new ProblemExample("nums = [1]", "1", "The subarray [1] has the largest sum 1.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "nums = [-2, 1, -3, 4, -1, 2, 1, -5, 4]", "6", List.of("[-2, 1, -3, 4, -1, 2, 1, -5, 4]"), 6),
+                    new TestCase(2, "nums = [5, 4, -1, 7, 8]", "23", List.of("[5, 4, -1, 7, 8]"), 23)
+            ));
+        } else if (id.contains("parenthes") || title.toLowerCase().contains("parenthes")) {
+            p.setDescription("Given a string **s** containing just the characters `'('`, `')'`, `'{'`, `'}'`, `'['` and `']'`, determine if the input string is valid.\n\nAn input string is valid if open brackets are closed by the same type of brackets and in the correct order.");
+            p.setInputFormat("s = \"()[]{}\"");
+            p.setOutputFormat("true");
+            p.setConstraints(List.of("1 <= s.length <= 10^4", "s consists of parentheses only '()[]{}'"));
+            p.setExamples(List.of(
+                    new ProblemExample("s = \"()[]{}\"", "true", "All parentheses match in order."),
+                    new ProblemExample("s = \"(]\"", "false", "Mismatched bracket types.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "s = \"()[]{}\"", "true", List.of("\"()[]{}\""), Boolean.TRUE),
+                    new TestCase(2, "s = \"(]\"", "false", List.of("\"(]\""), Boolean.FALSE)
+            ));
+        } else if (id.contains("reverse-a-linked-list") || title.toLowerCase().contains("reverse linked list") || title.toLowerCase().contains("reverse a linked list")) {
+            p.setDescription("Given the **head** of a singly linked list, reverse the list, and return the reversed list.");
+            p.setInputFormat("head = [1, 2, 3, 4, 5]");
+            p.setOutputFormat("[5, 4, 3, 2, 1]");
+            p.setConstraints(List.of("The number of nodes in the list is in the range [0, 5000].", "-5000 <= Node.val <= 5000"));
+            p.setExamples(List.of(
+                    new ProblemExample("head = [1, 2, 3, 4, 5]", "[5, 4, 3, 2, 1]", "The list is reversed iteratively or recursively.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "head = [1, 2, 3, 4, 5]", "[5, 4, 3, 2, 1]", List.of("[1, 2, 3, 4, 5]"), "[5, 4, 3, 2, 1]")
+            ));
+        } else if (id.contains("way-too-long-words") || title.toLowerCase().contains("way too long words")) {
+            p.setDescription("Consider a word too long if its length is strictly more than 10 characters. All too long words should be replaced with a special abbreviation.\n\nThis abbreviation is made like this: we write the first and the last letter of a word and between them we write the number of letters between the first and the last letters.\n\nIf the word is 10 characters or shorter, it remains unchanged.");
+            p.setInputFormat("word = \"localization\"");
+            p.setOutputFormat("\"l10n\"");
+            p.setConstraints(List.of("1 <= word.length <= 100", "word consists of lowercase English letters"));
+            p.setExamples(List.of(
+                    new ProblemExample("word = \"word\"", "\"word\"", "Length 4 <= 10, stays unchanged."),
+                    new ProblemExample("word = \"localization\"", "\"l10n\"", "Length 12 > 10, becomes l + 10 + n = l10n.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "word = \"word\"", "\"word\"", List.of("\"word\""), "\"word\""),
+                    new TestCase(2, "word = \"localization\"", "\"l10n\"", List.of("\"localization\""), "\"l10n\"")
+            ));
+        } else if (id.contains("second-highest-salary") || title.toLowerCase().contains("second highest salary")) {
+            p.setDescription("Write a SQL query to find the second highest salary from the **Employee** table. If there is no second highest salary, return `null`.");
+            p.setInputFormat("Employee table:\n+----+--------+\n| id | salary |\n+----+--------+\n| 1  | 100    |\n| 2  | 200    |\n| 3  | 300    |\n+----+--------+");
+            p.setOutputFormat("+---------------------+\n| SecondHighestSalary |\n+---------------------+\n| 200                 |\n+---------------------+");
+            p.setConstraints(List.of("Standard SQL / MySQL / PostgreSQL dialect", "Time limit: 2.0s"));
+            p.setExamples(List.of(
+                    new ProblemExample("Employee table: [[1, 100], [2, 200], [3, 300]]", "200", "200 is the second highest salary.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "Employee: [[1, 100], [2, 200], [3, 300]]", "200", List.of("1"), "200")
+            ));
+            Map<String, String> sqlStarters = new HashMap<>();
+            sqlStarters.put("mysql", "SELECT MAX(salary) AS SecondHighestSalary FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee);\n");
+            sqlStarters.put("postgresql", "SELECT MAX(salary) AS SecondHighestSalary FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee);\n");
+            sqlStarters.put("sql", "SELECT MAX(salary) AS SecondHighestSalary FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee);\n");
+            p.setStarterCode(sqlStarters);
+        } else if (id.contains("department-highest-salary") || title.toLowerCase().contains("department highest salary")) {
+            p.setDescription("Write a SQL query to find employees who have the highest salary in each of the departments.");
+            p.setInputFormat("Employee and Department tables with id, name, salary, and departmentId");
+            p.setOutputFormat("+------------+----------+--------+\n| Department | Employee | Salary |\n+------------+----------+--------+\n| IT         | Max      | 90000  |\n| IT         | Jim      | 90000  |\n| Sales      | Henry    | 80000  |\n+------------+----------+--------+");
+            p.setConstraints(List.of("Standard SQL / MySQL / PostgreSQL dialect", "Time limit: 2.0s"));
+            p.setExamples(List.of(
+                    new ProblemExample("Employee: [[1, 'Joe', 70000, 1], [2, 'Jim', 90000, 1], [3, 'Henry', 80000, 2], [4, 'Sam', 60000, 2], [5, 'Max', 90000, 1]], Department: [[1, 'IT'], [2, 'Sales']]", "+------------+----------+--------+\n| Department | Employee | Salary |\n+------------+----------+--------+\n| IT         | Jim      | 90000  |\n| IT         | Max      | 90000  |\n| Sales      | Henry    | 80000  |\n+------------+----------+--------+", "Max and Jim both earn 90000 in IT.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "Input tables", "Output table", List.of("1"), "Output table")
+            ));
+            Map<String, String> sqlStarters = new HashMap<>();
+            sqlStarters.put("mysql", "SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary\nFROM Employee e\nJOIN Department d ON e.departmentId = d.id\nWHERE (e.departmentId, e.salary) IN (\n    SELECT departmentId, MAX(salary)\n    FROM Employee\n    GROUP BY departmentId\n);\n");
+            sqlStarters.put("postgresql", "SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary\nFROM Employee e\nJOIN Department d ON e.departmentId = d.id\nWHERE (e.departmentId, e.salary) IN (\n    SELECT departmentId, MAX(salary)\n    FROM Employee\n    GROUP BY departmentId\n);\n");
+            sqlStarters.put("sql", "SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary\nFROM Employee e\nJOIN Department d ON e.departmentId = d.id\nWHERE (e.departmentId, e.salary) IN (\n    SELECT departmentId, MAX(salary)\n    FROM Employee\n    GROUP BY departmentId\n);\n");
+            p.setStarterCode(sqlStarters);
+        } else if (isSql) {
+            p.setDescription("Write a SQL query for **" + title + "**.\n\nEnsure your query properly handles `NULL` values, aggregations, and returns the expected column headers as requested.");
+            p.setInputFormat("Table Schema:\n+----+--------+\n| Id | Column |\n+----+--------+");
+            p.setOutputFormat("Result Table:\n+----------------+\n| ExpectedResult |\n+----------------+");
+            p.setConstraints(List.of("Standard SQL / MySQL / PostgreSQL dialect", "Time limit: 2.0s"));
+            p.setExamples(List.of(
+                    new ProblemExample("Input records in database table", "Filtered/Aggregated rows", "SQL query result")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "SELECT * FROM Table", "VALID_SQL", List.of("1"), "VALID_SQL")
+            ));
+            Map<String, String> sqlStarters = new HashMap<>();
+            sqlStarters.put("mysql", "-- Write your MySQL query statement below\nSELECT \nFROM ;\n");
+            sqlStarters.put("postgresql", "-- Write your PostgreSQL query statement below\nSELECT \nFROM ;\n");
+            sqlStarters.put("sql", "-- Write your standard SQL query statement below\nSELECT \nFROM ;\n");
+            p.setStarterCode(sqlStarters);
+        } else if (id.startsWith("cf-") || "CODEFORCES".equalsIgnoreCase(request.getSource()) || id.matches("^[0-9]+.*")) {
+            p.setDescription("Solve **" + title + "** from Codeforces.\n\nDevise an optimal algorithm to process the inputs within the strict competitive programming execution limits. Ensure you account for edge cases such as empty sequences, minimum and maximum numerical bounds.");
+            p.setInputFormat("n = 5, arr = [1, 3, 5, 7, 9]");
+            p.setOutputFormat("5");
+            p.setConstraints(List.of("1 <= n <= 2 * 10^5", "Time limit: 2.0s per test case", "Memory limit: 256MB"));
+            p.setExamples(List.of(
+                    new ProblemExample("n = 5, arr = [1, 3, 5, 7, 9]", "5", "Sample competitive programming test case.")
+            ));
+            p.setTestCases(List.of(
+                    new TestCase(1, "n = 5, arr = [1, 3, 5, 7, 9]", "5", List.of("[1, 3, 5, 7, 9]"), 5)
+            ));
+        } else {
+            p.setDescription("Implement an optimal algorithmic solution for **" + title + "** from " + (request.getSource() != null ? request.getSource() : "Online Problem Bank") + ".\n\n"
+                    + "Ensure your implementation manages boundary conditions, null inputs, and achieves linear time or space complexity where applicable.");
+            p.setInputFormat("Input parameters as described in problem specification.");
+            p.setOutputFormat("Return computed result matching the required output format.");
+            p.setConstraints(List.of("1 <= input size <= 10^5", "Time limit: 2.0s per test case"));
+
+            p.setTestCases(List.of(
+                    new TestCase(1, "Input 1", "Output 1", List.of("1"), "1"),
+                    new TestCase(2, "Input 2", "Output 2", List.of("2"), "2")
+            ));
+
+            p.setExamples(List.of(
+                    new ProblemExample("Input parameters representation", "Expected algorithm output", "Standard algorithmic validation example")
+            ));
+        }
 
         p.setHints(List.of("Identify the optimal data structure (Hash Table, Priority Queue, Stack, or Two Pointers).", "Consider worst-case inputs and empty sets."));
 
@@ -594,12 +824,18 @@ public class ExternalProblemFetchService {
 
     public static class StructuredProblemData {
         private String statement = "";
+        private String inputFormat = "";
+        private String outputFormat = "";
         private List<ProblemExample> examples = new ArrayList<>();
         private List<String> constraints = new ArrayList<>();
         private List<TestCase> testCases = new ArrayList<>();
 
         public String getStatement() { return statement; }
         public void setStatement(String statement) { this.statement = statement; }
+        public String getInputFormat() { return inputFormat; }
+        public void setInputFormat(String inputFormat) { this.inputFormat = inputFormat; }
+        public String getOutputFormat() { return outputFormat; }
+        public void setOutputFormat(String outputFormat) { this.outputFormat = outputFormat; }
         public List<ProblemExample> getExamples() { return examples; }
         public void setExamples(List<ProblemExample> examples) { this.examples = examples; }
         public List<String> getConstraints() { return constraints; }
@@ -755,6 +991,10 @@ public class ExternalProblemFetchService {
         }
         data.setExamples(examples);
         data.setTestCases(testCases);
+        if (!examples.isEmpty()) {
+            data.setInputFormat(examples.get(0).getInput());
+            data.setOutputFormat(examples.get(0).getOutput());
+        }
 
         // 3. Parse Constraints
         List<String> constraints = new ArrayList<>();
@@ -792,13 +1032,19 @@ public class ExternalProblemFetchService {
         String clean = name.replaceAll("[^a-zA-Z0-9]", " ").trim();
         String[] parts = clean.split("\\s+");
         if (parts.length == 0 || parts[0].isEmpty()) return "solve";
-        StringBuilder sb = new StringBuilder(parts[0].toLowerCase());
-        for (int i = 1; i < parts.length; i++) {
-            if (!parts[i].isEmpty()) {
+        StringBuilder sb = new StringBuilder();
+        if (Character.isDigit(parts[0].charAt(0))) {
+            sb.append("solve");
+        }
+        for (int i = 0; i < parts.length; i++) {
+            if (parts[i].isEmpty()) continue;
+            if (sb.length() == 0) {
+                sb.append(parts[i].toLowerCase());
+            } else {
                 sb.append(Character.toUpperCase(parts[i].charAt(0))).append(parts[i].substring(1).toLowerCase());
             }
         }
-        return sb.toString();
+        return sb.length() > 0 ? sb.toString() : "solve";
     }
 
     private String formatSlugToTitle(String slug) {

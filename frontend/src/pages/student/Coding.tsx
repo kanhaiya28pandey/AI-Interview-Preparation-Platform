@@ -9,7 +9,7 @@ import * as monaco from "monaco-editor";
 loader.config({ monaco });
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { codingService } from "@/services/codingService";
+import { codingService, isStubCode } from "@/services/codingService";
 import { parseStructuredProblemText } from "@/lib/problemParser";
 import { progressService } from "@/services/progressService";
 import { notificationService } from "@/services/notificationService";
@@ -274,8 +274,9 @@ export const Coding: React.FC = () => {
       setCode(getSafeStarterCode(selectedProblem, language));
     }
 
-    // Reset results and collapsible hints when switching problem
+    // Reset results, banner, and collapsible hints when switching problem
     setExecResult(null);
+    setXpAwardMessage(null);
     setActiveConsoleTab("testcase");
     setSelectedTestCaseIndex(0);
     setIsCustomTestCase(false);
@@ -322,6 +323,7 @@ export const Coding: React.FC = () => {
         setLanguage("javascript");
       }
     }
+    setXpAwardMessage(null);
     setSelectedProblem(p);
     setViewMode("editor");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -348,6 +350,7 @@ export const Coding: React.FC = () => {
         setLanguage("javascript");
       }
     }
+    setXpAwardMessage(null);
     setSelectedProblem(nextProb);
   };
 
@@ -355,6 +358,7 @@ export const Coding: React.FC = () => {
   const handleRunCode = async () => {
     if (!selectedProblem || isExecuting) return;
     setIsExecuting(true);
+    setXpAwardMessage(null);
     setActiveConsoleTab("result");
 
     try {
@@ -366,11 +370,11 @@ export const Coding: React.FC = () => {
       setSelectedResultCaseIndex(firstFailIdx !== -1 && firstFailIdx !== undefined ? firstFailIdx : 0);
 
       if (res.status === "ACCEPTED") {
-        toast.success("Test passed cleanly!");
+        toast.success("Sample test cases passed cleanly! Ready to submit solution.");
       } else if (res.status === "COMPILE_ERROR") {
         toast.error("Compilation / Syntax error detected");
       } else {
-        toast.warning(`Test returned: ${res.status.replace(/_/g, " ")}`);
+        toast.warning(`Test returned: ${res.status.replace(/_/g, " ")}. Fix failed cases before submitting.`);
       }
     } catch (err: any) {
       toast.error("Execution failed: " + (err.message || "Unknown error"));
@@ -382,7 +386,19 @@ export const Coding: React.FC = () => {
   // Submit Solution
   const handleSubmitCode = async () => {
     if (!selectedProblem || isExecuting) return;
+
+    // Check if code is empty or unmodified starter template
+    const starter = getSafeStarterCode(selectedProblem, language);
+    const isSql = checkProblemIsSql(selectedProblem);
+    const isTrivial = isSql ? (!code.trim() || code.trim() === starter.trim()) : isStubCode(code, starter);
+
+    if (isTrivial) {
+      toast.error("Please write your solution code before submitting. Unmodified starter templates cannot be submitted.");
+      return;
+    }
+
     setIsExecuting(true);
+    setXpAwardMessage(null);
     setActiveConsoleTab("result");
 
     try {
@@ -452,6 +468,11 @@ export const Coding: React.FC = () => {
 
           if (isFirstSolve) {
             setXpAwardMessage(`Solved! You earned +${awardedXP} XP for solving ${selectedProblem.title}!`);
+            // Automatically auto-dismiss banner after 8 seconds
+            setTimeout(() => {
+              setXpAwardMessage(null);
+            }, 8000);
+
             if (user?.userId) {
               await notificationService.notifyUser(user.userId, {
                 title: "Coding Problem Solved!",
@@ -468,7 +489,9 @@ export const Coding: React.FC = () => {
           console.warn("Could not record submission:", e);
         }
       } else {
-        // Unsuccessful submission (No false pass!)
+        // Unsuccessful submission - STRICTLY do NOT award XP or mark solved!
+        setXpAwardMessage(null);
+
         try {
           progressService.recordCodingSubmission(user?.userId, {
             problemId: selectedProblem.id,
@@ -494,7 +517,7 @@ export const Coding: React.FC = () => {
         setLocalStates(newMap);
         setScopedItem(user?.userId, `coding_state_${selectedProblem.id}`, updatedState);
 
-        toast.error(`Submission: ${res.status.replace(/_/g, " ")}`);
+        toast.error(`Submission rejected: ${res.status.replace(/_/g, " ")}. Code did not pass all test cases (${res.passedTests}/${res.totalTests} passed).`);
       }
     } catch (err: any) {
       toast.error("Submission failed: " + (err.message || "Unknown error"));
@@ -1014,7 +1037,10 @@ export const Coding: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setViewMode("list")}
+            onClick={() => {
+              setXpAwardMessage(null);
+              setViewMode("list");
+            }}
             className="text-xs font-mono gap-1.5 text-text-muted hover:text-text-primary px-2.5 py-1.5 border border-border"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -1633,6 +1659,26 @@ export const Coding: React.FC = () => {
                           </span>
                         </div>
                       </div>
+
+                      {/* Ready to Submit Callout if test passed cleanly */}
+                      {execResult.status === "ACCEPTED" && (
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-fade-in font-mono">
+                          <div className="flex items-center gap-2 text-emerald-300">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span>All test cases passed! Submit your solution now to record your answer and earn XP.</span>
+                          </div>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleSubmitCode}
+                            isLoading={isExecuting}
+                            className="font-mono text-xs gap-1.5 shrink-0"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Submit Solution Now</span>
+                          </Button>
+                        </div>
+                      )}
 
                       {/* Compilation / Runtime Diagnostics */}
                       {execResult.errorMessage && (

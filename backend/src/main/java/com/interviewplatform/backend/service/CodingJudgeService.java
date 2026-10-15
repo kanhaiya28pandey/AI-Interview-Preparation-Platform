@@ -593,5 +593,6 @@ public class CodingJudgeService {
 
     public void deleteProblem(String id) {
         problemRepository.deleteById(id);
+        contentItemRepository.deleteById(id);
     }
 }

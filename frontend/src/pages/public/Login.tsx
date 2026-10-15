@@ -158,32 +158,7 @@ export const Login: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="text-text-muted font-mono text-[11px]">Quick Fill:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setValue("email", "ananya.admin@aiinterviewprep.com");
-                    setValue("password", "admin123");
-                    setServerError(null);
-                  }}
-                  className="text-[11px] px-1.5 py-0.5 rounded bg-surface/80 border border-border hover:border-accent text-accent font-mono transition-colors"
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setValue("email", "kanhaiya.student@srmist.edu.in");
-                    setValue("password", "student123");
-                    setServerError(null);
-                  }}
-                  className="text-[11px] px-1.5 py-0.5 rounded bg-surface/80 border border-border hover:border-accent text-text-secondary hover:text-text-primary font-mono transition-colors"
-                >
-                  Student
-                </button>
-              </div>
+            <div className="flex items-center justify-end text-xs">
               <Link to="/forgot-password" className="text-accent hover:underline font-mono">
                 Forgot password?
               </Link>

@@ -4,7 +4,9 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,5 +36,11 @@ public class AdminCodingController {
     public ResponseEntity<CodingProblem> saveCodingTest(@RequestBody CodingProblem problem) {
         CodingProblem saved = judgeService.saveProblem(problem);
         return ResponseEntity.ok(saved);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCodingTest(@PathVariable String id) {
+        judgeService.deleteProblem(id);
+        return ResponseEntity.noContent().build();
     }
 }
