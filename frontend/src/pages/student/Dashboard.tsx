@@ -470,11 +470,6 @@ export const StudentDashboard: React.FC = () => {
         </div>
       </Reveal>
 
-      {/* DAILY MOTIVATION SECTION (Between Greeting Hero & KPI Stats) */}
-      <Reveal direction="up" delay={0.1}>
-        <QuoteCard />
-      </Reveal>
-
       {/* SECTION 2: STATS ROW (5 animated cards with distinct colors) */}
       <Reveal direction="up" delay={0.2}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1122,6 +1117,11 @@ export const StudentDashboard: React.FC = () => {
           Completed rounds sync automatically with your placement profile
         </p>
       </Card>
+
+      {/* DAILY MOTIVATION SECTION (Moved to end of page) */}
+      <Reveal direction="up" delay={0.1}>
+        <QuoteCard />
+      </Reveal>
     </div>
   );
 };

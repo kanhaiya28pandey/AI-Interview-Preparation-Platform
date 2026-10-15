@@ -221,18 +221,7 @@ export const OnlineQuestionExplorer: React.FC<OnlineQuestionExplorerProps> = ({ 
     };
 
     try {
-      const stored = JSON.parse(localStorage.getItem("demo_imported_coding_problems") || "[]");
-      const existingIdx = stored.findIndex((p: any) => p.id === customProblemData.id);
-      if (existingIdx >= 0) {
-        stored[existingIdx] = customProblemData;
-      } else {
-        stored.push(customProblemData);
-      }
-      localStorage.setItem("demo_imported_coding_problems", JSON.stringify(stored));
-
-      const deletedIds = JSON.parse(localStorage.getItem("demo_deleted_coding_problem_ids") || "[]");
-      const filteredDeleted = deletedIds.filter((id: string) => id !== customProblemData.id);
-      localStorage.setItem("demo_deleted_coding_problem_ids", JSON.stringify(filteredDeleted));
+      await adminService.importExternalProblem(customProblemData as any);
 
       toast.success(`"${customTitle}" successfully created and published to students!`);
       setShowCreateModal(false);

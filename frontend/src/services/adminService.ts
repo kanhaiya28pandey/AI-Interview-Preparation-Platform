@@ -186,12 +186,19 @@ export const adminService = {
         p.title.toLowerCase() === request.title?.toLowerCase()
     );
 
-    let demoSaved: any;
+    const isSql =
+      request.category?.toLowerCase().includes("sql") ||
+      request.category?.toLowerCase().includes("database") ||
+      request.category?.toLowerCase().includes("dbms") ||
+      (request as any).type === "SQL";
+
+    let payload: any;
 
     if (richMatch) {
-      demoSaved = {
+      payload = {
         ...richMatch,
-        id: richMatch.id || request.slug,
+        source: request.source || richMatch.source,
+        slug: richMatch.slug || request.slug,
         title: richMatch.title,
         problemNumber: richMatch.problemNumber,
         category: richMatch.category,
@@ -212,39 +219,56 @@ export const adminService = {
         tags: richMatch.tags,
       };
     } else {
-      try {
-        const res = await api.post("/api/v1/admin/coding-import/import", request);
-        if (res.data && res.data.title) {
-          demoSaved = res.data;
-        }
-      } catch (e) {
-        // Backend import endpoint unavailable, registering locally
+      // External problem not in pre-baked catalog:
+      // Send raw request to backend API so backend fetches real details from LeetCode / API / enriched catalog
+      payload = {
+        source: request.source || "LEETCODE",
+        slug: request.slug || `prob-${Date.now()}`,
+        title: request.title || "External Problem",
+        difficulty: request.difficulty || "Medium",
+        category: request.category || (isSql ? "Database & SQL" : "Algorithms"),
+        topicTags: request.topicTags || request.tags || [],
+        tags: request.topicTags || request.tags || [],
+        ...(request.description ? { description: request.description } : {}),
+      };
+    }
+
+    let demoSaved: any = null;
+
+    // Send payload to backend API (fetches real LeetCode/API details and stores to MongoDB)
+    try {
+      const res = await api.post("/api/v1/admin/coding-import/import", payload);
+      if (res.data && res.data.title) {
+        demoSaved = res.data;
       }
+    } catch (e) {
+      console.warn("Backend import endpoint notice (saved locally):", e);
+    }
 
-      if (!demoSaved) {
-        const isSql =
-          request.category?.toLowerCase().includes("sql") ||
-          request.category?.toLowerCase().includes("database") ||
-          request.category?.toLowerCase().includes("dbms");
-
+    if (!demoSaved) {
+      if (richMatch) {
+        demoSaved = payload;
+      } else {
         demoSaved = {
           id: request.slug || `prob-${Date.now()}`,
-          title: request.title || "Custom Problem",
+          slug: request.slug || `prob-${Date.now()}`,
+          title: request.title || "Coding Challenge",
+          source: request.source || "CUSTOM",
           difficulty: request.difficulty || "Medium",
           category: request.category || (isSql ? "Database & SQL" : "Algorithms"),
-          acceptance: "72%",
-          description: request.description || `Problem statement for ${request.title}.`,
-          inputFormat: "Standard inputs",
-          outputFormat: "Standard output format",
-          constraints: ["1 <= N <= 10^5", "Expected Time: O(N)"],
-          examples: [{ input: "Sample input", output: "Sample output", explanation: "Sample case." }],
-          hints: ["Break down the problem into smaller subproblems.", "Consider optimal space and time complexities."],
-          testCases: [{ id: 1, inputStr: "Sample input", expectedStr: "Sample output", params: [1], expectedVal: "Sample output" }],
+          acceptance: "74%",
+          description: `Solve ${request.title}. Implement an optimal solution meeting time and memory complexity limits.`,
+          inputFormat: isSql ? "Database Table Schema" : "Standard input stream / function parameters",
+          outputFormat: isSql ? "Result SQL Table" : "Expected returned output value",
+          constraints: ["1 <= input length <= 10^5", "Expected Time Complexity: O(N)"],
+          examples: [{ input: "Standard input parameters", output: "Computed result", explanation: "Validation testcase." }],
+          hints: ["Consider edge cases and optimal time complexity."],
+          testCases: [{ id: 1, inputStr: "1", expectedStr: "1", params: [1], expectedVal: 1 }],
           starterCode: isSql
             ? {
-                mysql: "-- Write your MySQL query below\nSELECT \nFROM \n",
-                postgresql: "-- Write your PostgreSQL query below\nSELECT \nFROM \n",
-                sql: "-- Write your standard SQL query below\nSELECT \nFROM \n",
+                mysql: "-- Write your MySQL query below\nSELECT \nFROM ;\n",
+                postgresql: "-- Write your PostgreSQL query below\nSELECT \nFROM ;\n",
+                sql: "-- Write your standard SQL query below\nSELECT \nFROM ;\n",
               }
             : {
                 javascript: `function solve(input) {\n  // Write your solution below\n  \n}`,
@@ -253,7 +277,7 @@ export const adminService = {
                 cpp: `int solve(int input) {\n    // Write your solution below\n    return 0;\n}`,
                 c: `#include <stdio.h>\nint solve(int input) {\n    // Write your solution below\n    return 0;\n}`,
               },
-          fnName: "solve",
+          fnName: (request as any).fnName || "solve",
           xpReward: request.difficulty === "Hard" ? 200 : request.difficulty === "Medium" ? 100 : 50,
           type: isSql ? "SQL" : "CODING",
           tags: request.topicTags || request.tags || [],
@@ -261,9 +285,10 @@ export const adminService = {
       }
     }
 
+    // Persist in localStorage for instant student arena access
     try {
       const stored = JSON.parse(localStorage.getItem("demo_imported_coding_problems") || "[]");
-      const existingIdx = stored.findIndex((p: any) => p.id === demoSaved.id);
+      const existingIdx = stored.findIndex((p: any) => p.id === demoSaved.id || p.id === demoSaved.slug);
       if (existingIdx >= 0) {
         stored[existingIdx] = demoSaved;
       } else {
@@ -272,7 +297,7 @@ export const adminService = {
       localStorage.setItem("demo_imported_coding_problems", JSON.stringify(stored));
 
       const deletedIds = JSON.parse(localStorage.getItem("demo_deleted_coding_problem_ids") || "[]");
-      const filteredDeleted = deletedIds.filter((id: string) => id !== demoSaved.id);
+      const filteredDeleted = deletedIds.filter((id: string) => id !== demoSaved.id && id !== demoSaved.slug);
       localStorage.setItem("demo_deleted_coding_problem_ids", JSON.stringify(filteredDeleted));
     } catch {}
 

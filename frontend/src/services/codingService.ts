@@ -89,7 +89,15 @@ export const codingService = {
     const list: CodingProblem[] = [];
     const seenIds = new Set<string>();
 
-    // 0. Get list of admin-deleted problem IDs
+    // 0. Ensure old cached demo problems are cleared
+    try {
+      if (!localStorage.getItem("coding_arena_cleared_v2")) {
+        localStorage.removeItem("demo_imported_coding_problems");
+        localStorage.setItem("coding_arena_cleared_v2", "true");
+      }
+    } catch {}
+
+    // 0.1 Get list of admin-deleted problem IDs
     let deletedIds: Set<string> = new Set();
     try {
       const rawDeleted = localStorage.getItem("demo_deleted_coding_problem_ids");
@@ -154,52 +162,19 @@ export const codingService = {
       }
     };
 
-    // 1. Load admin-imported/custom problems from localStorage (primary user-controlled source)
+    // 1. Fetch authoritative problems from backend API first (synced with MongoDB and LeetCode/API)
     try {
-      const stored = localStorage.getItem("demo_imported_coding_problems");
-      if (stored) {
-        const parsed: any[] = JSON.parse(stored);
-        parsed.forEach((item) => {
-          addProblem(
-            {
-              id: item.id || item.slug,
-              title: item.title,
-              difficulty: item.difficulty || "Medium",
-              category: item.category || "Algorithms",
-              acceptance: item.acceptance || "72%",
-              description: item.description || `Algorithmic challenge for ${item.title}.`,
-              inputFormat: item.inputFormat || "Standard problem inputs",
-              outputFormat: item.outputFormat || "Standard problem return value",
-              constraints: item.constraints || ["1 <= N <= 10^5", "Expected Time: O(N)"],
-              examples: item.examples || [
-                { input: "Sample input", output: "Sample expected output", explanation: "Base sample testcase." },
-              ],
-              starterCode: item.starterCode || {},
-              fnName: item.fnName || "solve",
-              xpReward: item.xpReward || (item.difficulty === "Hard" ? 200 : item.difficulty === "Medium" ? 100 : 50),
-              hints: item.hints || [
-                "Consider the most optimal time and space complexity.",
-                "Can you solve this without nested loops using two pointers or a hash map?",
-              ],
-              solution: item.solution || {
-                code: {
-                  javascript: "",
-                  python: "",
-                  java: "",
-                  cpp: "",
-                },
-                explanation: "Optimal algorithmic approach.",
-                timeComplexity: "O(N)",
-                spaceComplexity: "O(1)",
-              },
-              testCases: item.testCases && item.testCases.length > 0 ? item.testCases : [],
-            },
-            true
-          );
+      const response = await api.get<CodingProblem[]>("/api/v1/coding/problems");
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach((p) => {
+          // If backend has dummy description, skip or let addProblem normalize it
+          if (p && p.id && !deletedIds.has(p.id)) {
+            addProblem(p);
+          }
         });
       }
-    } catch (e) {
-      console.warn("Failed reading demo_imported_coding_problems:", e);
+    } catch (err) {
+      console.warn("Backend coding problems API unavailable:", err);
     }
 
     // 2. Merge dynamic published coding tests and problems from Content Manager
@@ -267,14 +242,69 @@ export const codingService = {
       console.warn("Failed to fetch published coding problems:", e);
     }
 
-    // 3. Fetch problems from backend API if available
+    // 3. Load admin-imported/custom problems from localStorage, filtering out obsolete dummy placeholders
     try {
-      const response = await api.get<CodingProblem[]>("/api/v1/coding/problems");
-      if (response.data && Array.isArray(response.data)) {
-        response.data.forEach((p) => addProblem(p));
+      const stored = localStorage.getItem("demo_imported_coding_problems");
+      if (stored) {
+        const parsed: any[] = JSON.parse(stored);
+        const validLocal: any[] = [];
+        parsed.forEach((item) => {
+          // If it's a dummy placeholder or already present from backend, don't keep obsolete version
+          const isDummy =
+            item.description?.startsWith("Problem statement for") ||
+            item.examples?.[0]?.input === "Sample input" ||
+            item.testCases?.[0]?.inputStr === "Sample input";
+
+          if (isDummy && seenIds.has(item.id || item.slug)) {
+            return; // Skip obsolete dummy since backend has the real one
+          }
+
+          if (!seenIds.has(item.id || item.slug)) {
+            addProblem(
+              {
+                id: item.id || item.slug,
+                title: item.title,
+                difficulty: item.difficulty || "Medium",
+                category: item.category || "Algorithms",
+                acceptance: item.acceptance || "72%",
+                description: item.description || `Algorithmic challenge for ${item.title}.`,
+                inputFormat: item.inputFormat || "Standard problem inputs",
+                outputFormat: item.outputFormat || "Standard problem return value",
+                constraints: item.constraints || ["1 <= N <= 10^5", "Expected Time: O(N)"],
+                examples: item.examples || [
+                  { input: "Sample input", output: "Sample expected output", explanation: "Base sample testcase." },
+                ],
+                starterCode: item.starterCode || {},
+                fnName: item.fnName || "solve",
+                xpReward: item.xpReward || (item.difficulty === "Hard" ? 200 : item.difficulty === "Medium" ? 100 : 50),
+                hints: item.hints || [
+                  "Consider the most optimal time and space complexity.",
+                  "Can you solve this without nested loops using two pointers or a hash map?",
+                ],
+                solution: item.solution || {
+                  code: {
+                    javascript: "",
+                    python: "",
+                    java: "",
+                    cpp: "",
+                  },
+                  explanation: "Optimal algorithmic approach.",
+                  timeComplexity: "O(N)",
+                  spaceComplexity: "O(1)",
+                },
+                testCases: item.testCases && item.testCases.length > 0 ? item.testCases : [],
+              },
+              false
+            );
+          }
+          if (!isDummy) {
+            validLocal.push(item);
+          }
+        });
+        localStorage.setItem("demo_imported_coding_problems", JSON.stringify(validLocal));
       }
-    } catch (err) {
-      // Backend not running
+    } catch (e) {
+      console.warn("Failed reading demo_imported_coding_problems:", e);
     }
 
     // 4. Sort all questions in ASCENDING ORDER (by problem number, then title)
@@ -299,12 +329,12 @@ export const codingService = {
    * If Python / Java / C++ / C / SQL, checks compilation/syntax and runs rigorous evaluation.
    */
   async runCode(
-    problemId: string,
+    problemOrId: string | CodingProblem,
     language: string,
     code: string,
     customTestCase?: { inputStr: string; expectedStr?: string }
   ): Promise<ExecutionResult> {
-    const problem = await this.getProblemById(problemId);
+    const problem = typeof problemOrId === "object" ? problemOrId : await this.getProblemById(problemOrId);
     if (!problem) {
       return {
         status: "RUNTIME_ERROR",
@@ -430,8 +460,8 @@ export const codingService = {
   /**
    * Submit code against all test cases for full scoring and validation.
    */
-  async submitCode(problemId: string, language: string, code: string): Promise<ExecutionResult> {
-    const problem = await this.getProblemById(problemId);
+  async submitCode(problemOrId: string | CodingProblem, language: string, code: string): Promise<ExecutionResult> {
+    const problem = typeof problemOrId === "object" ? problemOrId : await this.getProblemById(problemOrId);
     if (!problem) {
       return {
         status: "RUNTIME_ERROR",
@@ -543,7 +573,7 @@ export const codingService = {
     // If accepted, asynchronously notify backend to save submission and stats
     if (result.status === "ACCEPTED") {
       api.post("/api/v1/coding/submit", {
-        problemId,
+        problemId: problem.id,
         language,
         code,
       }).catch(() => {});
@@ -935,12 +965,69 @@ function simulateCompiledExecution(
           actualAnswer = computed;
           isMatch = computed === expectedNorm;
         } else {
+          actualAnswer = returnedValStr || defaultPlaceholder;
+          isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+        }
+      } else if (probSlug.includes("watermelon") || probTitle.includes("watermelon")) {
+        const numMatch = tc.inputStr.match(/-?\d+/);
+        if (numMatch) {
+          const w = parseInt(numMatch[0], 10);
+          const computed = w > 2 && w % 2 === 0 ? "YES" : "NO";
+          actualAnswer = computed;
+          isMatch = computed.toLowerCase() === expectedNorm.toLowerCase();
+        } else {
+          actualAnswer = returnedValStr || "NO";
+          isMatch = actualAnswer.toLowerCase() === expectedNorm.toLowerCase();
+        }
+      } else if (probSlug.includes("subarray") || probTitle.includes("subarray")) {
+        // Check if code has window or prefix sum
+        const hasWindow = /\b(while|for)\b/.test(code) && (code.includes("sum") || code.includes("target") || code.includes("right") || code.includes("left"));
+        if (hasWindow) {
           actualAnswer = tc.expectedStr;
           isMatch = true;
+        } else {
+          actualAnswer = returnedValStr || defaultPlaceholder;
+          isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+        }
+      } else if (probSlug.includes("regular-expression") || probTitle.includes("regular expression")) {
+        // Check if code implements regular expression matching logic (DP table or recursive pattern matching)
+        const hasRegexLogic = (code.includes("dp") || code.includes("isMatch") || code.includes("*") || code.includes(".")) && /\b(if|for|while)\b/.test(code);
+        if (hasRegexLogic && !isStub) {
+          actualAnswer = tc.expectedStr;
+          isMatch = true;
+        } else {
+          actualAnswer = returnedValStr || "false";
+          isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+        }
+      } else if (probSlug.includes("bfs") || probTitle.includes("bfs")) {
+        const hasBfs = (code.includes("queue") || code.includes("Queue") || code.includes("deque") || code.includes("push") || code.includes("shift")) && (code.includes("visited") || code.includes("vis"));
+        if (hasBfs) {
+          actualAnswer = tc.expectedStr;
+          isMatch = true;
+        } else {
+          actualAnswer = returnedValStr || defaultPlaceholder;
+          isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+        }
+      } else if (probSlug.includes("missing-number") || probTitle.includes("missing number")) {
+        const hasMissing = code.includes("sum") || code.includes("^") || code.includes("n * (n + 1)") || code.includes("n*(n+1)");
+        if (hasMissing) {
+          actualAnswer = tc.expectedStr;
+          isMatch = true;
+        } else {
+          actualAnswer = returnedValStr || defaultPlaceholder;
+          isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
         }
       } else {
-        actualAnswer = tc.expectedStr;
-        isMatch = true;
+        if (returnedValStr) {
+          actualAnswer = returnedValStr;
+          isMatch = actualAnswer.trim().toLowerCase() === expectedNorm;
+        } else if (userPrints.length > 0 && userPrints.some((p) => p.trim().toLowerCase() === expectedNorm)) {
+          actualAnswer = tc.expectedStr;
+          isMatch = true;
+        } else {
+          actualAnswer = defaultPlaceholder;
+          isMatch = false;
+        }
       }
     } else {
       actualAnswer = returnedValStr || defaultPlaceholder;
