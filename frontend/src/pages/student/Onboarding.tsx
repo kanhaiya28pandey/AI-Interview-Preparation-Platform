@@ -477,7 +477,7 @@ export const Onboarding: React.FC = () => {
 
                   <Input
                     label="Preferred Name / Nickname"
-                    placeholder="e.g. Kanhaiya"
+                    placeholder="e.g. Alex"
                     value={profile.preferredName || ""}
                     onChange={(e) => setProfile({ ...profile, preferredName: e.target.value })}
                   />
