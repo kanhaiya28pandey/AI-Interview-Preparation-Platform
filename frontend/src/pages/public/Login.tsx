@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Callout } from "@/components/common/Callout";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowRight, ShieldCheck, UserCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { checkBackendHealth } from "@/lib/api";
 import { getEffectiveApiBaseUrl } from "@/lib/apiError";
 
 export const Login: React.FC = () => {
-  const { login, loginDemoStudent, loginDemoAdmin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/dashboard";
@@ -91,16 +91,6 @@ export const Login: React.FC = () => {
       setServerError(msg);
       setIsSubmitting(false);
     }
-  };
-
-  const handleDemoStudent = () => {
-    loginDemoStudent();
-    navigate("/dashboard", { replace: true });
-  };
-
-  const handleDemoAdmin = () => {
-    loginDemoAdmin();
-    navigate("/admin", { replace: true });
   };
 
   return (
@@ -217,29 +207,6 @@ export const Login: React.FC = () => {
                 <span>Backend not reachable at {effectiveApiUrl}</span>
               </div>
             )}
-
-            {/* Offline / Demo Logins */}
-            <div className="pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-text-muted">
-              <span>Try without backend:</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleDemoStudent}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface border border-border hover:border-text-secondary text-text-secondary hover:text-text-primary font-mono transition-colors"
-                >
-                  <UserCheck className="w-3 h-3 text-cyan-400" />
-                  <span>Demo Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDemoAdmin}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface border border-border hover:border-text-secondary text-text-secondary hover:text-text-primary font-mono transition-colors"
-                >
-                  <ShieldCheck className="w-3 h-3 text-purple-400" />
-                  <span>Demo Admin</span>
-                </button>
-              </div>
-            </div>
           </form>
         )}
 

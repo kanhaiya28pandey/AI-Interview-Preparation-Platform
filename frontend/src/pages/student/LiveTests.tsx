@@ -675,11 +675,11 @@ export const LiveTests: React.FC = () => {
               {liveTests.map((contest) => (
                 <Card
                   key={contest.id}
-                  className="p-6 bg-surface border border-rose-500/40 hover:border-rose-500/80 transition-all duration-200 flex flex-col justify-between space-y-5 relative overflow-hidden shadow-soft"
+                  className="p-6 bg-surface border border-rose-500/40 hover:border-rose-500/80 transition-all duration-200 flex flex-col justify-between space-y-5 relative overflow-hidden shadow-soft min-w-0"
                 >
                   <div className="absolute top-0 right-0 w-44 h-44 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
-                  <div className="space-y-4 relative z-10">
+                  <div className="space-y-4 relative z-10 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -729,8 +729,13 @@ export const LiveTests: React.FC = () => {
 
                     {/* Live Broadcast Notice */}
                     {contest.broadcasts?.length > 0 && (
-                      <Callout variant="info" icon={Sparkles} title="Admin Alert:">
-                        <span className="truncate">{contest.broadcasts[0].message}</span>
+                      <Callout
+                        variant="info"
+                        icon={Sparkles}
+                        title="Admin Alert:"
+                        className="w-full max-w-full"
+                      >
+                        <p className="whitespace-normal break-words [overflow-wrap:anywhere]">{contest.broadcasts[0].message}</p>
                       </Callout>
                     )}
                   </div>
