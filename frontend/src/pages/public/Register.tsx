@@ -818,7 +818,7 @@ export const Register: React.FC = () => {
                       <Input
                         label="Password (min 8 chars)"
                         type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        placeholder="Create strong password"
                         error={step1Errors.password?.message}
                         {...regStep1("password")}
                       />
@@ -847,7 +847,7 @@ export const Register: React.FC = () => {
                       <Input
                         label="Confirm Password"
                         type={showConfirmPassword ? "text" : "password"}
-                        placeholder="••••••••"
+                        placeholder="Re-enter your password"
                         error={step1Errors.confirmPassword?.message}
                         {...regStep1("confirmPassword")}
                       />
@@ -882,7 +882,7 @@ export const Register: React.FC = () => {
                   <Input
                     label="Mobile Phone Number"
                     type="tel"
-                    placeholder="+91 9876543210"
+                    placeholder="+91 98123 45678"
                     error={step1Errors.phone?.message}
                     {...regStep1("phone")}
                   />
