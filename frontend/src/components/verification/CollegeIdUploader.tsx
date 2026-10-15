@@ -246,7 +246,7 @@ export const CollegeIdUploader: React.FC<CollegeIdUploaderProps> = ({
               setNameOnId(e.target.value);
               notifyChange({ nameOnId: e.target.value });
             }}
-            placeholder="e.g. Kanhaiya Pandey"
+            placeholder="e.g. Alex Morgan"
             required
           />
 

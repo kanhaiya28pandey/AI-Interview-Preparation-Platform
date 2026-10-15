@@ -154,7 +154,7 @@ export const Register: React.FC = () => {
         const existingEmail = INITIAL_MOCK_VERIFICATIONS.find(
           (v) => v.email.toLowerCase() === trimmedEmail
         );
-        if (existingEmail || trimmedEmail === "student@srmist.edu.in") {
+        if (existingEmail) {
           setDuplicateWarning(
             `An account with email "${emailVal}" already exists in the system. Did you mean to log in?`
           );
@@ -789,7 +789,7 @@ export const Register: React.FC = () => {
                   <Input
                     label="Full Name"
                     type="text"
-                    placeholder="e.g. Kanhaiya Pandey"
+                    placeholder="e.g. Alex Morgan"
                     error={step1Errors.name?.message}
                     {...regStep1("name")}
                   />
@@ -798,7 +798,7 @@ export const Register: React.FC = () => {
                     <Input
                       label="College Email Address"
                       type="email"
-                      placeholder="student@srmist.edu.in"
+                      placeholder="student@university.edu"
                       error={step1Errors.email?.message}
                       {...regStep1("email")}
                     />
@@ -913,7 +913,7 @@ export const Register: React.FC = () => {
                   <Input
                     label="City"
                     type="text"
-                    placeholder="Chennai"
+                    placeholder="e.g. Bangalore"
                     error={step1Errors.city?.message}
                     {...regStep1("city")}
                   />
@@ -921,7 +921,7 @@ export const Register: React.FC = () => {
                   <Input
                     label="State"
                     type="text"
-                    placeholder="Tamil Nadu"
+                    placeholder="e.g. Karnataka"
                     error={step1Errors.state?.message}
                     {...regStep1("state")}
                   />
@@ -947,7 +947,7 @@ export const Register: React.FC = () => {
                   <Input
                     label="College / Institution Name"
                     type="text"
-                    placeholder="e.g. SRM Institute of Science and Technology"
+                    placeholder="e.g. National Institute of Technology"
                     error={step2Errors.collegeName?.message}
                     {...regStep2("collegeName")}
                   />
@@ -1005,7 +1005,7 @@ export const Register: React.FC = () => {
                   <Input
                     label="Student Roll / Reg Number"
                     type="text"
-                    placeholder="e.g. RA2111003010452"
+                    placeholder="e.g. CS2026-0042"
                     error={step2Errors.rollNumber?.message}
                     {...regStep2("rollNumber")}
                   />
