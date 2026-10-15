@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,6 +46,15 @@ public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
 
+    @Value("${admin.email:ananya.admin@aiinterviewprep.com}")
+    private String adminEmail;
+
+    @Value("${admin.password:admin123}")
+    private String adminPassword;
+
+    @Value("${admin.name:Administrator}")
+    private String adminName;
+
     @Bean
     CommandLineRunner initializeDatabase(
             MongoDatabaseFactory mongoDatabaseFactory,
@@ -67,20 +77,19 @@ public class DatabaseInitializer {
                 String databaseName = mongoDatabaseFactory.getMongoDatabase().getName();
                 log.info("Successfully connected to MongoDB Database: [{}]", databaseName);
 
-                // 1. Seed Demo Admin if not present
-                String adminEmail = "ananya.admin@aiinterviewprep.com";
+                // 1. Seed or Update Single Global Admin Account (guaranteed unique admin)
                 User admin = userRepository.findByEmail(adminEmail).orElse(null);
                 if (admin == null) {
                     admin = new User();
-                    admin.setName("Ananya Sharma");
                     admin.setEmail(adminEmail);
-                    admin.setPassword(passwordEncoder.encode("admin123"));
-                    admin.setRole("ADMIN");
-                    admin.setVerificationStatus("Verified");
-                    admin.setBlocked(false);
-                    admin = userRepository.save(admin);
-                    log.info("Default Admin account seeded: {}", adminEmail);
                 }
+                admin.setName(adminName);
+                admin.setPassword(passwordEncoder.encode(adminPassword));
+                admin.setRole("ADMIN");
+                admin.setVerificationStatus("Verified");
+                admin.setBlocked(false);
+                userRepository.save(admin);
+                log.info("Single Global Admin account active: {}", adminEmail);
 
                 // 2. Seed Demo Student if not present
                 String studentEmail = "kanhaiya.student@srmist.edu.in";
