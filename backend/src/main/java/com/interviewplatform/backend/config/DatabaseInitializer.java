@@ -46,10 +46,10 @@ public class DatabaseInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
 
-    @Value("${admin.email:ananya.admin@aiinterviewprep.com}")
+    @Value("${admin.email:admin@srmist.edu.in}")
     private String adminEmail;
 
-    @Value("${admin.password:admin123}")
+    @Value("${admin.password:}")
     private String adminPassword;
 
     @Value("${admin.name:Administrator}")
@@ -82,14 +82,28 @@ public class DatabaseInitializer {
                 if (admin == null) {
                     admin = new User();
                     admin.setEmail(adminEmail);
+                    admin.setName(adminName);
+                    admin.setRole("ADMIN");
+                    admin.setVerificationStatus("Verified");
+                    admin.setBlocked(false);
+                    if (adminPassword != null && !adminPassword.isBlank()) {
+                        admin.setPassword(passwordEncoder.encode(adminPassword));
+                    } else {
+                        admin.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+                    }
+                    userRepository.save(admin);
+                    log.info("Single Global Admin account initialized: {}", adminEmail);
+                } else {
+                    // Update password if specified in secure environment variable
+                    if (adminPassword != null && !adminPassword.isBlank()) {
+                        admin.setPassword(passwordEncoder.encode(adminPassword));
+                    }
+                    admin.setRole("ADMIN");
+                    admin.setVerificationStatus("Verified");
+                    admin.setBlocked(false);
+                    userRepository.save(admin);
+                    log.info("Single Global Admin account active: {}", adminEmail);
                 }
-                admin.setName(adminName);
-                admin.setPassword(passwordEncoder.encode(adminPassword));
-                admin.setRole("ADMIN");
-                admin.setVerificationStatus("Verified");
-                admin.setBlocked(false);
-                userRepository.save(admin);
-                log.info("Single Global Admin account active: {}", adminEmail);
 
                 // 2. Seed Demo Student if not present
                 String studentEmail = "kanhaiya.student@srmist.edu.in";
