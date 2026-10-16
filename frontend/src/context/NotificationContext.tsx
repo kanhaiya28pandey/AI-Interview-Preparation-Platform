@@ -29,48 +29,52 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
-    const isAdminUser = isAdmin();
-    const list = await notificationService.list(user.userId, isAdminUser);
-    setNotifications(list);
+    try {
+      const isAdminUser = isAdmin();
+      const list = await notificationService.list(user.userId, isAdminUser);
+      setNotifications(list);
 
-    if (!initialLoadDoneRef.current) {
-      // Seed initial known IDs so we don't trigger toasts for historical notifications on page load
-      list.forEach((n) => knownIdsRef.current.add(n.id));
-      initialLoadDoneRef.current = true;
-      return;
-    }
-
-    // Check for newly arrived unread notifications
-    list.forEach((n) => {
-      if (!knownIdsRef.current.has(n.id)) {
-        knownIdsRef.current.add(n.id);
-
-        if (!n.read) {
-          const toastFn =
-            n.priority === "success"
-              ? toast.success
-              : n.priority === "warning"
-              ? toast.warning
-              : n.priority === "danger"
-              ? toast.error
-              : toast.info;
-
-          toastFn(n.title, {
-            description: n.message,
-            duration: 6000,
-            action: n.link
-              ? {
-                  label: "View",
-                  onClick: () => {
-                    notificationService.markRead(user.userId, n.id);
-                    navigate(n.link!);
-                  },
-                }
-              : undefined,
-          });
-        }
+      if (!initialLoadDoneRef.current) {
+        // Seed initial known IDs so we don't trigger toasts for historical notifications on page load
+        list.forEach((n) => knownIdsRef.current.add(n.id));
+        initialLoadDoneRef.current = true;
+        return;
       }
-    });
+
+      // Check for newly arrived unread notifications
+      list.forEach((n) => {
+        if (!knownIdsRef.current.has(n.id)) {
+          knownIdsRef.current.add(n.id);
+
+          if (!n.read) {
+            const toastFn =
+              n.priority === "success"
+                ? toast.success
+                : n.priority === "warning"
+                ? toast.warning
+                : n.priority === "danger"
+                ? toast.error
+                : toast.info;
+
+            toastFn(n.title, {
+              description: n.message,
+              duration: 6000,
+              action: n.link
+                ? {
+                    label: "View",
+                    onClick: () => {
+                      notificationService.markRead(user.userId, n.id);
+                      navigate(n.link!);
+                    },
+                  }
+                : undefined,
+            });
+          }
+        }
+      });
+    } catch (err) {
+      console.warn("Background notification fetch failed gracefully:", err);
+    }
   }, [user?.userId, isAdmin, navigate]);
 
   useEffect(() => {

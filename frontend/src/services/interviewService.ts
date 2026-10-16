@@ -10,7 +10,11 @@ import {
 } from "@/mocks/interviewData";
 import { contentManagerService } from "./contentManagerService";
 
-const AI_URL = import.meta.env.VITE_AI_SERVICE_URL || "http://127.0.0.1:8000";
+const AI_URL =
+  import.meta.env.VITE_AI_SERVICE_URL ||
+  (import.meta.env.PROD
+    ? "https://ai-interview-servise-oz91.onrender.com"
+    : "http://127.0.0.1:8000");
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 

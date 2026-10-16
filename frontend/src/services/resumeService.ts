@@ -26,7 +26,11 @@ export const resumeService = {
     jobDescription?: string,
     userId?: string | null
   ): Promise<ResumeAnalysisResult> {
-    const AI_URL = import.meta.env.VITE_AI_SERVICE_URL || "http://127.0.0.1:8000";
+    const AI_URL =
+      import.meta.env.VITE_AI_SERVICE_URL ||
+      (import.meta.env.PROD
+        ? "https://ai-interview-servise-oz91.onrender.com"
+        : "http://127.0.0.1:8000");
     const activeUserId = userId !== undefined ? userId : getCurrentUserId();
     const isDemo = isDemoUserCheck(activeUserId);
 

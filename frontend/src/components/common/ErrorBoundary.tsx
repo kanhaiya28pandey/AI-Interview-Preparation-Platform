@@ -160,20 +160,40 @@ export const ErrorBoundary: React.FC<Omit<Props, "resetKey">> = (props) => {
 export function setupGlobalErrorListeners() {
   if (typeof window === "undefined") return;
 
+  const isBenignError = (msg: string = "") => {
+    const lower = msg.toLowerCase();
+    return (
+      !msg ||
+      lower.includes("resizeobserver") ||
+      lower.includes("canceled") ||
+      lower.includes("abort") ||
+      lower.includes("monaco") ||
+      lower.includes("worker") ||
+      lower.includes("chrome-extension") ||
+      lower.includes("asynchronous operation failed")
+    );
+  };
+
   const handleWindowError = (event: ErrorEvent) => {
-    console.error("Global window.onerror:", event.error || event.message);
-    toast.error("A system error occurred: " + (event.message || "Unknown error"));
+    const msg = event.message || event.error?.message || "";
+    if (isBenignError(msg)) return;
+    console.warn("Global window.onerror:", msg, event.error);
   };
 
   const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-    console.error("Global unhandledrejection:", event.reason);
     const reasonMsg =
       event.reason instanceof Error
         ? event.reason.message
         : typeof event.reason === "string"
         ? event.reason
-        : "An asynchronous operation failed.";
-    toast.error("Background request error: " + reasonMsg);
+        : (event.reason as any)?.message || "";
+
+    if (isBenignError(reasonMsg)) {
+      console.warn("Benign background rejection suppressed:", event.reason);
+      return;
+    }
+
+    console.warn("Global unhandledrejection:", event.reason);
   };
 
   window.addEventListener("error", handleWindowError);
